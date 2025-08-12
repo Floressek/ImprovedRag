@@ -1,0 +1,99 @@
+# Dystrybucja / pakowanie
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Środowiska wirtualne
+env/
+venv/
+ENV/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# Unit testy / pokrycie kodu
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Pliki danych i modeli (typowe dla ML)
+data/
+*.csv
+*.dat
+*.pkl
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.onnx
+*.tfrecord
+*.pb
+models/
+checkpoints/
+
+# Logi i pliki tymczasowe
+*.log
+logs/
+tmp/
+temp/
+
+# Pliki środowiskowe
+.secrets
+
+# Pliki IDE i edytorów
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Pliki specyficzne dla MLflow
+mlruns/
+mlflow.db
+
+# Pliki konfiguracyjne
+config/*.local.yml
+*.local.json
+
+# Pliki DVC
+.dvc/
+.dvcignore
+
+# Pliki bytecode Pythona
+__pycache__/
+*.py[cod]
+*$py.class
+.idea
+/.idea
+idea/
