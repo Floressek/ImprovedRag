@@ -1,59 +1,52 @@
-# Byte-compiled / optimized / DLL files
+# ---- Python ----
 __pycache__/
 *.py[cod]
-*$py.class
-
-# C extensions
+*.pyo
+*.pyd
 *.so
-
-# Distribution / packaging
-.Python
+.build/
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
 *.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
+.eggs/
 .venv/
 venv/
-ENV/
 .env
+.env.*
+!.env.example
 
-# PyCharm / IntelliJ
-.idea/
-*.iml
+# ---- Tools & caches ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+coverage.xml
+htmlcov/
+.cache/
+.dmypy.json
+pytestdebug.log
 
-# VSCode
+# ---- Editors ----
 .vscode/
+.idea/
+*.swp
+.DS_Store
 
-# Logs
+# ---- Project data ----
+data/raw/
+data/processed/
+data/index/
+!data/.gitkeep
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/index/.gitkeep
 logs/
 *.log
 
-# OS files
-.DS_Store
-Thumbs.db
+# ---- Models / checkpoints (local only) ----
+models/
+checkpoints/
 
-# Data artifacts
-/data/indices/
-/data/evaluation/
-/data/raw/
-
-# Caches
-.cache/
-
-# Python tooling
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
+# ---- Docker ----
+*.pid
+docker/*.local
