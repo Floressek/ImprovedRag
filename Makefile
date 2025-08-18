@@ -1,14 +1,52 @@
-# Makefile shortcuts (placeholder)
-.PHONY: ingest index api test
+PY=python
+PIP=pip
+
+.PHONY: install install-dev pre-commit fmt lint type test ingest index api eval up down ci-clean
+
+install:
+	$(PIP) install -e .
+
+install-dev:
+	$(PIP) install -e ".[dev]"
+	pre-commit install
+
+pre-commit:
+	pre-commit run --all-files
+
+fmt:
+	ruff check --fix .
+	ruff format .
+	black .
+	isort .
+
+lint:
+	ruff check .
+	black --check .
+	isort --check-only .
+
+type:
+	mypy src/ragx
+
+test:
+	pytest -q
 
 ingest:
-	python scripts\ingest_wiki.py
+	$(PY) scripts/ingest_wiki.py --config configs/models.yaml
 
 index:
-	python scripts\build_index.py
+	$(PY) scripts/build_index.py --config configs/models.yaml
 
 api:
-	python scripts\serve_api.py
+	uvicorn ragx.api.main:app --host 0.0.0.0 --port 8000 --reload
 
- test:
-	python -m pytest -q
+eval:
+	$(PY) scripts/run_eval.py --config configs/eval.yaml
+
+up:
+	docker compose up -d --build
+
+down:
+	docker compose down
+
+ci-clean:
+	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov coverage.xml
