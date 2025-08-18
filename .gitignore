@@ -1,4 +1,12 @@
-# Dystrybucja / pakowanie
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -11,89 +19,41 @@ lib64/
 parts/
 sdist/
 var/
-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
-# Środowiska wirtualne
-env/
+# Virtual environments
+.venv/
 venv/
 ENV/
 .env
-.venv
-env.bak/
-venv.bak/
 
-# Unit testy / pokrycie kodu
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Pliki danych i modeli (typowe dla ML)
-data/
-*.csv
-*.dat
-*.pkl
-*.h5
-*.hdf5
-*.pt
-*.pth
-*.onnx
-*.tfrecord
-*.pb
-models/
-checkpoints/
-
-# Logi i pliki tymczasowe
-*.log
-logs/
-tmp/
-temp/
-
-# Pliki środowiskowe
-.secrets
-
-# Pliki IDE i edytorów
+# PyCharm / IntelliJ
 .idea/
+*.iml
+
+# VSCode
 .vscode/
-*.swp
-*.swo
+
+# Logs
+logs/
+*.log
+
+# OS files
 .DS_Store
-.project
-.classpath
-.settings/
-*.sublime-workspace
-*.sublime-project
+Thumbs.db
 
-# Pliki specyficzne dla MLflow
-mlruns/
-mlflow.db
+# Data artifacts
+/data/indices/
+/data/evaluation/
+/data/raw/
 
-# Pliki konfiguracyjne
-config/*.local.yml
-*.local.json
+# Caches
+.cache/
 
-# Pliki DVC
-.dvc/
-.dvcignore
-
-# Pliki bytecode Pythona
-__pycache__/
-*.py[cod]
-*$py.class
-.idea
-/.idea
-idea/
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/

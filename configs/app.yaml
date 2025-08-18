@@ -1,0 +1,8 @@
+# App settings, logging, features (placeholder)
+app:
+  name: ragx
+  env: development
+logging:
+  level: INFO
+features:
+  corag: false

@@ -1,0 +1,10 @@
+# Evaluation config (placeholder)
+datasets:
+  - name: tinyqa
+    path: data/evaluation/tinyqa.jsonl
+metrics:
+  em: true
+  f1: true
+thresholds:
+  em: 0.5
+  f1: 0.6

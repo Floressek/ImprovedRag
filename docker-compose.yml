@@ -1,0 +1,11 @@
+services:
+  rag:
+    build: .
+    container_name: rag_system
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+    ports:
+      - "8000:8000"
+    command: ["python", "-c", "print('RAG docker-compose placeholder')"]

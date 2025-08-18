@@ -1,0 +1,8 @@
+# Placeholder requirements for the RAG system structure
+# Keep empty or add as needed.
+# Example (commented):
+# faiss-cpu
+# sentence-transformers
+# transformers
+# fastapi
+# uvicorn
