@@ -1,11 +1,28 @@
 services:
-  rag:
-    build: .
-    container_name: rag_system
-    env_file:
-      - .env
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"   # HTTP API
+      - "6334:6334"   # gRPC
     volumes:
-      - ./:/app
+      - qdrant_storage:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+
+  ragx-api:
+    build: .
+    container_name: ragx_api
+    env_file: .env
+    volumes:
+      - ./configs:/app/configs
+      - ./data:/app/data
+    depends_on:
+      - qdrant
     ports:
       - "8000:8000"
-    command: ["python", "-c", "print('RAG docker-compose placeholder')"]
+    command: ["python", "-m", "ragx.api.main"]
+
+volumes:
+  qdrant_storage:
