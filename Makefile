@@ -65,3 +65,6 @@ api-dev:
 
 full-setup: start-qdrant ingest-wiki build-index
 	@echo "RAG system ready!"
+
+ci-clean:
+	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov coverage.xml

@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Keep diffs readable for Jinja2 templates
+*.j2 text
+
+# Mark docs as documentation for linguist
+docs/** linguist-documentation
