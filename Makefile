@@ -50,3 +50,18 @@ down:
 
 ci-clean:
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov coverage.xml
+
+ingest-wiki:
+	python -m ragx.cli.main ingest wikipedia --language en --max-docs 10000
+
+build-index:
+	python -m ragx.cli.main index build --config configs/models.yaml
+
+start-qdrant:
+	docker-compose up -d qdrant
+
+api-dev:
+	uvicorn ragx.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+full-setup: start-qdrant ingest-wiki build-index
+	@echo "RAG system ready!"
