@@ -20,7 +20,6 @@ class WikiArticle:
     """
     Represents a single Wikipedia article.
     """
-
     id: str
     title: str
     text: str
