@@ -1,10 +1,11 @@
-"""Text chunking with overlap (placeholder)."""
-from typing import List
+from __future__ import annotations
 
-def chunk_text(text: str, size: int = 300, overlap: int = 50) -> List[str]:
-    chunks = []
-    i = 0
-    while i < len(text):
-        chunks.append(text[i:i+size])
-        i += max(1, size - overlap)
-    return chunks
+import hashlib
+import logging
+from dataclasses import dataclass, field
+from typing import Iterator, Optional
+
+import nltk
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+logger = logging.getLogger(__name__)
