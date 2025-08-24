@@ -1,4 +1,3 @@
-# Qdrant-specific config (placeholder)
 qdrant:
   host: localhost
   port: 6333
