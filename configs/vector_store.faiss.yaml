@@ -1,4 +1,0 @@
-# FAISS fallback config (placeholder)
-faiss:
-  index_type: FlatL2
-  dim: 384
