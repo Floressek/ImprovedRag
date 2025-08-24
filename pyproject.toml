@@ -6,29 +6,21 @@ readme = "README.md"
 requires-python = ">=3.12"
 
 dependencies = [
-    # RAG Core
     "wikiextractor>=3.0.6",
     "qdrant-client>=1.7.0",
     "sentence-transformers>=2.7.0",
     "transformers>=4.35.0",
-
-    # Cross-encoder reranking
     "torch>=2.0.0",
-
-    # API & Utils
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.2.1",
-
-    # Text processing
     "nltk>=3.8",
     "tqdm>=4.65.0",
     "jinja2>=3.1.4",
-
-    # Core deps
     "numpy>=1.24.0",
-    "requests>=2.32.0"
+    "requests>=2.32.0",
+    "llama-index>=0.13.3",
 ]
 
 [project.optional-dependencies]

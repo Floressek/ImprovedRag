@@ -53,3 +53,14 @@ retrieval:
   context_top_n: 6
   chunk_size: 512
   chunk_overlap: 96
+
+chunking:
+  strategy: semantic
+  chunk_size: 512
+  chunk_overlap: 96
+  min_chunk_size: 100
+  model_name_tokenizer: thenlper/gte-multilingual-base
+  model_name_embedder: thenlper/gte-multilingual-base
+  respect_sections: true
+  breakpoint_percentile_thresh: 95
+  add_passage_prefix: false
