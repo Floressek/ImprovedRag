@@ -1,22 +1,31 @@
 embedder:
-  id: sentence-transformers/all-mpnet-base-v2
+  # dobry kompromis PL/EN; alternatywa: thenlper/gte-multilingual-base
+  id: thenlper/gte-multilingual-base
   device: auto
   normalize_embeddings: true
-  batch_size: 32
+  batch_size: 64
+  max_seq_length: 512
 
 reranker:
-  id: cross-encoder/ms-marco-MiniLM-L-6-v2
+  # wielojęzyczny reranker; jeśli chcesz lżej → jinaai/jina-reranker-v2-small
+  id: jinaai/jina-reranker-v2-base-multilingual
   device: auto
   batch_size: 16
 
 llm:
   provider: huggingface
-  id: mistralai/Mistral-7B-Instruct-v0.2
+
+  id: Qwen/Qwen2.5-7B-Instruct
   device_map: auto
   dtype: bfloat16
+  load_in_4bit: true
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_use_double_quant: true
   generation:
     temperature: 0.2
     max_new_tokens: 300
+    do_sample: false
+    top_p: 0.9
 
 vector_store:
   provider: qdrant
@@ -24,9 +33,23 @@ vector_store:
   api_key: ${QDRANT_API_KEY:-}
   collection: ${QDRANT_COLLECTION:-ragx_documents}
 
+  hnsw:
+    m: 32
+    ef_construct: 256
+    on_disk: true
+  quantization:
+    type: scalar
+    scalar:
+      type: int8
+      always_ram: false
+      quantile: 0.99
+      ignore: false
+  search_params:
+    ef: 128
+
 retrieval:
-  top_k_retrieve: 20
+  top_k_retrieve: 80
   rerank_top_m: 50
-  context_top_n: 5
-  chunk_size: 768
+  context_top_n: 6
+  chunk_size: 512
   chunk_overlap: 96
