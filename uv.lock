@@ -650,6 +650,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/39/7b/bb06b061991107cd8783f300adff3e7b7f284e330fd82f507f2a1417b11d/huggingface_hub-0.34.4-py3-none-any.whl", hash = "sha256:9b365d781739c93ff90c359844221beef048403f1bc1f1c123c191257c3c890a", size = 561452, upload-time = "2025-08-08T09:14:50.159Z" },
 ]
 
+[package.optional-dependencies]
+inference = [
+    { name = "aiohttp" },
+]
+
 [[package]]
 name = "hyperframe"
 version = "6.1.0"
@@ -847,6 +852,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/28/89/2954d6150835c33bad5300e405f8087fbc0a55fd885dccf885f7263d3500/llama_index_core-0.13.3.tar.gz", hash = "sha256:bd7fffa7e6793b2c76fe55eb9e9336250b54e94fdee3fd017b354dbb0d6309a1", size = 7231354, upload-time = "2025-08-22T15:47:11.4Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/70/1ed5e7c7b5b95b600b1c4d967ab74b27ce377af796999dc2f9bd42d3169d/llama_index_core-0.13.3-py3-none-any.whl", hash = "sha256:0d87f817f6f306ffbe56a4bb8c85f574d5fe5142e9f0e2793c93a33eafed54c5", size = 7574514, upload-time = "2025-08-22T15:47:04.205Z" },
+]
+
+[[package]]
+name = "llama-index-embeddings-huggingface"
+version = "0.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub", extra = ["inference"] },
+    { name = "llama-index-core" },
+    { name = "sentence-transformers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1b/ca/25a08dbd690f5f6846303607f077722060c430788d005a30b46203e4d88c/llama_index_embeddings_huggingface-0.6.0.tar.gz", hash = "sha256:3ece7d8c5b683d2055fedeca4457dea13f75c81a6d7fb94d77e878cd73d90d97", size = 8696, upload-time = "2025-07-30T20:51:26.845Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b2/00/c9f6f3524cd590a8d928c6d09c6bc32006b0242ec58f5ae86ccfad0b2676/llama_index_embeddings_huggingface-0.6.0-py3-none-any.whl", hash = "sha256:0c24aba5265a7dbd6591394a8d2d64d0b978bb50b4b97c4e88cbf698b69fdd10", size = 8903, upload-time = "2025-07-30T20:51:26.071Z" },
 ]
 
 [[package]]
@@ -1846,6 +1865,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "jinja2" },
     { name = "llama-index" },
+    { name = "llama-index-embeddings-huggingface" },
     { name = "nltk" },
     { name = "numpy" },
     { name = "pydantic" },
@@ -1879,6 +1899,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.104.0" },
     { name = "jinja2", specifier = ">=3.1.4" },
     { name = "llama-index", specifier = ">=0.13.3" },
+    { name = "llama-index-embeddings-huggingface", specifier = ">=0.6.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },
     { name = "nltk", specifier = ">=3.8" },
     { name = "numpy", specifier = ">=1.24.0" },
@@ -1890,7 +1911,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.8" },
     { name = "sentence-transformers", specifier = ">=2.7.0" },
     { name = "tokenizers", specifier = ">=0.21.4" },
-    { name = "torch", specifier = ">=2.0.0" },
+    { name = "torch" },
     { name = "torchaudio" },
     { name = "torchvision" },
     { name = "tqdm", specifier = ">=4.65.0" },
