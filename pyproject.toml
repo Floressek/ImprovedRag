@@ -1,3 +1,9 @@
+[tool.uv]
+index-url = "https://pypi.org/simple"
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+
 [project]
 name = "ragx"
 version = "0.1.0"
@@ -26,6 +32,7 @@ dependencies = [
     "datasets>=4.0.0",
     "tokenizers>=0.21.4",
     "accelerate>=1.10.0",
+    "llama-index-embeddings-huggingface>=0.6.0",
 ]
 
 [project.optional-dependencies]
