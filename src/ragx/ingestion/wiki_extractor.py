@@ -124,7 +124,6 @@ class WikiExtractor:
             "--processes", str(self.processes),
         ]
 
-        # Fixme: maybe switch?
         if self.json_output:
             cmd.append("--json")
         if self.no_templates:
