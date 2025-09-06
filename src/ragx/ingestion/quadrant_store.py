@@ -109,3 +109,46 @@ class QuadrantStore:
                 logger.debug("Created payload index on %s (%s)", field, schema)
             except Exception as e:
                 logger.debug("Failed to create payload index for field '%s': %s", field, e)
+
+    def add(
+            self,
+            vectors: Sequence[Vector],
+            payloads: Sequence[dict[str, Any]],
+            ids: Optional[Sequence[IdLike]] = None,
+            batch_size: int = 1024,
+            wait: bool = True,
+    ) -> None:
+        """Soft shell for upsert with some checks and auto ID generation."""
+        if len(vectors) != len(payloads):
+            raise ValueError("Vectors and payloads must have the same length")
+
+        n = len(vectors)
+        if ids is None:
+            ids = [str(uuid4()) for _ in range(n)]
+        elif len(ids) != n:
+            raise ValueError("IDs must have the same length as vectors and payloads")
+
+        # Vector length check
+        if n and len(vectors[0]) != self.embedding_dim:
+            raise ValueError(f"Vector dimension mismatch: {len(vectors[0])} != {self.embedding_dim}")
+
+        total = n
+
+        for i in range(0, total, batch_size):
+            pts = [
+                # consider using the list(vec) to ensure it's a list, not another sequence type
+                PointStruct(id=i_id, vector=vec, payload=pl)
+                for i_id, vec, pl in zip(
+                    ids[i:i + batch_size],
+                    vectors[i:i + batch_size],
+                    payloads[i:i + batch_size]
+                )
+            ]
+            self.client.upsert(
+                collection_name=self.collection_name,
+                points=pts,
+                wait=wait,
+            )
+            done = min(i + batch_size, total)
+            if done % 4000 == 0 or done == total:
+                logger.info("Upserted %d/%d points", done, total)
