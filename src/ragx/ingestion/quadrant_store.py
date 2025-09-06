@@ -57,6 +57,10 @@ class QuadrantStore:
         raise ValueError(f"Unknown distance metric: {metric}")
 
     def _ensure_collection(self, recreate: bool) -> None:
+        """
+        Ensure the collection exists with the correct configuration.
+        If recreate is True, delete and recreate the collection if it exists.
+        """
         exists = any(
             c.name == self.collection_name
             for c in self.client.get_collections().collections
@@ -118,7 +122,15 @@ class QuadrantStore:
             batch_size: int = 1024,
             wait: bool = True,
     ) -> None:
-        """Soft shell for upsert with some checks and auto ID generation."""
+        """
+        Soft shell for upsert with some checks and auto ID generation.
+        Args:
+            vectors: list of vectors to add
+            payloads: list of payload dicts (metadata)
+            ids: optional list of IDs (if None, UUIDs will be generated)
+            batch_size: number of points to upsert in each batch
+            wait: whether to wait for the operation to complete
+        """
         if len(vectors) != len(payloads):
             raise ValueError("Vectors and payloads must have the same length")
 
@@ -152,3 +164,57 @@ class QuadrantStore:
             done = min(i + batch_size, total)
             if done % 4000 == 0 or done == total:
                 logger.info("Upserted %d/%d points", done, total)
+
+    @staticmethod
+    def _to_filter(filter_dict: Optional[dict[str, Any]]) -> Optional[Filter]:
+        """
+        Convert a simple dict to a Qdrant Filter.
+        Args:
+            filter_dict: dict of field names to values or list of values.
+        Supports exact matches and list of values (MatchAny).
+        """
+        if not filter_dict:
+            return None
+        must = []
+        for k, v in filter_dict.items():
+            if isinstance(v, (list, tuple, set)):
+                must.append(FieldCondition(key=k, match=MatchAny(any=list(v))))
+            else:
+                must.append(FieldCondition(key=k, match=MatchValue(value=v)))
+        return Filter(must=must) if must else None
+
+    def search(
+            self,
+            vector: Vector,
+            top_k=5,
+            filter_dict: Optional[dict[str, Any]] = None,
+            score_threshold: Optional[float] = None,
+            hnsw_ef: Optional[int] = None,
+            with_vectors: bool = False,
+    ) -> List[Tuple[IdLike, dict[str, Any], float]]:
+        """
+        The score is higher = better (cosine/dot) or lower = better (euclidean).
+            Args:
+                vector: query vector
+                top_k: number of results to return
+                filter_dict: optional filter dict (exact matches or list of values)
+                score_threshold: optional threshold to filter results by score
+                hnsw_ef: optional HNSW ef parameter for search (higher = more accurate, default 128)
+                with_vectors: whether to include the matched vectors in the results
+        Returns: a list of (id, payload, score) tuples.
+        """
+        q_filter = self._to_filter(filter_dict)
+        params = SearchParams(hnsw_ef=hnsw_ef) if hnsw_ef else None
+
+        hits = self.client.query_points(
+            collection_name=self.collection_name,
+            query=vector,
+            query_filter=q_filter,
+            limit=top_k,
+            score_threshold=score_threshold,
+            search_params=params,
+            with_payload=True,
+            with_vectors=with_vectors,
+        )
+        return [(hit.id, hit.payload, hit.score) for hit in hits]
+
