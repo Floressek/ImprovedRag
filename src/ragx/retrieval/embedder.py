@@ -40,19 +40,97 @@ class Embedder:
             max_seq_length: Maximum sequence length for the model. If None, uses model default.
         """
         self.model_id = model_id
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.normalize_embeddings = normalize_embeddings
         self.batch_size = batch_size
         self.show_progress = show_progress
-        self.cache_dir = cache_dir
         self.use_prefixes = use_prefixes
         self.query_prefix = query_prefix
         self.passage_prefix = passage_prefix
-        self.max_seq_length = max_seq_length
 
-        logger.info(f"Loading embedder model '{model_id}' on device '{self.device}'")
-        self.model = SentenceTransformer(model_id, device=self.device, cache_folder=cache_dir)
-        if max_seq_length:
-            self.model.max_seq_length = max_seq_length
-            logger.info(f"Set max_seq_length to {max_seq_length}")
-        logger.info("Model loaded successfully.")
+        if device is None or device == "auto":
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            self.device = device
+
+        logger.info("Loading embedder model: %s on %s", model_id, self.device)
+        self.model = SentenceTransformer(
+            model_id,
+            device=self.device,
+            cache_folder=cache_dir,
+        )
+
+
+        if max_seq_length is not None:
+            try:
+                self.model.max_seq_length = int(max_seq_length)
+                logger.info("Set model.max_seq_length = %d", self.model.max_seq_length)
+            except Exception as e:
+                logger.warning("Could not set max_seq_length (%s): %s", max_seq_length, e)
+
+        self.embedding_dim = self.model.get_sentence_embedding_dimension()
+        logger.info("Embedder initialized with dimension: %d", self.embedding_dim)
+
+    def embed(
+            self,
+            texts: list[str],
+            batch_size: Optional[int] = None,
+            convert_to_numpy: bool = True,
+            show_progress: Optional[bool] = None,
+            add_prefix: bool = False,
+            prefix: Optional[str] = None,
+    ) -> Union[np.ndarray, list[list[float]]]:
+        """
+        Embed a list of texts.
+
+        Args:
+            texts: List of texts to embed.
+            batch_size: Batch size for embedding. Defaults to self.batch_size.
+            convert_to_numpy: Whether to return embeddings as a numpy array.
+            show_progress: Whether to show a progress bar. Defaults to self.show_progress.
+            add_prefix: Whether to add a prefix based on a text type.
+            prefix: Specific prefix to add if add_prefix is True.
+
+        Returns:
+            Embeddings as a numpy array or list of lists.
+        """
+        if not texts:
+            return np.empty((0, self.embedding_dim), dtype=np.float32) if convert_to_numpy else []
+
+        batch_size = batch_size or self.batch_size
+        show_progress = show_progress if show_progress is not None else self.show_progress
+
+        # Prefix handling
+        if add_prefix:
+            eff_prefix = prefix if prefix is not None else (self.passage_prefix if self.passage_prefix else "")
+            if eff_prefix:
+                texts = [eff_prefix + text for text in texts]
+
+        embeddings = self.model.encode(
+            texts,
+            batch_size=batch_size,
+            convert_to_numpy=convert_to_numpy,
+            show_progress_bar=show_progress,
+            normalize_embeddings=self.normalize_embeddings,
+        )
+
+        if convert_to_numpy:
+            # ensure float32 dtype
+            if not isinstance(embeddings, np.ndarray):
+                embeddings = np.asarray(embeddings, dtype=np.float32)
+            else:
+                embeddings = embeddings.astype(np.float32, copy=False)
+            return embeddings
+
+        # list of lists
+        if isinstance(embeddings, np.ndarray):
+            return embeddings.astype(np.float32, copy=False).tolist()
+        # list already - maybe TENSOR HERE?
+        return embeddings
+
+    # def embed_query(
+    #         self,
+    #         query: str,
+    #         normalize: Optional[bool] = None,
+    # ) -> list[float]:
+    #     """Embed a single query text."""
+    #     normalize
