@@ -216,5 +216,85 @@ class QuadrantStore:
             with_payload=True,
             with_vectors=with_vectors,
         )
+        logger.debug("Search returned %d hits from collection '%s'", len(hits), self.collection_name)
         return [(hit.id, hit.payload, hit.score) for hit in hits]
 
+    def get_by_ids(self, ids: Sequence[IdLike], with_vectors: bool = False) -> List[dict[str, Any]]:
+        """
+        Retrieve points by their IDs.
+            Args:
+                ids: list of point IDs to retrieve
+                with_vectors: whether to include the vectors in the results
+        Returns: a list of (id, payload, vector) tuples. Vector is None if with_vectors is False.
+        """
+        points = self.client.retrieve(
+            collection_name=self.collection_name,
+            ids=list(ids),
+            with_payload=True,
+            with_vectors=with_vectors,
+        )
+        # Maintain the order of the input IDs
+        by_id = {p.id: p.payload for p in points}
+        logger.debug("Retrieved %d points by IDs from collection '%s'", len(points), self.collection_name)
+        return [by_id.get(i, {}) for i in ids]
+
+    def delete_by_filter(self, filter_dict: dict[str, Any]) -> None:
+        """
+        Delete points matching the filter.
+            Args:
+                filter_dict: filter dict (exact matches or list of values)
+        """
+        q_filter = self._to_filter(filter_dict)
+        if not q_filter:
+            raise ValueError("Filter dictionary is empty or invalid")
+        self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=q_filter,
+            wait=True,
+        )
+        logger.info("Deleted points matching filter in collection '%s'", self.collection_name)
+
+    def count(self, filter_dict: Optional[dict[str, Any]] = None, exact: bool = False) -> int:
+        """
+        Count points in the collection, optionally filtered.
+            Args:
+                filter_dict: optional filter dict (exact matches or list of values)
+                exact: whether to get an exact count (may be slower)
+        Returns: the count of points matching the filter.
+        """
+        q_filter = self._to_filter(filter_dict)
+        stats = self.client.count(
+            collection_name=self.collection_name,
+            count_filter=q_filter,
+            exact=exact,
+        )
+        logger.debug("Counted %d points in collection '%s'", stats.count, self.collection_name)
+        return stats.count
+
+    def clear(self, wait: bool = True) -> None:
+        """
+        Delete all points in the collection.
+            Args:
+                wait: whether to wait for the operation to complete
+        """
+        self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=None,
+            wait=wait,
+        )
+        logger.info("Cleared all points in collection '%s'", self.collection_name)
+
+    def get_collection_info(self) -> dict[str, Any]:
+        """Get collection information.
+
+        Returns:
+            Dictionary with collection info
+        """
+        info = self.client.get_collection(self.collection_name)
+        return {
+            "name": self.collection_name,
+            "points_count": info.points_count,
+            "vector_size": info.config.params.vectors.size,
+            "distance": str(info.config.params.vectors.distance),
+            "status": info.status,
+        }
