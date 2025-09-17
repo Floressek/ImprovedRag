@@ -86,7 +86,7 @@ class WikiExtractor:
         except ImportError:
             logger.error(
                 "WikiExtractor not installed. Install with:\n"
-                "uv pip install wikiextractor"
+                "pip install git+https://github.com/attardi/wikiextractor.git@ab8988ebfa9e4557411f3d4c0f4ccda139e18875"
             )
             raise ImportError("WikiExtractor required and not installed.")
 
@@ -128,8 +128,6 @@ class WikiExtractor:
             cmd.append("--json")
         if self.no_templates:
             cmd.append("--no-templates")
-        if self.filter_disambig:
-            cmd.append("--filter_disambig")
         if self.quiet:
             cmd.append("--quiet")
 

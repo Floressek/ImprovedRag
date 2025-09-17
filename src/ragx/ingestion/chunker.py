@@ -61,11 +61,12 @@ class TextChunker:
             chunk_size: int = 512,
             chunk_overlap: int = 96,
             min_chunk_size: int = 100,
-            model_name_tokenizer: str = "thenlper/gte-multilingual-base",
-            model_name_embedder: str = "thenlper/gte-multilingual-base",
+            model_name_tokenizer: str = "Alibaba-NLP/gte-multilingual-base",
+            model_name_embedder: str = "Alibaba-NLP/gte-multilingual-base",
             respect_sections: bool = True,
             breakpoint_percentile_thresh: int = 95,
             add_passage_prefix: bool = False,
+            trust_remote_code: bool = True,  # Dodano parametr
     ):
         if chunk_overlap >= chunk_size:
             raise ValueError("overlap must be < chunk_size")
@@ -80,12 +81,20 @@ class TextChunker:
         self.breakpoint_percentile_thresh = breakpoint_percentile_thresh
         self.add_passage_prefix = add_passage_prefix
 
-        self._tok = AutoTokenizer.from_pretrained(model_name_tokenizer)
+
+        self._tok = AutoTokenizer.from_pretrained(
+            model_name_tokenizer,
+            trust_remote_code=trust_remote_code
+        )
         self._token_splitter = TokenTextSplitter.from_huggingface_tokenizer(
             self._tok, chunk_size=chunk_size, chunk_overlap=chunk_overlap, add_start_index=False
         )
 
-        self._embed = HuggingFaceEmbedding(model_name=model_name_embedder)
+
+        self._embed = HuggingFaceEmbedding(
+            model_name=model_name_embedder,
+            trust_remote_code=trust_remote_code  # Dodano tutaj
+        )
         self._semantic = SemanticSplitterNodeParser(
             embed_model=self._embed,
             buffer_size=1,

@@ -11,7 +11,8 @@ help:
 	@echo "  make install        - Install dependencies"
 	@echo "  make dev           - Install dev dependencies"
 	@echo "  make setup-qdrant  - Start Qdrant container"
-	@echo "  make download-wiki - Download Wikipedia dump"
+	@echo "  make download-pl-wiki - Download Wikipedia dump"
+	@echo "  make extract-wiki-docker  - Extract Wikipedia dump using Docker"
 	@echo "  make ingest        - Ingest Wikipedia into Qdrant"
 	@echo "  make search        - Test search functionality"
 	@echo "  make test-pipeline - Run end-to-end test"
@@ -56,20 +57,40 @@ setup-qdrant:
 	@echo "Starting Qdrant..."
 	$(DOCKER_COMPOSE) up -d qdrant
 	@echo "Waiting for Qdrant to be ready..."
-	@sleep 5
-	@curl -s http://localhost:6333/health | grep -q true && echo "✓ Qdrant is running" || echo "✗ Qdrant failed to start"
+#	@sleep 5
+	@powershell -Command "Start-Sleep -Seconds 5"
+#	@curl -s http://localhost:6333/ | grep -q true && echo "✓ Qdrant is running" || echo "✗ Qdrant failed to start"
+	@powershell -Command "try { $$response = Invoke-RestMethod -Uri 'http://localhost:6333/' -TimeoutSec 10; Write-Host '✓ Qdrant is running' } catch { Write-Host '✗ Qdrant failed to start' }"
 
 stop-qdrant:
 	$(DOCKER_COMPOSE) stop qdrant
 
 # Wikipedia ingestion pipeline
-download-wiki:
-	@echo "Downloading Wikipedia dump (small chunk for testing)..."
-	$(PY) scripts/ingest_wiki.py \
-		--download \
-		--language en \
-		--chunk-number 1 \
-		--max-articles 1000
+download-pl-wiki:
+	@echo "Downloading Polish Wikipedia dump..."
+	mkdir -p data/raw/pl_wiki_dump
+	@echo "This will download a large file (several GB). Continue? [y/N]"
+	@read -r REPLY; if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
+		curl -L "https://dumps.wikimedia.org/plwiki/20250601/plwiki-20250601-pages-articles-multistream.xml.bz2" \
+			-o data/raw/pl_wiki_dump/plwiki-20250601-pages-articles-multistream.xml.bz2; \
+		echo "✓ Polish Wikipedia dump downloaded!"; \
+	else \
+		echo "Download cancelled."; \
+	fi
+
+
+extract-wiki-docker:
+	@echo "Extracting Wikipedia dump using Docker..."
+	docker run --rm -v "${PWD}/data:/data" python:3.11 bash -lc " \
+		pip install -q git+https://github.com/attardi/wikiextractor.git@ab8988ebfa9e4557411f3d4c0f4ccda139e18875 && \
+		mkdir -p /data/processed/wiki_extracted && \
+		wikiextractor /data/raw/pl_wiki_dump/plwiki-20250601-pages-articles-multistream.xml.bz2 \
+			--output /data/processed/wiki_extracted \
+			--bytes 1M --processes 8 --json --no-templates \
+	"
+	@echo "✓ Wikipedia extraction complete!"
+
+
 
 ingest: setup-qdrant
 	@echo "Ingesting Wikipedia into Qdrant..."
@@ -78,7 +99,7 @@ ingest: setup-qdrant
 		--chunk-size 512 \
 		--chunk-overlap 96 \
 		--chunking-strategy semantic \
-		--embedding-model thenlper/gte-multilingual-base \
+		--embedding-model Alibaba-NLP/gte-multilingual-base \
 		--use-prefixes \
 		--recreate-collection
 
@@ -92,7 +113,7 @@ ingest-full: setup-qdrant
 		--chunk-size 512 \
 		--chunk-overlap 96 \
 		--chunking-strategy semantic \
-		--embedding-model thenlper/gte-multilingual-base \
+		--embedding-model Alibaba-NLP/gte-multilingual-base \
 		--use-prefixes \
 		--recreate-collection
 
@@ -173,15 +194,25 @@ quickstart: setup-qdrant download-wiki ingest
 	@echo "✓ RAGx is ready! Try: make search"
 
 # Status check
+#status:
+#	@echo "Checking system status..."
+#	@echo -n "Qdrant: "
+#	@curl -s http://localhost:6333/health 2>/dev/null | grep -q true && echo "✓ Running" || echo "✗ Not running"
+#	@echo -n "Python: "
+#	@$(PY) --version
+#	@echo -n "WikiExtractor: "
+#	@$(PY) -c "import wikiextractor; print('✓ Installed')" 2>/dev/null || echo "✗ Not installed"
+#	@echo -n "Qdrant Client: "
+#	@$(PY) -c "import qdrant_client; print('✓ Installed')" 2>/dev/null || echo "✗ Not installed"
+#	@echo -n "Sentence Transformers: "
+#	@$(PY) -c "import sentence_transformers; print('✓ Installed')" 2>/dev/null || echo "✗ Not installed"
+
+# Status check
+# Status check
 status:
 	@echo "Checking system status..."
-	@echo -n "Qdrant: "
-	@curl -s http://localhost:6333/health 2>/dev/null | grep -q true && echo "✓ Running" || echo "✗ Not running"
-	@echo -n "Python: "
-	@$(PY) --version
-	@echo -n "WikiExtractor: "
-	@$(PY) -c "import wikiextractor; print('✓ Installed')" 2>/dev/null || echo "✗ Not installed"
-	@echo -n "Qdrant Client: "
-	@$(PY) -c "import qdrant_client; print('✓ Installed')" 2>/dev/null || echo "✗ Not installed"
-	@echo -n "Sentence Transformers: "
-	@$(PY) -c "import sentence_transformers; print('✓ Installed')" 2>/dev/null || echo "✗ Not installed"
+	@echo "Qdrant:" && (curl -s http://localhost:6333/ >nul 2>&1 && echo "  OK Running" || echo "  ERROR Not running")
+	@echo "Python:" && $(PY) --version
+	@echo "WikiExtractor:" && ($(PY) -c "import wikiextractor; print('  OK Installed')" 2>nul || echo "  ERROR Not installed")
+	@echo "Qdrant Client:" && ($(PY) -c "import qdrant_client; print('  OK Installed')" 2>nul || echo "  ERROR Not installed")
+	@echo "Sentence Transformers:" && ($(PY) -c "import sentence_transformers; print('  OK Installed')" 2>nul || echo "  ERROR Not installed")

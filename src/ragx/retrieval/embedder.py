@@ -15,7 +15,7 @@ class Embedder:
 
     def __init__(
             self,
-            model_id: str = "thenlper/gte-multilingual-base",
+            model_id: str = "Alibaba-NLP/gte-multilingual-base",
             device: Optional[str] = None,
             normalize_embeddings: bool = True,
             batch_size: int = 32,
@@ -24,7 +24,8 @@ class Embedder:
             use_prefixes: bool = False,
             query_prefix: str = "query: ",
             passage_prefix: str = "passage: ",
-            max_seq_length: Optional[int] = None,  # np. 512 dla E5/GTE
+            max_seq_length: Optional[int] = None,
+            trust_remote_code: bool = True,  # Dodany parametr
     ):
         """
         Args:
@@ -38,6 +39,7 @@ class Embedder:
             query_prefix: Prefix to prepend to query texts if use_prefixes is True.
             passage_prefix: Prefix to prepend to passage texts if use_prefixes is True.
             max_seq_length: Maximum sequence length for the model. If None, uses model default.
+            trust_remote_code: Whether to trust remote code in model.
         """
         self.model_id = model_id
         self.normalize_embeddings = normalize_embeddings
@@ -57,6 +59,7 @@ class Embedder:
             model_id,
             device=self.device,
             cache_folder=cache_dir,
+            trust_remote_code=trust_remote_code,  # Dodano tutaj
         )
 
         if max_seq_length is not None:
