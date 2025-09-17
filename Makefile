@@ -79,18 +79,10 @@ download-pl-wiki:
 	fi
 
 
-extract-wiki-docker:
-	@echo "Extracting Wikipedia dump using Docker..."
-	docker run --rm -v "${PWD}/data:/data" python:3.11 bash -lc " \
-		pip install -q git+https://github.com/attardi/wikiextractor.git@ab8988ebfa9e4557411f3d4c0f4ccda139e18875 && \
-		mkdir -p /data/processed/wiki_extracted && \
-		wikiextractor /data/raw/pl_wiki_dump/plwiki-20250601-pages-articles-multistream.xml.bz2 \
-			--output /data/processed/wiki_extracted \
-			--bytes 1M --processes 8 --json --no-templates \
-	"
+extract-wiki-docker-fixed:
+	@echo "Extracting Wikipedia dump using Docker (Windows fixed)..."
+	@powershell -Command "docker run --rm -v \"$${PWD}/data:/data\".Replace('\', '/') python:3.11-slim bash -lc \"apt-get update && apt-get install -y git && pip install -q git+https://github.com/attardi/wikiextractor.git@ab8988ebfa9e4557411f3d4c0f4ccda139e18875 && mkdir -p /data/processed/wiki_extracted && wikiextractor /data/raw/pl_wiki_dump/plwiki-20250601-pages-articles-multistream.xml.bz2 --output /data/processed/wiki_extracted --bytes 1M --processes 8 --json --no-templates\""
 	@echo "✓ Wikipedia extraction complete!"
-
-
 
 ingest: setup-qdrant
 	@echo "Ingesting Wikipedia into Qdrant..."
