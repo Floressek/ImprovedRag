@@ -59,7 +59,6 @@ class Embedder:
             cache_folder=cache_dir,
         )
 
-
         if max_seq_length is not None:
             try:
                 self.model.max_seq_length = int(max_seq_length)
@@ -70,7 +69,7 @@ class Embedder:
         self.embedding_dim = self.model.get_sentence_embedding_dimension()
         logger.info("Embedder initialized with dimension: %d", self.embedding_dim)
 
-    def embed(
+    def embed_texts(
             self,
             texts: list[str],
             batch_size: Optional[int] = None,
@@ -127,10 +126,68 @@ class Embedder:
         # list already - maybe TENSOR HERE?
         return embeddings
 
-    # def embed_query(
-    #         self,
-    #         query: str,
-    #         normalize: Optional[bool] = None,
-    # ) -> list[float]:
-    #     """Embed a single query text."""
-    #     normalize
+    def embed_query(
+            self,
+            query: str,
+            normalize: Optional[bool] = None,
+    ) -> list[float]:
+        """Embed a single query text (applies query prefix if enabled)."""
+        normalize = self.normalize_embeddings if normalize is None else normalize
+        q = (self.query_prefix + query) if self.use_prefixes and self.query_prefix else query
+
+        emb = self.model.encode(
+            q,
+            normalize_embeddings=normalize,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+        )
+
+        if isinstance(emb, np.ndarray):
+            return emb.astype(np.float32, copy=False).tolist()
+
+        # Fallback
+        return [float(x) for x in emb]
+
+    def embed_documents(
+            self,
+            documents: list[dict],
+            text_field: str = "text",
+            batch_size: Optional[int] = None
+    ) -> tuple[list[list[float]], list[dict]]:
+        """Embed documents and return vectors with original docs (filtered for non-empty text)."""
+
+        texts: list[str] = []
+        valid_docs: list[dict] = []
+
+        for doc in documents:
+            text = str(doc.get(text_field, "")).strip()
+            if text:
+                texts.append(text)
+                valid_docs.append(doc)
+
+        if not texts:
+            return [], []
+
+        embs = self.embed_texts(
+            texts,
+            batch_size=batch_size,
+            convert_to_numpy=True,
+            show_progress=False,
+            add_prefix=True,  # Documents treated as passages
+            prefix=None,  # passage_prefix if self.use_prefixes else None
+        )
+
+        if isinstance(embs, np.ndarray):
+            embs = embs.astype(np.float32, copy=False).tolist()
+
+        return embs, valid_docs
+
+    def get_dimension(self) -> int:
+        return self.embedding_dim
+
+    def warmup(self) -> None:
+        """Warm up with a tiny call."""
+        _ = self.embed_query("warmup")
+        logger.info("Embedder warmup complete")
+
+
