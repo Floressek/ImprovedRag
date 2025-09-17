@@ -1,6 +1,9 @@
 [tool.uv]
 index-url = "https://pypi.org/simple"
 
+[tool.uv.sources]
+wikiextractor = { git = "https://github.com/attardi/wikiextractor.git", rev = "ab8988ebfa9e4557411f3d4c0f4ccda139e18875" }
+
 [project]
 name = "ragx"
 version = "0.1.0"

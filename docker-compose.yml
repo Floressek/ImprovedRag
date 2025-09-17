@@ -34,7 +34,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       PYTHONUNBUFFERED: 1
       PYTHONPATH: /app/src
-      EMBEDDING_MODEL: thenlper/gte-multilingual-base
+      EMBEDDING_MODEL: Alibaba-NLP/gte-multilingual-base
       RERANKER_MODEL: jinaai/jina-reranker-v2-base-multilingual
       LLM_MODEL: Qwen/Qwen2.5-7B-Instruct
       CUDA_VISIBLE_DEVICES: 0

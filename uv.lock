@@ -1844,7 +1844,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.65.0" },
     { name = "transformers", specifier = ">=4.35.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
-    { name = "wikiextractor", specifier = ">=3.0.6" },
+    { name = "wikiextractor", git = "https://github.com/attardi/wikiextractor.git?rev=ab8988ebfa9e4557411f3d4c0f4ccda139e18875" },
 ]
 
 [[package]]
@@ -2554,12 +2554,8 @@ wheels = [
 
 [[package]]
 name = "wikiextractor"
-version = "3.0.6"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8e/6c/21050e72c7e42f606689b1a4cbfbbf65c81e79addc69a9451de450e2c672/wikiextractor-3.0.6.tar.gz", hash = "sha256:7041ff57884c16409e9b911ccd0106c218b88cbceabb86dd1443637afa8284de", size = 43279, upload-time = "2021-10-14T12:35:00.888Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/37/b110fd8a87bab4120ff55061c508361bd1b012d789ff469af8fbd7cc3a38/wikiextractor-3.0.6-py3-none-any.whl", hash = "sha256:f4506990bf9c14e3cc92dc85a0a89554fef975cc1b28dcb9a4d31c73a8ef2133", size = 46403, upload-time = "2021-10-14T12:34:58.836Z" },
-]
+version = "3.0.7"
+source = { git = "https://github.com/attardi/wikiextractor.git?rev=ab8988ebfa9e4557411f3d4c0f4ccda139e18875#ab8988ebfa9e4557411f3d4c0f4ccda139e18875" }
 
 [[package]]
 name = "wrapt"
