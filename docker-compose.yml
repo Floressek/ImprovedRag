@@ -8,7 +8,7 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_storage:/qdrant/storage
-      - ./configs/qdrant_config.yaml:/qdrant/config/production.yaml:ro
+      # Removed the problematic config mount - Qdrant works fine with env vars
     environment:
       QDRANT__SERVICE__HTTP_PORT: 6333
       QDRANT__SERVICE__GRPC_PORT: 6334
@@ -17,67 +17,11 @@ services:
       QDRANT__SERVICE__MAX_WORKERS: 0
       QDRANT__STORAGE__PERFORMANCE__MAX_OPTIMIZATION_THREADS: 6
     healthcheck:
-      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys\nurllib.request.urlopen('http://localhost:6333/health');print('ok')\nPY"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    deploy:
-      resources:
-        limits:
-          memory: 12G
-        reservations:
-          memory: 6G
-
-  qdrant-init:
-    image: curlimages/curl:7.88.1
-    container_name: ragx_qdrant_init
-    depends_on:
-      qdrant:
-        condition: service_healthy
-    environment:
-      QDRANT_URL: http://qdrant:6333
-      QDRANT_COLLECTION: ragx_documents
-      QDRANT_RECREATE: "0"
-      VECTOR_SIZE: "768"
-      DISTANCE: "Cosine"
-      HNSW_M: "32"
-      HNSW_EF_CONSTRUCT: "256"
-      HNSW_ON_DISK: "true"
-      QUANT_TYPE: "int8"
-      QUANT_ALWAYS_RAM: "false"
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        set -e
-        until curl -sf "$$QDRANT_URL/health" >/dev/null; do sleep 2; done
-        if [ "$$QDRANT_RECREATE" = "1" ]; then
-          curl -s -X DELETE "$$QDRANT_URL/collections/$$QDRANT_COLLECTION" >/dev/null || true
-        fi
-        curl -s -X PUT "$$QDRANT_URL/collections/$$QDRANT_COLLECTION" \
-          -H 'Content-Type: application/json' \
-          -d @- <<EOF >/dev/null
-        {
-          "vectors": {
-            "size": $$VECTOR_SIZE,
-            "distance": "$$DISTANCE"
-          },
-          "hnsw_config": {
-            "m": $$HNSW_M,
-            "ef_construct": $$HNSW_EF_CONSTRUCT,
-            "on_disk": $$HNSW_ON_DISK
-          },
-          "quantization_config": {
-            "scalar": {
-              "type": "$$QUANT_TYPE",
-              "always_ram": $$QUANT_ALWAYS_RAM
-            }
-          }
-        }
-        EOF
-        echo "qdrant-init: collection '$$QDRANT_COLLECTION' configured"
-    restart: "no"
 
   ragx-api:
     build:
@@ -90,7 +34,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       PYTHONUNBUFFERED: 1
       PYTHONPATH: /app/src
-      EMBEDDING_MODEL: Alibaba-NLP/gte-multilingual-base
+      EMBEDDING_MODEL: thenlper/gte-multilingual-base
       RERANKER_MODEL: jinaai/jina-reranker-v2-base-multilingual
       LLM_MODEL: Qwen/Qwen2.5-7B-Instruct
       CUDA_VISIBLE_DEVICES: 0
@@ -105,16 +49,11 @@ services:
     depends_on:
       qdrant:
         condition: service_healthy
-      qdrant-init:
-        condition: service_completed_successfully
     ports:
       - "8000:8000"
-    command: ["uvicorn", "ragx.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    healthcheck:
-      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys\nurllib.request.urlopen('http://localhost:8000/health');print('ok')\nPY"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    command: ["python", "-m", "uvicorn", "ragx.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    profiles:
+      - api
 
 volumes:
   qdrant_storage:

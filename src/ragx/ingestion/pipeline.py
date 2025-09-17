@@ -8,9 +8,9 @@ from typing import Optional
 
 import click
 from dotenv import load_dotenv
-from llama_index.core.ingestion import IngestionPipeline
 
 from src.ragx.ingestion.chunker import TextChunker
+from src.ragx.ingestion.ingestion_pipeline import IngestionPipeline
 from src.ragx.ingestion.wiki_extractor import download_wikipedia_dump, WikiExtractor
 from src.ragx.logging_config import setup_logging
 from src.ragx.retrieval.embedder import Embedder
