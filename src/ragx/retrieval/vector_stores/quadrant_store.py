@@ -23,7 +23,7 @@ IdLike = Union[str, int]
 Vector = Sequence[float]
 
 
-class QuadrantStore:
+class QdrantStore:
     """Quadrant vector store implementation."""
 
     def __init__(
@@ -298,3 +298,4 @@ class QuadrantStore:
             "distance": str(info.config.params.vectors.distance),
             "status": info.status,
         }
+
