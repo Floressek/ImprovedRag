@@ -57,9 +57,7 @@ setup-qdrant:
 	@echo "Starting Qdrant..."
 	$(DOCKER_COMPOSE) up -d qdrant
 	@echo "Waiting for Qdrant to be ready..."
-#	@sleep 5
-	@powershell -Command "Start-Sleep -Seconds 5"
-#	@curl -s http://localhost:6333/ | grep -q true && echo "✓ Qdrant is running" || echo "✗ Qdrant failed to start"
+	@powershell -Command "Start-Sleep -Seconds 3"
 	@powershell -Command "try { $$response = Invoke-RestMethod -Uri 'http://localhost:6333/' -TimeoutSec 10; Write-Host '✓ Qdrant is running' } catch { Write-Host '✗ Qdrant failed to start' }"
 
 stop-qdrant:
@@ -95,12 +93,10 @@ ingest: setup-qdrant
 		--use-prefixes \
 		--recreate-collection
 
-ingest-full: setup-qdrant
+ingest-full:
 	@echo "Ingesting full Wikipedia chunk..."
 	$(PY) scripts/ingest_wiki.py \
-		--download \
-		--language en \
-		--chunk-number 1 \
+		--source data\\processed\\wiki_extracted \
 		--max-articles 10000 \
 		--chunk-size 512 \
 		--chunk-overlap 96 \
@@ -108,6 +104,7 @@ ingest-full: setup-qdrant
 		--embedding-model Alibaba-NLP/gte-multilingual-base \
 		--use-prefixes \
 		--recreate-collection
+
 
 # Search testing
 search:
@@ -123,15 +120,15 @@ search-simple:
 		--top-k 5
 
 # End-to-end test
-test-pipeline: setup-qdrant
-	@echo "Running end-to-end test..."
-	@echo "1. Downloading small Wikipedia sample..."
-	$(PY) scripts/ingest_wiki.py --download --language en --chunk-number 1 --max-articles 100
-	@echo "2. Ingesting data..."
-	$(PY) scripts/ingest_wiki.py --max-articles 100 --recreate-collection
-	@echo "3. Testing search..."
-	$(PY) scripts/test_search.py "computer science" --top-k 5
-	@echo "✓ Pipeline test complete!"
+#test-pipeline: setup-qdrant
+#	@echo "Running end-to-end test..."
+#	@echo "1. Downloading small Wikipedia sample..."
+#	$(PY) scripts/ingest_wiki.py --download --language en --chunk-number 1 --max-articles 100
+#	@echo "2. Ingesting data..."
+#	$(PY) scripts/ingest_wiki.py --max-articles 100 --recreate-collection
+#	@echo "3. Testing search..."
+#	$(PY) scripts/test_search.py "computer science" --top-k 5
+#	@echo "✓ Pipeline test complete!"
 
 # Docker commands
 docker-build:
@@ -151,8 +148,8 @@ docker-logs:
 	$(DOCKER_COMPOSE) logs -f
 
 # API server
-api:
-	uvicorn src.ragx.api.main:app --host 0.0.0.0 --port 8000 --reload
+#api:
+#	uvicorn src.ragx.api.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Cleaning
 clean:
@@ -185,21 +182,6 @@ lint:
 quickstart: setup-qdrant download-wiki ingest
 	@echo "✓ RAGx is ready! Try: make search"
 
-# Status check
-#status:
-#	@echo "Checking system status..."
-#	@echo -n "Qdrant: "
-#	@curl -s http://localhost:6333/health 2>/dev/null | grep -q true && echo "✓ Running" || echo "✗ Not running"
-#	@echo -n "Python: "
-#	@$(PY) --version
-#	@echo -n "WikiExtractor: "
-#	@$(PY) -c "import wikiextractor; print('✓ Installed')" 2>/dev/null || echo "✗ Not installed"
-#	@echo -n "Qdrant Client: "
-#	@$(PY) -c "import qdrant_client; print('✓ Installed')" 2>/dev/null || echo "✗ Not installed"
-#	@echo -n "Sentence Transformers: "
-#	@$(PY) -c "import sentence_transformers; print('✓ Installed')" 2>/dev/null || echo "✗ Not installed"
-
-# Status check
 # Status check
 status:
 	@echo "Checking system status..."
