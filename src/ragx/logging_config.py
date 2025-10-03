@@ -1,13 +1,11 @@
 from __future__ import annotations
 import logging
 import sys
-from typing import Optional
 
 
 class ColoredFormatter(logging.Formatter):
     """Colored log formatter."""
 
-    # Color codes
     COLORS = {
         'DEBUG': '\033[36m',    # Cyan
         'INFO': '\033[32m',     # Green
@@ -19,11 +17,8 @@ class ColoredFormatter(logging.Formatter):
     BOLD = '\033[1m'
 
     def format(self, record):
-        # Add color to levelname
         if record.levelname in self.COLORS:
             record.levelname = f"{self.COLORS[record.levelname]}{self.BOLD}{record.levelname:8}{self.RESET}"
-
-        # Format timestamp
         record.asctime = self.formatTime(record, '%H:%M:%S')
 
         # Shorten logger name
@@ -43,8 +38,6 @@ def setup_logging(level: str = "INFO") -> None:
 
     # Create handler
     handler = logging.StreamHandler(sys.stdout)
-
-    # Create colored formatter
     formatter = ColoredFormatter(
         fmt=f"%(asctime)s {ColoredFormatter.COLORS['INFO']}║{ColoredFormatter.RESET} %(levelname)s {ColoredFormatter.COLORS['INFO']}║{ColoredFormatter.RESET} %(name)-15s {ColoredFormatter.COLORS['INFO']}║{ColoredFormatter.RESET} %(message)s"
     )

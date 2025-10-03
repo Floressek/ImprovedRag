@@ -65,7 +65,7 @@ class IngestionPipeline:
         chunk_count = 0
         article_count = 0
 
-        for article in articles:
+        for article in tqdm(articles, desc="Ingesting articles"):
             article_count += 1
 
             # Convert article to dict for chunking

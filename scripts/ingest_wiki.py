@@ -18,9 +18,8 @@ from src.ragx.logging_config import setup_logging
 from src.ragx.retrieval.embedder import Embedder
 from src.ragx.retrieval.vector_stores.quadrant_store import QdrantStore
 
-# Load environment variables
-load_dotenv()
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 
