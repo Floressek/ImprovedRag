@@ -73,6 +73,30 @@ def main() -> None:
         help="Chunking strategy",
     )
     parser.add_argument(
+        "--min-chunk-size",
+        type=int,
+        default=120,
+        help="Minimum chunk size in tokens",
+    )
+    parser.add_argument(
+        "--max-chunk-size",
+        type=int,
+        default=480,
+        help="Maximum chunk size in tokens",
+    )
+    parser.add_argument(
+        "--breakpoint-threshold",
+        type=int,
+        default=78,
+        help="Semantic breakpoint percentile (75-90)",
+    )
+    parser.add_argument(
+        "--buffer-size",
+        type=int,
+        default=3,
+        help="Buffer size for semantic chunking",
+    )
+    parser.add_argument(
         "--batch-size",
         type=int,
         default=100,
@@ -203,11 +227,14 @@ def main() -> None:
             strategy=args.chunking_strategy,
             chunk_size=args.chunk_size,
             chunk_overlap=args.chunk_overlap,
-            min_chunk_size=100,
+            min_chunk_size=args.min_chunk_size,
+            max_chunk_size=args.max_chunk_size,
             model_name_tokenizer=args.embedding_model,
             model_name_embedder=args.embedding_model,
             respect_sections=True,
-            add_passage_prefix=False,  # Don't add prefix to stored text
+            breakpoint_percentile_thresh=args.breakpoint_threshold,
+            buffer_size=args.buffer_size,
+            add_passage_prefix=False,
         )
 
         # Create ingestion pipeline

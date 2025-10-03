@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import base64
+import uuid
 import hashlib
 import logging
 import re
@@ -65,7 +65,7 @@ def _stable_chunk_id(doc_id: str, position: str, text: str) -> str:
     h.update(str(position).encode())
     h.update(b"::")
     h.update(text.encode("utf-8", "ignore"))
-    return base64.urlsafe_b64encode(h.digest()).decode().rstrip("=")
+    return str(uuid.UUID(bytes=h.digest()))
 
 
 class TextChunker:
@@ -90,7 +90,7 @@ class TextChunker:
             breakpoint_percentile_thresh: int = 80,
             buffer_size: int = 3,
             add_passage_prefix: bool = False,
-            trust_remote_code: bool = False,
+            trust_remote_code: bool = True,
             context_tail_tokens: int = 0,
     ):
         """
