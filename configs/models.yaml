@@ -35,7 +35,7 @@ vector_store:
   provider: qdrant
   url: ${QDRANT_URL:-http://localhost:6333}
   api_key: ${QDRANT_API_KEY:-}
-  collection: ${QDRANT_COLLECTION:-ragx_documents}
+  collection: ${QDRANT_COLLECTION:-ragx_documents_v2}
 
   hnsw:
     m: 32

@@ -25,7 +25,7 @@ class Embedder:
             query_prefix: str = "query: ",
             passage_prefix: str = "passage: ",
             max_seq_length: Optional[int] = None,
-            trust_remote_code: bool = True,  # Dodany parametr
+            trust_remote_code: bool = True,
     ):
         """
         Args:
@@ -51,8 +51,10 @@ class Embedder:
 
         if device is None or device == "auto":
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            logger.info("Auto-selected device: %s", self.device)
         else:
             self.device = device
+            logger.info("Using specified device: %s", self.device)
 
         logger.info("Loading embedder model: %s on %s", model_id, self.device)
         self.model = SentenceTransformer(

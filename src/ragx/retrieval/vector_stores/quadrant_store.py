@@ -30,7 +30,7 @@ class QdrantStore:
             self,
             url: str = "http://localhost:6333",
             api_key: Optional[str] = None,
-            collection_name: str = "ragx_documents",
+            collection_name: str = "ragx_documents_v2",
             embedding_dim: int = 768,
             distance_metric: str = "cosine",  # 'cosine' | 'euclidean' | 'dot'
             recreate_collection: bool = False,
