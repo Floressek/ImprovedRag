@@ -4,6 +4,7 @@
 PY = python
 PIP = pip
 DOCKER_COMPOSE = docker-compose
+EMBEDDING_MODEL = Alibaba-NLP/gte-multilingual-base
 
 # Default target
 help:
@@ -82,18 +83,40 @@ extract-wiki-docker-fixed:
 	@powershell -Command "docker run --rm -v \"$${PWD}/data:/data\".Replace('\', '/') python:3.11-slim bash -lc \"apt-get update && apt-get install -y git && pip install -q git+https://github.com/attardi/wikiextractor.git@ab8988ebfa9e4557411f3d4c0f4ccda139e18875 && mkdir -p /data/processed/wiki_extracted && wikiextractor /data/raw/pl_wiki_dump/plwiki-20250601-pages-articles-multistream.xml.bz2 --output /data/processed/wiki_extracted --bytes 1M --processes 8 --json --no-templates\""
 	@echo "✓ Wikipedia extraction complete!"
 
-ingest: setup-qdrant
-	@echo "Ingesting Wikipedia into Qdrant..."
+ingest-test: setup-qdrant
+	@echo "🧪 Test ingestion (1k articles, optimized chunking)..."
 	$(PY) scripts/ingest_wiki.py \
+		--source data/processed/wiki_extracted \
 		--max-articles 1000 \
-		--chunk-size 512 \
+		--chunk-size 352 \
 		--chunk-overlap 96 \
+		--min-chunk-size 120 \
+		--max-chunk-size 480 \
 		--chunking-strategy semantic \
-		--embedding-model Alibaba-NLP/gte-multilingual-base \
+		--embedding-model $(EMBEDDING_MODEL) \
+		--embedding-batch-size 64 \
 		--use-prefixes \
-		--recreate-collection
+		--recreate-collection \
+		--log-level INFO
 
 ingest-full:
+	@echo "🚀 Full ingestion (10k articles, production settings)..."
+	$(PY) scripts/ingest_wiki.py \
+		--source data/processed/wiki_extracted \
+		--max-articles 10000 \
+		--chunk-size 400 \
+		--chunk-overlap 100 \
+		--min-chunk-size 120 \
+		--max-chunk-size 480 \
+		--chunking-strategy semantic \
+		--embedding-model $(EMBEDDING_MODEL) \
+		--embedding-batch-size 128 \
+		--use-prefixes \
+		--batch-size 200 \
+		--recreate-collection \
+		--log-level INFO
+
+ingest-full-old:
 	@echo "Ingesting full Wikipedia chunk..."
 	$(PY) scripts/ingest_wiki.py \
 		--source data\\processed\\wiki_extracted \

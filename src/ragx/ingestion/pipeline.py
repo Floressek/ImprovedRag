@@ -72,6 +72,10 @@ def download(language: str, output_dir: Path, dump_date: str, chunk_number: Opti
 @click.argument("source", type=click.Path(exists=True, path_type=Path))
 @click.option("--max-articles", type=int, default=10000, help="Maximum articles to process")
 @click.option("--max-chunks", type=int, default=None, help="Maximum chunks to generate")
+@click.option("--min-chunk-size", type=int, default=120, help="Minimum chunk size in tokens")
+@click.option("--max-chunk-size", type=int, default=512, help="Maximum chunk size in tokens")
+@click.option("--breakpoint-threshold", type=int, default=78, help="Semantic breakpoint percentile")
+@click.option("--buffer-size", type=int, default=3, help="Buffer size for semantic chunking (2-5)")
 @click.option("--chunk-size", type=int, default=512, help="Chunk size in tokens")
 @click.option("--chunk-overlap", type=int, default=96, help="Overlap between chunks")
 @click.option(
@@ -93,6 +97,10 @@ def ingest(
         source: Path,
         max_articles: int,
         max_chunks: Optional[int],
+        min_chunk_size: int,
+        max_chunk_size: int,
+        buffer_size: int,
+        breakpoint_threshold: int,
         chunk_size: int,
         chunk_overlap: int,
         embedding_model: str,
@@ -150,11 +158,14 @@ def ingest(
             strategy="semantic",
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            min_chunk_size=100,
+            min_chunk_size=min_chunk_size,
+            max_chunk_size=max_chunk_size,
             model_name_tokenizer=embedding_model,
             model_name_embedder=embedding_model,
             respect_sections=True,
-            add_passage_prefix=False,  # keep payload clean; add prefix only when embedding
+            breakpoint_percentile_thresh=breakpoint_threshold,
+            buffer_size=buffer_size,
+            add_passage_prefix=False,
         )
 
         pipeline = IngestionPipeline(
