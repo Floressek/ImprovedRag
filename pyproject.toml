@@ -1,3 +1,9 @@
+[tool.uv]
+index-url = "https://pypi.org/simple"
+
+[tool.uv.sources]
+wikiextractor = { git = "https://github.com/attardi/wikiextractor.git", rev = "ab8988ebfa9e4557411f3d4c0f4ccda139e18875" }
+
 [project]
 name = "ragx"
 version = "0.1.0"
@@ -6,38 +12,26 @@ readme = "README.md"
 requires-python = ">=3.12"
 
 dependencies = [
-    # RAG Core
     "wikiextractor>=3.0.6",
     "qdrant-client>=1.7.0",
     "sentence-transformers>=2.7.0",
     "transformers>=4.35.0",
-
-    # Cross-encoder reranking
-    "torch>=2.0.0",
-
-    # API & Utils
+    "torch",
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.2.1",
-
-    # Text processing
     "nltk>=3.8",
     "tqdm>=4.65.0",
     "jinja2>=3.1.4",
-
-    # Core deps
     "numpy>=1.24.0",
-    "requests>=2.32.0"
+    "requests>=2.32.0",
+    "llama-index>=0.13.3",
+    "torchvision",
+    "torchaudio",
+    "datasets>=4.0.0",
+    "tokenizers>=0.21.4",
+    "accelerate>=1.10.0",
+    "llama-index-embeddings-huggingface>=0.6.0",
+    "pylint>=3.3.8",
 ]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.0",
-    "ruff>=0.4.8",
-    "black>=24.4.2",
-    "mypy>=1.10.0"
-]
-
-[project.scripts]
-ragx = "ragx.cli.main:main"

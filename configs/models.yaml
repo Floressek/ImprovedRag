@@ -1,20 +1,23 @@
 embedder:
-  # dobry kompromis PL/EN; alternatywa: thenlper/gte-multilingual-base
-  id: thenlper/gte-multilingual-base
+  # dobry kompromis PL/EN; alternatywa: Alibaba-NLP/gte-multilingual-base
+  id: Alibaba-NLP/gte-multilingual-base
   device: auto
   normalize_embeddings: true
   batch_size: 64
   max_seq_length: 512
+  use_prefixes: true
+  query_prefix: "query: "
+  passage_prefix: "passage: "
 
 reranker:
   # wielojęzyczny reranker; jeśli chcesz lżej → jinaai/jina-reranker-v2-small
   id: jinaai/jina-reranker-v2-base-multilingual
   device: auto
   batch_size: 16
+  max_length: 512
 
 llm:
   provider: huggingface
-
   id: Qwen/Qwen2.5-7B-Instruct
   device_map: auto
   dtype: bfloat16
@@ -23,15 +26,16 @@ llm:
   bnb_4bit_use_double_quant: true
   generation:
     temperature: 0.2
-    max_new_tokens: 300
+    max_new_tokens: 500
     do_sample: false
     top_p: 0.9
+    repetition_penalty: 1.1
 
 vector_store:
   provider: qdrant
   url: ${QDRANT_URL:-http://localhost:6333}
   api_key: ${QDRANT_API_KEY:-}
-  collection: ${QDRANT_COLLECTION:-ragx_documents}
+  collection: ${QDRANT_COLLECTION:-ragx_documents_v2}
 
   hnsw:
     m: 32
@@ -53,3 +57,22 @@ retrieval:
   context_top_n: 6
   chunk_size: 512
   chunk_overlap: 96
+
+  dedupe:
+    enabled: true
+    similarity_threshold: 0.95
+
+  hybrid_search:
+    enabled: false          # Can enable BM25+vector later
+    alpha: 0.5
+
+chunking:
+  strategy: semantic
+  chunk_size: 512
+  chunk_overlap: 96
+  min_chunk_size: 100
+  model_name_tokenizer: Alibaba-NLP/gte-multilingual-base
+  model_name_embedder: Alibaba-NLP/gte-multilingual-base
+  respect_sections: true
+  breakpoint_percentile_thresh: 95
+  add_passage_prefix: false

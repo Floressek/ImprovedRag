@@ -20,7 +20,6 @@ class WikiArticle:
     """
     Represents a single Wikipedia article.
     """
-
     id: str
     title: str
     text: str
@@ -87,7 +86,7 @@ class WikiExtractor:
         except ImportError:
             logger.error(
                 "WikiExtractor not installed. Install with:\n"
-                "uv pip install wikiextractor"
+                "pip install git+https://github.com/attardi/wikiextractor.git@ab8988ebfa9e4557411f3d4c0f4ccda139e18875"
             )
             raise ImportError("WikiExtractor required and not installed.")
 
@@ -125,13 +124,10 @@ class WikiExtractor:
             "--processes", str(self.processes),
         ]
 
-        # Fixme: maybe switch?
         if self.json_output:
             cmd.append("--json")
         if self.no_templates:
             cmd.append("--no-templates")
-        if self.filter_disambig:
-            cmd.append("--filter_disambig")
         if self.quiet:
             cmd.append("--quiet")
 
@@ -149,7 +145,7 @@ class WikiExtractor:
             )
 
             if result.stdout and not self.quiet:
-                logger.debug(f"WikiExtractor output: {result.stdout}")
+                logger.debug("WikiExtractor output: %s", result.stdout)
 
             # Parse the extracted files
             yield from self._parse_extracted_files(output_dir)
@@ -177,12 +173,15 @@ class WikiExtractor:
 
     def _parse_extracted_files(self, output_dir: Path) -> Iterator[WikiArticle]:
         """
-        Parse extracted files in the given directory.
+        Parse extracted files in JSONL format (one JSON object per line).
+        WikiExtractor with --json flag produces files named wiki_XX (no extension).
+
         :param output_dir: Directory with extracted files
         Yields:
             WikiArticle instances
         """
-        wiki_files = sorted(output_dir.glob("**/wiki_*.json"))
+        wiki_files = sorted(output_dir.glob("**/wiki_*"))
+        wiki_files = [f for f in wiki_files if f.is_file() and not f.suffix]
 
         if not wiki_files:
             logger.warning(f"No extracted files found in {output_dir}")
@@ -198,12 +197,46 @@ class WikiExtractor:
             logger.debug(f"Processing file: {wiki_file}")
 
             try:
-                if self.json_output:
-                    yield from self._parse_json_file(wiki_file)
-                else:
-                    yield from self._parse_text_file(wiki_file)
+                with open(wiki_file, 'r', encoding='utf-8') as f:
+                    for line_num, line in enumerate(f, 1):
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        try:
+                            doc = json.loads(line)
+
+                            # Required fields
+                            doc_id = doc.get('id')
+                            url = doc.get('url')
+                            title = doc.get('title')
+                            text = doc.get('text', '').strip()
+
+                            # Omit short articles
+                            if not text or len(text) < 10:
+                                continue
+
+                            self._article_count += 1
+
+                            yield WikiArticle(
+                                id=doc_id,
+                                url=url,
+                                title=title,
+                                text=text
+                            )
+
+                            if self.max_articles and self._article_count >= self.max_articles:
+                                logger.info(f"Reached max articles limit: {self.max_articles}")
+                                return
+
+                        except json.JSONDecodeError as e:
+                            logger.warning(
+                                f"Invalid JSON at {wiki_file}:{line_num} - {e}"
+                            )
+                            continue
+
             except Exception as e:
-                logger.warning(f"Failed to parse {wiki_file}: {e}")
+                logger.error(f"Error reading {wiki_file}: {e}")
                 continue
 
     def _parse_json_file(self, file_path: Path) -> Iterator[WikiArticle]:
@@ -254,7 +287,7 @@ class WikiExtractor:
                 title=title,
                 text=text,
                 url=url,
-                categories=[], # Categories not provided in JSON
+                categories=[],  # Categories not provided in JSON
             )
         except Exception as e:
             logger.warning(f"Error parsing article data: {e}")
@@ -324,6 +357,7 @@ class WikiExtractor:
 
         return text.strip()
 
+
 # FIXME: prob shoould go to the controller folder for endpoint use
 def download_wikipedia_dump(
         language: str = "en",
@@ -390,5 +424,5 @@ def download_wikipedia_dump(
     except requests.RequestException as e:
         logger.error(f"Failed to download Wikipedia dump: {e}")
         if output_path.exists():
-            output_path.unlink() # remove incomplete file
+            output_path.unlink()  # remove incomplete file
         raise RuntimeError("Download failed") from e
