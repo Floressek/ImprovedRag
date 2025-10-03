@@ -240,11 +240,7 @@ def main() -> None:
             # Extract texts for embedding
             texts = [chunk["text"] for chunk in chunk_dicts]
 
-            # Generate embeddings (as passages)
-            if args.use_prefixes:
-                # Add passage prefix for embedding
-                texts = [f"passage: {text}" for text in texts]
-
+            # "passage" prefix will come from the embedder if enabled
             embeddings = embedder.embed_texts(
                 texts,
                 show_progress=False,

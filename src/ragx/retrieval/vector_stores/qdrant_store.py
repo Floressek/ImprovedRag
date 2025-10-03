@@ -197,7 +197,7 @@ class QdrantStore:
     def search(
             self,
             vector: Vector,
-            top_k=5,
+            top_k=10,
             filter_dict: Optional[dict[str, Any]] = None,
             score_threshold: Optional[float] = None,
             hnsw_ef: Optional[int] = None,
@@ -217,29 +217,18 @@ class QdrantStore:
         q_filter = self._to_filter(filter_dict)
         params = SearchParams(hnsw_ef=hnsw_ef) if hnsw_ef else None
 
-        # hits = self.client.query_points(
-        #     collection_name=self.collection_name,
-        #     query=vector,
-        #     query_filter=q_filter,
-        #     limit=top_k,
-        #     score_threshold=score_threshold,
-        #     search_params=params,
-        #     with_payload=True,
-        #     with_vectors=with_vectors,
-        # )
         try:
-            hits = self.client.search(
+            response = self.client.query_points(
                 collection_name=self.collection_name,
-                query_vector=list(vector),
-                limit=top_k,
+                query=vector,
                 query_filter=q_filter,
-                search_params=params,
+                limit=top_k,
                 score_threshold=score_threshold,
+                search_params=params,
                 with_payload=True,
                 with_vectors=with_vectors,
             )
-        # logger.debug("Search returned %d hits from collection '%s'", len(hits), self.collection_name)
-        # return [(hit.id, hit.payload, hit.score) for hit in hits]
+            hits = response.points
         except Exception as e:
             logger.error("Search failed: %s", e)
             logger.debug("Collection: %s, Vector dim: %d, Top-K: %d",
