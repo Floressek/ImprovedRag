@@ -101,7 +101,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--collection-name",
-        default=os.getenv("QDRANT_COLLECTION", "ragx_documents"),
+        default=os.getenv("QDRANT_COLLECTION", "ragx_documents_v2"),
         help="Qdrant collection name",
     )
     parser.add_argument(
@@ -281,7 +281,7 @@ def main() -> None:
             # Embed query with prefix if needed
             query_vector = embedder.embed_query(test_query)
 
-            results = vector_store.search(query_vector, top_k=3)
+            results = vector_store.search(query_vector, top_k=5)
 
             logger.info(f"Test search for '{test_query}':")
             for i, (id_, payload, score) in enumerate(results, 1):

@@ -106,7 +106,7 @@ def ingest(
 
     # Get configuration from env if not provided
     qdrant_url = qdrant_url or os.getenv("QDRANT_URL", "http://localhost:6333")
-    collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "ragx_documents")
+    collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "ragx_documents_v2")
 
     click.echo("Starting Wikipedia ingestion pipeline...")
     click.echo("Configuration:")
@@ -221,7 +221,7 @@ def ingest(
 def status(qdrant_url: Optional[str], collection_name: Optional[str]):
     """Check vector store status."""
     qdrant_url = qdrant_url or os.getenv("QDRANT_URL", "http://localhost:6333")
-    collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "ragx_documents")
+    collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "ragx_documents_v2")
     try:
         vector_store = QdrantStore(
             url=qdrant_url,

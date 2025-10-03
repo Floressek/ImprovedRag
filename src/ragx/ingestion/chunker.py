@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 import re
+import uuid
 from dataclasses import dataclass, field
 from typing import Iterator, Optional, List, Dict, Any
 
@@ -202,5 +202,4 @@ class TextChunker:
         return len(self._tok(s, add_special_tokens=False, truncation=False)["input_ids"])
 
     def _generate_chunk_id(self, doc_id: str, position: int) -> str:
-        digest = hashlib.md5(f"{doc_id}_{position}".encode()).hexdigest()[:8]
-        return f"chunk_{doc_id}_{position}_{digest}"
+        return str(uuid.uuid4())
