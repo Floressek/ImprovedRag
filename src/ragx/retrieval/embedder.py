@@ -61,7 +61,7 @@ class Embedder:
             model_id,
             device=self.device,
             cache_folder=cache_dir,
-            trust_remote_code=trust_remote_code,  # Dodano tutaj
+            trust_remote_code=trust_remote_code,
         )
 
         if max_seq_length is not None:

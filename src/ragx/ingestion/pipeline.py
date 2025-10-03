@@ -243,6 +243,7 @@ def status(qdrant_url: Optional[str], collection_name: Optional[str]):
 @click.option("--top-k", type=int, default=5, help="Number of results to return")
 @click.option("--embedding-model", default="Alibaba-NLP/gte-multilingual-base", help="Embedding model ID")
 @click.option("--use-prefixes/--no-prefixes", default=True, help="Use query:/passage: prefixes")
+@click.option("--trust-remote-code/--no-trust-remote-code", default=True)
 @click.option("--qdrant-url", default=None, help="Qdrant server URL")
 @click.option("--collection-name", default=None, help="Qdrant collection name")
 def search(
@@ -250,18 +251,20 @@ def search(
         top_k: int,
         embedding_model: str,
         use_prefixes: bool,
+        trust_remote_code: bool,
         qdrant_url: Optional[str],
         collection_name: Optional[str],
 ):
     """Test search functionality with optimized models."""
     qdrant_url = qdrant_url or os.getenv("QDRANT_URL", "http://localhost:6333")
-    collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "ragx_documents")
+    collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "ragx_documents_v2")
     try:
         embedder = Embedder(
             model_id=embedding_model,
             device="auto",
             normalize_embeddings=True,
             use_prefixes=use_prefixes,
+            trust_remote_code=trust_remote_code,
         )
         vector_store = QdrantStore(
             url=qdrant_url,
