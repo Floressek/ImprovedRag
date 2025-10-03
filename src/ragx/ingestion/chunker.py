@@ -13,6 +13,8 @@ from llama_index.core import Document
 from llama_index.core.node_parser import SemanticSplitterNodeParser
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
+from .constants.chunker_types import ChunkingStrategy
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,7 +59,7 @@ class TextChunker:
 
     def __init__(
             self,
-            strategy: str = "semantic",
+            strategy: str = ChunkingStrategy.SEMANTIC,
             chunk_size: int = 512,
             chunk_overlap: int = 96,
             min_chunk_size: int = 100,
@@ -66,7 +68,7 @@ class TextChunker:
             respect_sections: bool = True,
             breakpoint_percentile_thresh: int = 95,
             add_passage_prefix: bool = False,
-            trust_remote_code: bool = True,  # Dodano parametr
+            trust_remote_code: bool = False,
     ):
         if chunk_overlap >= chunk_size:
             raise ValueError("overlap must be < chunk_size")

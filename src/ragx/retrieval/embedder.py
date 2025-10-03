@@ -25,7 +25,7 @@ class Embedder:
             query_prefix: str = "query: ",
             passage_prefix: str = "passage: ",
             max_seq_length: Optional[int] = None,
-            trust_remote_code: bool = True,
+            trust_remote_code: bool = False,
     ):
         """
         Args:

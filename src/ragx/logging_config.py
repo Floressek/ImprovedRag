@@ -56,6 +56,5 @@ def setup_logging(level: str = "INFO") -> None:
     logging.getLogger("transformers").setLevel(logging.WARNING)
     logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
-    # Set our loggers to INFO
     logging.getLogger("src.ragx").setLevel(logging.INFO)
     logging.getLogger("__main__").setLevel(logging.INFO)
