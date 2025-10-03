@@ -42,7 +42,18 @@ class QdrantStore:
         self.embedding_dim = embedding_dim
         self.distance_metric = self._to_distance(distance_metric)
 
-        self.client = QdrantClient(url=self.url, api_key=self.api_key, timeout=timeout_s)
+        self.client = QdrantClient(url=self.url,
+                                   api_key=self.api_key,
+                                   timeout=timeout_s,
+                                   verify=False
+                                   )
+
+        try:
+            collections = self.client.get_collections()
+            logger.info(f"Available collections: {[c.name for c in collections.collections]}")
+        except Exception as e:
+            logger.error(f"Failed to get collections: {e}")
+
         self._ensure_collection(recreate_collection)
 
     @staticmethod
@@ -206,18 +217,38 @@ class QdrantStore:
         q_filter = self._to_filter(filter_dict)
         params = SearchParams(hnsw_ef=hnsw_ef) if hnsw_ef else None
 
-        hits = self.client.query_points(
-            collection_name=self.collection_name,
-            query=vector,
-            query_filter=q_filter,
-            limit=top_k,
-            score_threshold=score_threshold,
-            search_params=params,
-            with_payload=True,
-            with_vectors=with_vectors,
-        )
+        # hits = self.client.query_points(
+        #     collection_name=self.collection_name,
+        #     query=vector,
+        #     query_filter=q_filter,
+        #     limit=top_k,
+        #     score_threshold=score_threshold,
+        #     search_params=params,
+        #     with_payload=True,
+        #     with_vectors=with_vectors,
+        # )
+        try:
+            hits = self.client.search(
+                collection_name=self.collection_name,
+                query_vector=list(vector),
+                limit=top_k,
+                query_filter=q_filter,
+                search_params=params,
+                score_threshold=score_threshold,
+                with_payload=True,
+                with_vectors=with_vectors,
+            )
+        # logger.debug("Search returned %d hits from collection '%s'", len(hits), self.collection_name)
+        # return [(hit.id, hit.payload, hit.score) for hit in hits]
+        except Exception as e:
+            logger.error("Search failed: %s", e)
+            logger.debug("Collection: %s, Vector dim: %d, Top-K: %d",
+                         self.collection_name, len(vector), top_k)
+            raise
+
         logger.debug("Search returned %d hits from collection '%s'", len(hits), self.collection_name)
         return [(hit.id, hit.payload, hit.score) for hit in hits]
+
 
     def get_by_ids(self, ids: Sequence[IdLike], with_vectors: bool = False) -> List[dict[str, Any]]:
         """
@@ -298,4 +329,3 @@ class QdrantStore:
             "distance": str(info.config.params.vectors.distance),
             "status": info.status,
         }
-

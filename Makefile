@@ -107,12 +107,19 @@ ingest-full:
 
 
 # Search testing
+#search:
+#	@echo "Testing search..."
+#	$(PY) scripts/test_search.py "artificial intelligence" \
+#		--top-k 20 \
+#		--use-reranker \
+#		--rerank-top-k 5
+
 search:
 	@echo "Testing search..."
-	$(PY) scripts/test_search.py "artificial intelligence" \
-		--top-k 20 \
-		--use-reranker \
-		--rerank-top-k 5
+	python -m src.ragx.ingestion.pipeline search "$(QUERY)" \
+		--top-k $(TOP_K) \
+		--collection-name ragx_documents \
+		--use-prefixes
 
 search-simple:
 	@echo "Testing search without reranker..."

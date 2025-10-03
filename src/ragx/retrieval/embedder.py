@@ -72,6 +72,10 @@ class Embedder:
                 logger.warning("Could not set max_seq_length (%s): %s", max_seq_length, e)
 
         self.embedding_dim = self.model.get_sentence_embedding_dimension()
+
+        if self.embedding_dim is None or self.embedding_dim <= 0:
+            raise ValueError("Could not determine embedding dimension from model")
+
         logger.info("Embedder initialized with dimension: %d", self.embedding_dim)
 
     def embed_texts(
