@@ -1,6 +1,6 @@
 services:
   qdrant:
-    image: qdrant/qdrant:v1.9.0
+    image: qdrant/qdrant:v1-gpu-nvidia
     container_name: ragx_qdrant
     restart: unless-stopped
     ports:

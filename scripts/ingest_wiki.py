@@ -13,10 +13,11 @@ from dotenv import load_dotenv
 
 from src.ragx.ingestion.chunker import TextChunker
 from src.ragx.ingestion.ingestion_pipeline import IngestionPipeline
-from src.ragx.ingestion.wiki_extractor import WikiExtractor, download_wikipedia_dump
+from src.ragx.ingestion.wiki_extractor import WikiExtractor
+from src.ragx.ingestion.utils.download_wiki_dump import download_wikipedia_dump
 from src.ragx.logging_config import setup_logging
 from src.ragx.retrieval.embedder import Embedder
-from src.ragx.retrieval.vector_stores.quadrant_store import QdrantStore
+from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
 
 
 load_dotenv()
