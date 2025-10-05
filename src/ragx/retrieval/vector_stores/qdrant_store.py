@@ -17,6 +17,8 @@ from qdrant_client.models import (
     VectorParams,
 )
 
+from src.ragx.utils.settings import settings
+
 logger = logging.getLogger(__name__)
 
 IdLike = Union[str, int]
@@ -28,23 +30,38 @@ class QdrantStore:
 
     def __init__(
             self,
-            url: str = "http://localhost:6333",
+            url: Optional[str] = None,
             api_key: Optional[str] = None,
-            collection_name: str = "ragx_documents_v2",
-            embedding_dim: int = 768,
-            distance_metric: str = "cosine",  # 'cosine' | 'euclidean' | 'dot'
-            recreate_collection: bool = False,
-            timeout_s: int = 60,
+            collection_name: Optional[str] = None,
+            embedding_dim: Optional[int] = None,
+            distance_metric: Optional[str] = None,
+            recreate_collection: Optional[bool] = None,
+            timeout_s: Optional[int] = None,
     ):
-        self.url = url
-        self.api_key = api_key
-        self.collection_name = collection_name
-        self.embedding_dim = embedding_dim
-        self.distance_metric = self._to_distance(distance_metric)
+        """
+        Initialize QdrantStore with optional overrides.
+        If any parameter is None, it will be loaded from settings.
+
+        Args:
+            url: Qdrant server URL (default: from config)
+            api_key: Qdrant API key (default: from config)
+            collection_name: Collection name (default: from config)
+            embedding_dim: Embedding dimension (default: from config)
+            distance_metric: Distance metric (default: from config)
+            recreate_collection: Whether to recreate collection (default: from config)
+            timeout_s: Connection timeout in seconds (default: from config)
+        """
+        self.url = url or settings.qdrant.url
+        self.api_key = api_key or settings.qdrant.api_key
+        self.collection_name = collection_name or settings.qdrant.collection_name
+        self.embedding_dim = embedding_dim or settings.qdrant.embedding_dim
+        self.distance_metric = self._to_distance(distance_metric or settings.qdrant.distance_metric)
+        recreate = recreate_collection if recreate_collection is not None else settings.qdrant.recreate_collection
+        timeout = timeout_s or settings.qdrant.timeout_s
 
         self.client = QdrantClient(url=self.url,
                                    api_key=self.api_key,
-                                   timeout=timeout_s,
+                                   timeout=timeout,
                                    verify=False
                                    )
 
@@ -54,7 +71,7 @@ class QdrantStore:
         except Exception as e:
             logger.error(f"Failed to get collections: {e}")
 
-        self._ensure_collection(recreate_collection)
+        self._ensure_collection(recreate)
 
     @staticmethod
     def _to_distance(metric: str) -> Distance:
@@ -237,7 +254,6 @@ class QdrantStore:
 
         logger.debug("Search returned %d hits from collection '%s'", len(hits), self.collection_name)
         return [(hit.id, hit.payload, hit.score) for hit in hits]
-
 
     def get_by_ids(self, ids: Sequence[IdLike], with_vectors: bool = False) -> List[dict[str, Any]]:
         """

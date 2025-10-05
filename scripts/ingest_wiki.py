@@ -15,7 +15,7 @@ from src.ragx.ingestion.chunker import TextChunker
 from src.ragx.ingestion.ingestion_pipeline import IngestionPipeline
 from src.ragx.ingestion.wiki_extractor import WikiExtractor
 from src.ragx.ingestion.utils.download_wiki_dump import download_wikipedia_dump
-from src.ragx.logging_config import setup_logging
+from src.ragx.utils.logging_config import setup_logging
 from src.ragx.retrieval.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
 
@@ -153,16 +153,16 @@ def main() -> None:
     setup_logging(level=args.log_level)
 
     logger.info("Starting Wikipedia ingestion pipeline")
-    logger.info(f"Configuration:")
-    logger.info(f"  Language: {args.language}")
-    logger.info(f"  Max articles: {args.max_articles}")
-    logger.info(f"  Chunk size: {args.chunk_size}")
-    logger.info(f"  Chunk overlap: {args.chunk_overlap}")
-    logger.info(f"  Chunking strategy: {args.chunking_strategy}")
-    logger.info(f"  Embedding model: {args.embedding_model}")
-    logger.info(f"  Use prefixes: {args.use_prefixes}")
-    logger.info(f"  Qdrant URL: {args.qdrant_url}")
-    logger.info(f"  Collection: {args.collection_name}")
+    logger.info("Configuration:")
+    logger.info("  Language: %s", args.language)
+    logger.info("  Max articles: %d", args.max_articles)
+    logger.info("  Chunk size: %d", args.chunk_size)
+    logger.info("  Chunk overlap: %d", args.chunk_overlap)
+    logger.info("  Chunking strategy: %s", args.chunking_strategy)
+    logger.info("  Embedding model: %s", args.embedding_model)
+    logger.info("  Use prefixes: %s", args.use_prefixes)
+    logger.info("  Qdrant URL: %s", args.qdrant_url)
+    logger.info("  Collection: %s", args.collection_name)
 
     try:
         # Step 1: Handle source data
@@ -304,8 +304,7 @@ def main() -> None:
 
             # Embed query with prefix if needed
             query_vector = embedder.embed_query(test_query)
-
-            results = vector_store.search(query_vector, top_k=5)
+            results = vector_store.search(query_vector, top_k=10)
 
             logger.info(f"Test search for '{test_query}':")
             for i, (id_, payload, score) in enumerate(results, 1):
