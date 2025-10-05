@@ -7,7 +7,7 @@ from typing import Iterator, Optional
 from tqdm import tqdm
 
 from .chunker import Chunk, TextChunker
-from .wiki_extractor import WikiArticle, WikiExtractor
+from .wiki_extractor import WikiExtractor
 
 logger = logging.getLogger(__name__)
 
