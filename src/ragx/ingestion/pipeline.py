@@ -215,7 +215,7 @@ def search(query: str, top_k: Optional[int], embedding_model: Optional[str]):
         for i, (pid, payload, score) in enumerate(hits, 1):
             click.echo(f"{i}. Score: {score:.4f}")
             click.echo(f"   Doc: {payload.get('doc_title', 'Unknown')}")
-            click.echo(f"   Chunk: {payload.get('position', 0) + 1}/{payload.get('total_chunks', 0)}")
+            click.echo(f"   Chunk: {payload.get('position', 0)}/{payload.get('total_chunks', 0)}")
             text = payload.get("text", "")
             # payload text is clean (no 'passage:'), we embedded with prefix at encode time
             click.echo(f"   Text: {text[:200]}...")
