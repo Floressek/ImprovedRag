@@ -19,6 +19,7 @@ from llama_index.core.schema import MetadataMode
 from src.ragx.ingestion.constants.chunker_types import ChunkingStrategy
 from src.ragx.ingestion.utils.strip_header import extract_section_header, strip_leading_header
 from src.ragx.utils.settings import settings
+from src.ragx.utils.model_registry import model_registry
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,7 @@ class TextChunker:
             max_chunk_size: Optional[int] = None,
             model_name_tokenizer: Optional[str] = None,
             model_name_embedder: Optional[str] = None,
+            chunking_model_override: Optional[str] = None,
             respect_sections: Optional[bool] = None,
             breakpoint_percentile_thresh: Optional[int] = None,
             buffer_size: Optional[int] = None,
@@ -136,11 +138,18 @@ class TextChunker:
             raise ValueError(f"strategy must be 'semantic' or 'token', got: {self.strategy}")
 
         logger.info(f"Loading tokenizer: {model_name_tokenizer}")
-        self._tok = AutoTokenizer.from_pretrained(
-            model_name_tokenizer,
-            trust_remote_code=trust_remote_code,
-            cache_dir=settings.huggingface.transformers_cache,
-        )
+
+        # Use model registry to cache tokenizer
+        tokenizer_cache_key = f"tokenizer:{model_name_tokenizer}"
+
+        def _create_tokenizer():
+            return AutoTokenizer.from_pretrained(
+                model_name_tokenizer,
+                trust_remote_code=trust_remote_code,
+                cache_dir=settings.huggingface.transformers_cache,
+            )
+
+        self._tok = model_registry.get_or_create(tokenizer_cache_key, _create_tokenizer)
 
         model_ctx = getattr(self._tok, "model_max_length", 512) or 512
         safe_cap = int(model_ctx * 0.9)
@@ -160,12 +169,28 @@ class TextChunker:
         self._embed = None
         self._semantic = None
         if self.strategy == ChunkingStrategy.SEMANTIC:
+            chunking_model = chunking_model_override or model_name_embedder
             logger.info(f"Loading embedding model for semantic chunking: {model_name_embedder}")
-            self._embed = HuggingFaceEmbedding(
-                model_name=model_name_embedder,
-                trust_remote_code=trust_remote_code,
-                cache_folder=settings.huggingface.transformers_cache,
-            )
+
+            if chunking_model_override:
+                logger.info(f"Using LIGHTWEIGHT model for semantic boundaries: {chunking_model}")
+                logger.info(f"Final embeddings will use FULL model: {model_name_embedder}")
+            else:
+                logger.info(f"Using embedding model for semantic chunking: {chunking_model}")
+
+
+            # Use model registry to cache HuggingFaceEmbedding
+            embed_cache_key = f"hf_embedding:{model_name_embedder}"
+
+            def _create_embedding():
+                return HuggingFaceEmbedding(
+                    model_name=chunking_model,
+                    trust_remote_code=trust_remote_code,
+                    cache_folder=settings.huggingface.transformers_cache,
+                )
+
+            self._embed = model_registry.get_or_create(embed_cache_key, _create_embedding)
+
             self._semantic = SemanticSplitterNodeParser(
                 embed_model=self._embed,
                 buffer_size=self.buffer_size,

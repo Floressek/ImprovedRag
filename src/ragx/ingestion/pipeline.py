@@ -103,6 +103,7 @@ def ingest(
             chunk_overlap=chunk_overlap,
             model_name_tokenizer=embedding_model,
             model_name_embedder=embedding_model,
+            chunking_model_override=settings.chunker.chunking_model,
         )
 
         pipeline = IngestionPipeline(
@@ -114,6 +115,9 @@ def ingest(
             chunker=chunker,
         )
         click.echo(f"✓ Pipeline created ({settings.chunker.strategy} chunking)")
+
+        if settings.chunker.chunking_model:
+            click.echo(f"  → Using lightweight model for boundaries: {settings.chunker.chunking_model}")
 
         # 3) Process & index
         click.echo("\n2. Processing Wikipedia articles...")
