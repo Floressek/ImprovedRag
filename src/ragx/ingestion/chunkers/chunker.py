@@ -112,7 +112,6 @@ class TextChunker:
             trust_remote_code: Trust remote code in models
             context_tail_tokens: Tokens to keep as context tail (not chunked)
         """
-        # Load from settings if not provided
         self.strategy = strategy or settings.chunker.strategy
         self.chunk_size = chunk_size or settings.chunker.chunk_size
         self.chunk_overlap = chunk_overlap or settings.chunker.chunk_overlap
@@ -190,19 +189,13 @@ class TextChunker:
         Uses LRU cache to avoid redundant tokenization.
         """
 
-        @lru_cache(maxsize=65536)
+        @lru_cache(maxsize=131072)
         def _counter(s: str) -> int:
             if not s:
                 return 0
             return len(tok(s, add_special_tokens=False, truncation=False)["input_ids"])
 
         return _counter
-
-    def clear_caches(self) -> None:
-        """
-        Clear internal caches (e.g. token counting).
-        """
-        self._count_tokens_cached.cache_clear()
 
     def chunk_document(
             self,
@@ -225,8 +218,6 @@ class TextChunker:
         """
         if not text or not text.strip():
             return []
-
-        self.clear_caches()
 
         metadata = metadata or {}
         sections = self._split_sections(text) if self.respect_sections else [text]
