@@ -20,33 +20,15 @@ logger = logging.getLogger(__name__)
 
 @click.group()
 def cli():
-    """RAGx Wikipedia ingestion CLI with optimized models."""
+    """RAGx Wikipedia ingestion CLI."""
     setup_logging(level=settings.app.log_level)
 
 
 @click.command()
-@click.option(
-    "--language",
-    default="en",
-    help="Wikipedia language code (en, pl, etc.)",
-)
-@click.option(
-    "--output-dir",
-    type=click.Path(path_type=Path),
-    default=None,
-    help=f"Directory to save Wikipedia dump (default: {settings.app.raw_dir})",
-)
-@click.option(
-    "--dump-date",
-    default="latest",
-    help="Wikipedia dump date (YYYYMMDD or 'latest')",
-)
-@click.option(
-    "--chunk-number",
-    type=int,
-    default=None,
-    help="Chunk number for multistream dumps (None = full file)",
-)
+@click.option("--language", default="en", help="Wikipedia language code (en, pl, etc.)")
+@click.option("--output-dir", type=click.Path(path_type=Path), default=None, help="Output directory")
+@click.option("--dump-date", default="latest", help="Dump date (YYYYMMDD or 'latest')")
+@click.option("--chunk-number", type=int, default=None, help="Multistream chunk number")
 def download(language: str, output_dir: Optional[Path], dump_date: str, chunk_number: Optional[int]):
     """Download Wikipedia dump file."""
     output_dir = output_dir or Path(settings.app.raw_dir)
@@ -68,109 +50,48 @@ def download(language: str, output_dir: Optional[Path], dump_date: str, chunk_nu
 @click.argument("source", type=click.Path(exists=True, path_type=Path))
 @click.option("--max-articles", type=int, default=10000, help="Maximum articles to process")
 @click.option("--max-chunks", type=int, default=None, help="Maximum chunks to generate")
-@click.option("--min-chunk-size", type=int, default=120, help="Minimum chunk size in tokens")
-@click.option(
-    "--max-chunk-size",
-    type=int,
-    default=None,
-    help="Maximum chunk size in tokens (default: from settings)",
-)
-@click.option("--breakpoint-threshold", type=int, default=78, help="Semantic breakpoint percentile")
-@click.option("--buffer-size", type=int, default=3, help="Buffer size for semantic chunking (2-5)")
-@click.option(
-    "--chunk-size",
-    type=int,
-    default=None,
-    help="Chunk size in tokens (default: from settings)",
-)
-@click.option(
-    "--chunk-overlap",
-    type=int,
-    default=None,
-    help="Overlap between chunks (default: from settings)",
-)
-@click.option(
-    "--embedding-model",
-    default=None,
-    help="Embedding model ID (default: from settings)",
-)
-@click.option(
-    "--embedding-batch-size",
-    type=int,
-    default=None,
-    help="Batch size for embedding (default: from settings)",
-)
-@click.option(
-    "--use-prefixes/--no-prefixes",
-    default=None,
-    help="Use query:/passage: prefixes (default: from settings)",
-)
-@click.option(
-    "--qdrant-url",
-    default=None,
-    help="Qdrant server URL (default: from settings)",
-)
-@click.option(
-    "--collection-name",
-    default=None,
-    help="Qdrant collection name (default: from settings)",
-)
-@click.option("--recreate-collection", is_flag=True, help="Recreate collection if exists")
-@click.option("--batch-size", type=int, default=100, help="Batch size for processing")
+@click.option("--recreate-collection", is_flag=True, help="Recreate Qdrant collection")
+@click.option("--batch-size", type=int, default=100, help="Processing batch size")
+@click.option("--embedding-model", default=None, help="Override embedding model")
+@click.option("--chunk-size", type=int, default=None, help="Override chunk size")
+@click.option("--chunk-overlap", type=int, default=None, help="Override chunk overlap")
 def ingest(
         source: Path,
         max_articles: int,
         max_chunks: Optional[int],
-        min_chunk_size: int,
-        max_chunk_size: Optional[int],
-        buffer_size: int,
-        breakpoint_threshold: int,
-        chunk_size: Optional[int],
-        chunk_overlap: Optional[int],
-        embedding_model: Optional[str],
-        embedding_batch_size: Optional[int],
-        use_prefixes: Optional[bool],
-        qdrant_url: Optional[str],
-        collection_name: Optional[str],
         recreate_collection: bool,
         batch_size: int,
+        embedding_model: Optional[str],
+        chunk_size: Optional[int],
+        chunk_overlap: Optional[int],
 ):
-    """Ingest Wikipedia data into vector store with optimized settings."""
+    """Ingest Wikipedia data into vector store.
 
+    All configuration comes from .env unless explicitly overridden via CLI flags.
+    """
+
+    # Resolve overrides
     embedding_model = embedding_model or settings.embedder.model_id
-    embedding_batch_size = embedding_batch_size or settings.embedder.batch_size
-    use_prefixes = use_prefixes if use_prefixes is not None else settings.embedder.use_prefixes
-    chunk_size = chunk_size or settings.retrieval.chunk_size
-    chunk_overlap = chunk_overlap or settings.retrieval.chunk_overlap
-    max_chunk_size = max_chunk_size or settings.retrieval.chunk_size
-    qdrant_url = qdrant_url or settings.qdrant.url
-    collection_name = collection_name or settings.qdrant.collection_name
+    chunk_size = chunk_size or settings.chunker.chunk_size
+    chunk_overlap = chunk_overlap or settings.chunker.chunk_overlap
 
     click.echo("Starting Wikipedia ingestion pipeline...")
     click.echo("Configuration:")
     click.echo(f"  Source: {source}")
     click.echo(f"  Embedding model: {embedding_model}")
-    click.echo(f"  Embedding batch size: {embedding_batch_size}")
-    click.echo(f"  Use prefixes: {use_prefixes}")
     click.echo(f"  Chunk size: {chunk_size}")
     click.echo(f"  Chunk overlap: {chunk_overlap}")
-    click.echo(f"  Qdrant URL: {qdrant_url}")
-    click.echo(f"  Collection: {collection_name}")
+    click.echo(f"  Qdrant: {settings.qdrant.url} / {settings.qdrant.collection_name}")
 
     try:
         # 1) Components
         click.echo("\n1. Initializing components...")
 
-        embedder = Embedder(
-            model_id=embedding_model,
-            batch_size=embedding_batch_size,
-            use_prefixes=use_prefixes,
-        )
+        # Wszystko z settings! Super proste!
+        embedder = Embedder(model_id=embedding_model)
         click.echo(f"✓ Embedder initialized (dim={embedder.get_dimension()})")
 
         vector_store = QdrantStore(
-            url=qdrant_url,
-            collection_name=collection_name,
             embedding_dim=embedder.get_dimension(),
             recreate_collection=recreate_collection,
         )
@@ -178,28 +99,21 @@ def ingest(
 
         # 2) Chunker & pipeline (NO prefix in stored text — we add at embedding time)
         chunker = TextChunker(
-            strategy=settings.retrieval.chunking_strategy,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            min_chunk_size=min_chunk_size,
-            max_chunk_size=max_chunk_size,
             model_name_tokenizer=embedding_model,
             model_name_embedder=embedding_model,
-            respect_sections=True,
-            breakpoint_percentile_thresh=breakpoint_threshold,
-            buffer_size=buffer_size,
-            add_passage_prefix=False,
         )
 
         pipeline = IngestionPipeline(
             extractor=WikiExtractor(
                 max_articles=max_articles,
                 json_output=True,
-                processes=4,
+                processes=6,
             ),
             chunker=chunker,
         )
-        click.echo("✓ Ingestion pipeline created with semantic chunking")
+        click.echo(f"✓ Pipeline created ({settings.chunker.strategy} chunking)")
 
         # 3) Process & index
         click.echo("\n2. Processing Wikipedia articles...")
@@ -251,31 +165,15 @@ def ingest(
 
 
 @cli.command()
-@click.option(
-    "--qdrant-url",
-    default=None,
-    help=f"Qdrant server URL (default: {settings.qdrant.url})",
-)
-@click.option(
-    "--collection-name",
-    default=None,
-    help=f"Qdrant collection name (default: {settings.qdrant.collection_name})",
-)
-def status(qdrant_url: Optional[str], collection_name: Optional[str]):
+def status():
     """Check vector store status."""
-    qdrant_url = qdrant_url or settings.qdrant.url
-    collection_name = collection_name or settings.qdrant.collection_name
     try:
-        vector_store = QdrantStore(
-            url=qdrant_url,
-            collection_name=collection_name,
-            recreate_collection=False,
-        )
+        vector_store = QdrantStore(recreate_collection=False)
         info = vector_store.get_collection_info()
 
         click.echo("Vector Store Status:")
-        click.echo(f"  URL: {qdrant_url}")
-        click.echo(f"  Collection: {collection_name}")
+        click.echo(f"  URL: {settings.qdrant.url}")
+        click.echo(f"  Collection: {settings.qdrant.collection_name}")
         click.echo(f"  Points: {info['points_count']}")
         click.echo(f"  Vector size: {info['vector_size']}")
         click.echo(f"  Distance: {info['distance']}")
@@ -287,38 +185,15 @@ def status(qdrant_url: Optional[str], collection_name: Optional[str]):
 
 @cli.command()
 @click.argument("query", type=str)
-@click.option("--top-k", type=int, default=None,
-              help=f"Number of results to return (default: {settings.retrieval.context_top_n})")
-@click.option("--embedding-model", default=None,
-              help=f"Embedding model ID (default: {settings.embedder.model_id})")
-@click.option("--use-prefixes/--no-prefixes", default=None,
-              help=f"Use query:/passage: prefixes (default: {settings.embedder.use_prefixes})")
-@click.option("--trust-remote-code/--no-trust-remote-code", default=True)
-@click.option("--qdrant-url", default=None, help=f"Qdrant server URL (default: {settings.qdrant.url})")
-@click.option("--collection-name", default=None,
-              help=f"Qdrant collection name (default: {settings.qdrant.collection_name})")
-def search(
-        query: str,
-        top_k: Optional[int],
-        embedding_model: Optional[str],
-        use_prefixes: Optional[bool],
-        trust_remote_code: bool,
-        qdrant_url: Optional[str],
-        collection_name: Optional[str],
-):
-    """Test search functionality with optimized models."""
+@click.option("--top-k", type=int, default=None, help="Number of results (default: from settings)")
+@click.option("--embedding-model", default=None, help="Override embedding model")
+def search(query: str, top_k: Optional[int], embedding_model: Optional[str]):
+    """Search in the vector store."""
     top_k = top_k or settings.retrieval.context_top_n
-    qdrant_url = qdrant_url or settings.qdrant.url
-    collection_name = collection_name or settings.qdrant.collection_name
+
     try:
-        embedder = Embedder(
-            model_id=embedding_model,
-            use_prefixes=use_prefixes,
-            trust_remote_code=trust_remote_code,
-        )
+        embedder = Embedder(model_id=embedding_model)  # None = uses settings
         vector_store = QdrantStore(
-            url=qdrant_url,
-            collection_name=collection_name,
             embedding_dim=embedder.get_dimension(),
             recreate_collection=False,
         )
@@ -331,11 +206,7 @@ def search(
         )
 
         click.echo(f"\nSearch results for: '{query}'\n")
-        click.echo(f"Configuration:")
-        click.echo(f"  Model: {embedder.model_id}")
-        click.echo(f"  Use prefixes: {embedder.use_prefixes}")
-        click.echo(f"  Top-K: {top_k}")
-        click.echo(f"  HNSW EF: {settings.hnsw.search_ef}\n")
+        click.echo(f"Model: {embedder.model_id} | Top-K: {top_k} | HNSW EF: {settings.hnsw.search_ef}\n")
 
         for i, (pid, payload, score) in enumerate(hits, 1):
             click.echo(f"{i}. Score: {score:.4f}")
