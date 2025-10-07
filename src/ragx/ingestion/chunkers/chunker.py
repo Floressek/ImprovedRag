@@ -281,7 +281,7 @@ class TextChunker:
         total = len(chunk_texts)
         out: List[Chunk] = []
 
-        for pos, ctext in enumerate(chunk_texts):
+        for pos, ctext in enumerate(chunk_texts, start=1):
             cid = _stable_chunk_id(doc_id, pos, ctext)
             extended_metadata = self._enrich_metadata(
                 base_metadata=metadata,
