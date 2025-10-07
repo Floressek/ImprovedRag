@@ -18,11 +18,11 @@ from llama_index.core.schema import MetadataMode
 
 from .constants.chunker_types import ChunkingStrategy
 from .utils.strip_header import extract_section_header, strip_leading_header
+from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)
 
 
-# FIXME half of the utils functions go to the separate file
 @dataclass
 class Chunk:
     id: str
@@ -59,6 +59,7 @@ class Chunk:
 
 # tgo to utils
 def _stable_chunk_id(doc_id: str, position: str, text: str) -> str:
+    """Generate stable chunk ID from document ID, position and text."""
     h = hashlib.blake2b(digest_size=16)
     h.update(doc_id.encode("utf-8", "ignore"))
     h.update(b"::")
@@ -79,19 +80,19 @@ class TextChunker:
 
     def __init__(
             self,
-            strategy: str = ChunkingStrategy.SEMANTIC,
-            chunk_size: int = 450,
-            chunk_overlap: int = 128,
-            min_chunk_size: int = 150,
-            max_chunk_size: int = 512,
-            model_name_tokenizer: str = "Alibaba-NLP/gte-multilingual-base",
-            model_name_embedder: str = "Alibaba-NLP/gte-multilingual-base",
-            respect_sections: bool = True,
-            breakpoint_percentile_thresh: int = 80,
-            buffer_size: int = 3,
-            add_passage_prefix: bool = False,
+            strategy: Optional[str] = None,
+            chunk_size: Optional[int] = None,
+            chunk_overlap: Optional[int] = None,
+            min_chunk_size: Optional[int] = None,
+            max_chunk_size: Optional[int] = None,
+            model_name_tokenizer: Optional[str] = None,
+            model_name_embedder: Optional[str] = None,
+            respect_sections: Optional[bool] = None,
+            breakpoint_percentile_thresh: Optional[int] = None,
+            buffer_size: Optional[int] = None,
+            add_passage_prefix: Optional[bool] = None,
             trust_remote_code: bool = True,
-            context_tail_tokens: int = 0,
+            context_tail_tokens: Optional[int] = None,
     ):
         """
         Initialize text chunker.
@@ -111,54 +112,65 @@ class TextChunker:
             trust_remote_code: Trust remote code in models
             context_tail_tokens: Tokens to keep as context tail (not chunked)
         """
-        if chunk_overlap >= chunk_size:
-            raise ValueError("overlap must be < chunk_size")
-        if min_chunk_size >= chunk_size:
-            raise ValueError(f"min_chunk_size ({min_chunk_size}) must be < chunk_size ({chunk_size})")
-        if strategy not in {"semantic", "token"}:
-            raise ValueError("strategy must be 'semantic' or 'token'")
+        # Load from settings if not provided
+        self.strategy = strategy or settings.chunker.strategy
+        self.chunk_size = chunk_size or settings.chunker.chunk_size
+        self.chunk_overlap = chunk_overlap or settings.chunker.chunk_overlap
+        self.min_chunk_size = min_chunk_size or settings.chunker.min_chunk_size
+        self.max_chunk_size = max_chunk_size or settings.chunker.max_chunk_size
+        self.respect_sections = respect_sections if respect_sections is not None else settings.chunker.respect_sections
+        self.breakpoint_percentile_thresh = breakpoint_percentile_thresh or settings.chunker.breakpoint_percentile_threshold
+        self.buffer_size = buffer_size or settings.chunker.buffer_size
+        self.add_passage_prefix = add_passage_prefix if add_passage_prefix is not None else settings.chunker.add_passage_prefix
+        self.context_tail_tokens = max(0, int(context_tail_tokens or settings.chunker.context_tail_tokens))
 
-        self.strategy = strategy
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
-        self.min_chunk_size = min_chunk_size
-        self.max_chunk_size = max_chunk_size
-        self.respect_sections = respect_sections
-        self.breakpoint_percentile_thresh = breakpoint_percentile_thresh
-        self.buffer_size = buffer_size
-        self.add_passage_prefix = add_passage_prefix
-        self.context_tail_tokens = max(0, int(context_tail_tokens))
+        # Model names fallback to embedder model from settings
+        model_name_tokenizer = model_name_tokenizer or settings.embedder.model_id
+        model_name_embedder = model_name_embedder or settings.embedder.model_id
+
+        # Validation
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError(f"overlap ({self.chunk_overlap}) must be < chunk_size ({self.chunk_size})")
+        if self.min_chunk_size >= self.chunk_size:
+            raise ValueError(f"min_chunk_size ({self.min_chunk_size}) must be < chunk_size ({self.chunk_size})")
+        if self.strategy not in {"semantic", "token"}:
+            raise ValueError(f"strategy must be 'semantic' or 'token', got: {self.strategy}")
 
         logger.info(f"Loading tokenizer: {model_name_tokenizer}")
         self._tok = AutoTokenizer.from_pretrained(
             model_name_tokenizer,
-            trust_remote_code=trust_remote_code
+            trust_remote_code=trust_remote_code,
+            cache_dir=settings.huggingface.transformers_cache,
         )
 
         model_ctx = getattr(self._tok, "model_max_length", 512) or 512
         safe_cap = int(model_ctx * 0.9)
         if self.max_chunk_size > safe_cap:
+            logger.warning(
+                f"max_chunk_size ({self.max_chunk_size}) > safe_cap ({safe_cap}), adjusting to {safe_cap}"
+            )
             self.max_chunk_size = safe_cap
 
         self._token_splitter = TokenTextSplitter.from_huggingface_tokenizer(
             self._tok,
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
             add_start_index=False
         )
 
         self._embed = None
         self._semantic = None
-        if strategy == ChunkingStrategy.SEMANTIC:
+        if self.strategy == ChunkingStrategy.SEMANTIC:
             logger.info(f"Loading embedding model for semantic chunking: {model_name_embedder}")
             self._embed = HuggingFaceEmbedding(
                 model_name=model_name_embedder,
-                trust_remote_code=trust_remote_code
+                trust_remote_code=trust_remote_code,
+                cache_folder=settings.huggingface.transformers_cache,
             )
             self._semantic = SemanticSplitterNodeParser(
                 embed_model=self._embed,
-                buffer_size=buffer_size,
-                breakpoint_percentile_threshold=breakpoint_percentile_thresh,
+                buffer_size=self.buffer_size,
+                breakpoint_percentile_threshold=self.breakpoint_percentile_thresh,
             )
 
         self._section_re = re.compile(r"(?:^|\n)(={2,6})\s*(.+?)\s*\1\s*(?=\n|$)")
@@ -167,8 +179,8 @@ class TextChunker:
         self._count_tokens_cached: Callable[[str], int] = self._make_token_counter(self._tok)
 
         logger.info(
-            f"TextChunker initialized: strategy={strategy}, chunk_size={chunk_size}, overlap={chunk_overlap}, "
-            f"min={min_chunk_size}, max={self.max_chunk_size}, buffer={self.buffer_size}, "
+            f"TextChunker initialized: strategy={self.strategy}, chunk_size={self.chunk_size}, overlap={self.chunk_overlap}, "
+            f"min={self.min_chunk_size}, max={self.max_chunk_size}, buffer={self.buffer_size}, "
             f"breakp={self.breakpoint_percentile_thresh}"
         )
 
