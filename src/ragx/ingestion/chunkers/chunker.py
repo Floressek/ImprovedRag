@@ -16,8 +16,8 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import Document
 from llama_index.core.schema import MetadataMode
 
-from .constants.chunker_types import ChunkingStrategy
-from .utils.strip_header import extract_section_header, strip_leading_header
+from src.ragx.ingestion.constants.chunker_types import ChunkingStrategy
+from src.ragx.ingestion.utils.strip_header import extract_section_header, strip_leading_header
 from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)

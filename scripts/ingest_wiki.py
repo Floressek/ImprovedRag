@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
 
-from src.ragx.ingestion.chunker import TextChunker
+from src.ragx.ingestion.chunkers.chunker import TextChunker
 from src.ragx.ingestion.ingestion_pipeline import IngestionPipeline
 from src.ragx.ingestion.wiki_extractor import WikiExtractor
 from src.ragx.ingestion.utils.download_wiki_dump import download_wikipedia_dump
