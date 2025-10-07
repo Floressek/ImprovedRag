@@ -17,6 +17,8 @@ from qdrant_client.models import (
     VectorParams,
 )
 
+from src.ragx.utils.settings import settings
+
 logger = logging.getLogger(__name__)
 
 IdLike = Union[str, int]
@@ -28,23 +30,38 @@ class QdrantStore:
 
     def __init__(
             self,
-            url: str = "http://localhost:6333",
+            url: Optional[str] = None,
             api_key: Optional[str] = None,
-            collection_name: str = "ragx_documents_v2",
-            embedding_dim: int = 768,
-            distance_metric: str = "cosine",  # 'cosine' | 'euclidean' | 'dot'
-            recreate_collection: bool = False,
-            timeout_s: int = 60,
+            collection_name: Optional[str] = None,
+            embedding_dim: Optional[int] = None,
+            distance_metric: Optional[str] = None,
+            recreate_collection: Optional[bool] = None,
+            timeout_s: Optional[int] = None,
     ):
-        self.url = url
-        self.api_key = api_key
-        self.collection_name = collection_name
-        self.embedding_dim = embedding_dim
-        self.distance_metric = self._to_distance(distance_metric)
+        """
+        Initialize QdrantStore with optional overrides.
+        If any parameter is None, it will be loaded from settings.
+
+        Args:
+            url: Qdrant server URL (default: from config)
+            api_key: Qdrant API key (default: from config)
+            collection_name: Collection name (default: from config)
+            embedding_dim: Embedding dimension (default: from config)
+            distance_metric: Distance metric (default: from config)
+            recreate_collection: Whether to recreate collection (default: from config)
+            timeout_s: Connection timeout in seconds (default: from config)
+        """
+        self.url = url or settings.qdrant.url
+        self.api_key = api_key or settings.qdrant.api_key
+        self.collection_name = collection_name or settings.qdrant.collection_name
+        self.embedding_dim = embedding_dim or settings.qdrant.embedding_dim
+        self.distance_metric = self._to_distance(distance_metric or settings.qdrant.distance_metric)
+        recreate = recreate_collection if recreate_collection is not None else settings.qdrant.recreate_collection
+        timeout = timeout_s or settings.qdrant.timeout_s
 
         self.client = QdrantClient(url=self.url,
                                    api_key=self.api_key,
-                                   timeout=timeout_s,
+                                   timeout=timeout,
                                    verify=False
                                    )
 
@@ -54,7 +71,7 @@ class QdrantStore:
         except Exception as e:
             logger.error(f"Failed to get collections: {e}")
 
-        self._ensure_collection(recreate_collection)
+        self._ensure_collection(recreate)
 
     @staticmethod
     def _to_distance(metric: str) -> Distance:
@@ -92,19 +109,20 @@ class QdrantStore:
                 )
             return
 
-        logger.info("Creating collection '%s'", self.collection_name)
-        self.client.create_collection(
-            collection_name=self.collection_name,
-            vectors_config=VectorParams(
-                size=self.embedding_dim,
-                distance=self.distance_metric,
-            ),
-            optimizers_config=None,
-            shard_number=1,
-            replication_factor=1,
-            write_consistency_factor=1,
-        )
-        self._create_payload_indexes()
+        if not recreate:
+            logger.info("Creating collection '%s'", self.collection_name)
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(
+                    size=self.embedding_dim,
+                    distance=self.distance_metric,
+                ),
+                optimizers_config=None,
+                shard_number=1,
+                replication_factor=1,
+                write_consistency_factor=1,
+            )
+            self._create_payload_indexes()
 
     def _create_payload_indexes(self) -> None:
         """Create useful payload indexes (id/title as KEYWORD, numeric as INTEGER)."""
@@ -197,7 +215,7 @@ class QdrantStore:
     def search(
             self,
             vector: Vector,
-            top_k=5,
+            top_k=10,
             filter_dict: Optional[dict[str, Any]] = None,
             score_threshold: Optional[float] = None,
             hnsw_ef: Optional[int] = None,
@@ -217,29 +235,18 @@ class QdrantStore:
         q_filter = self._to_filter(filter_dict)
         params = SearchParams(hnsw_ef=hnsw_ef) if hnsw_ef else None
 
-        # hits = self.client.query_points(
-        #     collection_name=self.collection_name,
-        #     query=vector,
-        #     query_filter=q_filter,
-        #     limit=top_k,
-        #     score_threshold=score_threshold,
-        #     search_params=params,
-        #     with_payload=True,
-        #     with_vectors=with_vectors,
-        # )
         try:
-            hits = self.client.search(
+            response = self.client.query_points(
                 collection_name=self.collection_name,
-                query_vector=list(vector),
-                limit=top_k,
+                query=vector,
                 query_filter=q_filter,
-                search_params=params,
+                limit=top_k,
                 score_threshold=score_threshold,
+                search_params=params,
                 with_payload=True,
                 with_vectors=with_vectors,
             )
-        # logger.debug("Search returned %d hits from collection '%s'", len(hits), self.collection_name)
-        # return [(hit.id, hit.payload, hit.score) for hit in hits]
+            hits = response.points
         except Exception as e:
             logger.error("Search failed: %s", e)
             logger.debug("Collection: %s, Vector dim: %d, Top-K: %d",
@@ -248,7 +255,6 @@ class QdrantStore:
 
         logger.debug("Search returned %d hits from collection '%s'", len(hits), self.collection_name)
         return [(hit.id, hit.payload, hit.score) for hit in hits]
-
 
     def get_by_ids(self, ids: Sequence[IdLike], with_vectors: bool = False) -> List[dict[str, Any]]:
         """

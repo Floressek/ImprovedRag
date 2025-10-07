@@ -5,7 +5,6 @@ from typing import Any, Optional, Union
 
 import torch
 from sentence_transformers import CrossEncoder
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,6 @@ class Reranker:
             batch_size: int = 16,
             max_length: int = 512,
             show_progress: bool = False,
-            cache_dir: Optional[str] = None,
     ):
         """Initialize reranker.
 
