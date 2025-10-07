@@ -71,6 +71,8 @@ class ChunkerConfig:
     add_passage_prefix: bool = str_to_bool(os.getenv("CHUNKER_ADD_PASSAGE_PREFIX", "false"))
     context_tail_tokens: int = int(os.getenv("CHUNKER_CONTEXT_TAIL_TOKENS", "0"))
 
+    chunking_model: Optional[str] = os.getenv("CHUNKER_MODEL", None)
+
 
 
 @dataclass
