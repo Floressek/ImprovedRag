@@ -109,19 +109,20 @@ class QdrantStore:
                 )
             return
 
-        logger.info("Creating collection '%s'", self.collection_name)
-        self.client.create_collection(
-            collection_name=self.collection_name,
-            vectors_config=VectorParams(
-                size=self.embedding_dim,
-                distance=self.distance_metric,
-            ),
-            optimizers_config=None,
-            shard_number=1,
-            replication_factor=1,
-            write_consistency_factor=1,
-        )
-        self._create_payload_indexes()
+        if not recreate:
+            logger.info("Creating collection '%s'", self.collection_name)
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(
+                    size=self.embedding_dim,
+                    distance=self.distance_metric,
+                ),
+                optimizers_config=None,
+                shard_number=1,
+                replication_factor=1,
+                write_consistency_factor=1,
+            )
+            self._create_payload_indexes()
 
     def _create_payload_indexes(self) -> None:
         """Create useful payload indexes (id/title as KEYWORD, numeric as INTEGER)."""

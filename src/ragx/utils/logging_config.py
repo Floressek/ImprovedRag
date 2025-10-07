@@ -7,11 +7,11 @@ class ColoredFormatter(logging.Formatter):
     """Colored log formatter."""
 
     COLORS = {
-        'DEBUG': '\033[36m',    # Cyan
-        'INFO': '\033[32m',     # Green
+        'DEBUG': '\033[36m',  # Cyan
+        'INFO': '\033[32m',  # Green
         'WARNING': '\033[33m',  # Yellow
-        'ERROR': '\033[31m',    # Red
-        'CRITICAL': '\033[35m', # Magenta
+        'ERROR': '\033[31m',  # Red
+        'CRITICAL': '\033[35m',  # Magenta
     }
     RESET = '\033[0m'
     BOLD = '\033[1m'

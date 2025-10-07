@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
+
+from dotenv import load_dotenv
+root_dir = Path(__file__).parent.parent.parent.parent
+env_path = root_dir / ".env"
+
+load_dotenv(dotenv_path=env_path, override=False)
 
 
 def str_to_bool(value: str) -> bool:
@@ -29,7 +36,7 @@ class QdrantConfig:
     url: str = os.getenv("QDRANT_URL", "http://localhost:6333")
     api_key: Optional[str] = os.getenv("QDRANT_API_KEY") or None
 
-    collection_name: str = os.getenv("QDRANT_COLLECTION_NAME", "ragx_documents_v2")
+    collection_name: str = os.getenv("QDRANT_COLLECTION_NAME", "ragx_documents_v3")
     embedding_dim: int = int(os.getenv("QDRANT_EMBEDDING_DIM", "768"))
     distance_metric: str = os.getenv("QDRANT_DISTANCE_METRIC", "cosine")
     timeout_s: int = int(os.getenv("QDRANT_TIMEOUT_S", "60"))
@@ -112,13 +119,6 @@ class APIConfig:
     reload: bool = str_to_bool(os.getenv("API_RELOAD", "false"))
 
 
-# @dataclass
-# class GPUConfig:
-#     """GPU configuration."""
-#     cuda_visible_devices: str = os.getenv("CUDA_VISIBLE_DEVICES", "0")
-# pytorch_cuda_alloc_conf: str = os.getenv("PYTORCH_CUDA_ALLOC_CONF", "max_split_size_mb:512")
-
-
 @dataclass
 class HuggingFaceConfig:
     """HuggingFace configuration."""
@@ -139,7 +139,6 @@ class Settings:
     retrieval: RetrievalConfig
     hnsw: HNSWConfig
     api: APIConfig
-    # gpu: GPUConfig
     huggingface: HuggingFaceConfig
 
     @classmethod
@@ -155,7 +154,6 @@ class Settings:
             retrieval=RetrievalConfig(),
             hnsw=HNSWConfig(),
             api=APIConfig(),
-            # gpu=GPUConfig(),
             huggingface=HuggingFaceConfig(),
         )
 
@@ -168,3 +166,14 @@ class Settings:
 
 settings = Settings.load()
 settings.setup_huggingface_cache()
+
+
+if __name__ == "__main__":
+    print("=== Settings Debug ===")
+    print(f"Root dir: {root_dir}")
+    print(f".env path: {env_path}")
+    print(f"Loaded Quadrant collection: {settings.qdrant.collection_name}")
+    print(f".env exists: {env_path.exists()}")
+    print(f"\nQdrant URL: {settings.qdrant.url}")
+    print(f"Embedding model: {settings.embedder.model_id}")
+    print(f"Chunk strategy: {settings.chunker.strategy}")
