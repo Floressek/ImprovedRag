@@ -11,12 +11,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
 
-from src.ragx.ingestion.chunker import TextChunker
+from src.ragx.ingestion.chunkers.chunker import TextChunker
 from src.ragx.ingestion.ingestion_pipeline import IngestionPipeline
-from src.ragx.ingestion.wiki_extractor import WikiExtractor, download_wikipedia_dump
-from src.ragx.logging_config import setup_logging
+from src.ragx.ingestion.wiki_extractor import WikiExtractor
+from src.ragx.ingestion.utils.download_wiki_dump import download_wikipedia_dump
+from src.ragx.utils.logging_config import setup_logging
 from src.ragx.retrieval.embedder import Embedder
-from src.ragx.retrieval.vector_stores.quadrant_store import QdrantStore
+from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
 
 
 load_dotenv()
@@ -70,6 +71,30 @@ def main() -> None:
         choices=["semantic", "token"],
         default="semantic",
         help="Chunking strategy",
+    )
+    parser.add_argument(
+        "--min-chunk-size",
+        type=int,
+        default=120,
+        help="Minimum chunk size in tokens",
+    )
+    parser.add_argument(
+        "--max-chunk-size",
+        type=int,
+        default=480,
+        help="Maximum chunk size in tokens",
+    )
+    parser.add_argument(
+        "--breakpoint-threshold",
+        type=int,
+        default=78,
+        help="Semantic breakpoint percentile (75-90)",
+    )
+    parser.add_argument(
+        "--buffer-size",
+        type=int,
+        default=3,
+        help="Buffer size for semantic chunking",
     )
     parser.add_argument(
         "--batch-size",
@@ -128,16 +153,16 @@ def main() -> None:
     setup_logging(level=args.log_level)
 
     logger.info("Starting Wikipedia ingestion pipeline")
-    logger.info(f"Configuration:")
-    logger.info(f"  Language: {args.language}")
-    logger.info(f"  Max articles: {args.max_articles}")
-    logger.info(f"  Chunk size: {args.chunk_size}")
-    logger.info(f"  Chunk overlap: {args.chunk_overlap}")
-    logger.info(f"  Chunking strategy: {args.chunking_strategy}")
-    logger.info(f"  Embedding model: {args.embedding_model}")
-    logger.info(f"  Use prefixes: {args.use_prefixes}")
-    logger.info(f"  Qdrant URL: {args.qdrant_url}")
-    logger.info(f"  Collection: {args.collection_name}")
+    logger.info("Configuration:")
+    logger.info("  Language: %s", args.language)
+    logger.info("  Max articles: %d", args.max_articles)
+    logger.info("  Chunk size: %d", args.chunk_size)
+    logger.info("  Chunk overlap: %d", args.chunk_overlap)
+    logger.info("  Chunking strategy: %s", args.chunking_strategy)
+    logger.info("  Embedding model: %s", args.embedding_model)
+    logger.info("  Use prefixes: %s", args.use_prefixes)
+    logger.info("  Qdrant URL: %s", args.qdrant_url)
+    logger.info("  Collection: %s", args.collection_name)
 
     try:
         # Step 1: Handle source data
@@ -202,11 +227,14 @@ def main() -> None:
             strategy=args.chunking_strategy,
             chunk_size=args.chunk_size,
             chunk_overlap=args.chunk_overlap,
-            min_chunk_size=100,
+            min_chunk_size=args.min_chunk_size,
+            max_chunk_size=args.max_chunk_size,
             model_name_tokenizer=args.embedding_model,
             model_name_embedder=args.embedding_model,
             respect_sections=True,
-            add_passage_prefix=False,  # Don't add prefix to stored text
+            breakpoint_percentile_thresh=args.breakpoint_threshold,
+            buffer_size=args.buffer_size,
+            add_passage_prefix=False,
         )
 
         # Create ingestion pipeline
@@ -239,11 +267,7 @@ def main() -> None:
             # Extract texts for embedding
             texts = [chunk["text"] for chunk in chunk_dicts]
 
-            # Generate embeddings (as passages)
-            if args.use_prefixes:
-                # Add passage prefix for embedding
-                texts = [f"passage: {text}" for text in texts]
-
+            # "passage" prefix will come from the embedder if enabled
             embeddings = embedder.embed_texts(
                 texts,
                 show_progress=False,
@@ -280,8 +304,7 @@ def main() -> None:
 
             # Embed query with prefix if needed
             query_vector = embedder.embed_query(test_query)
-
-            results = vector_store.search(query_vector, top_k=5)
+            results = vector_store.search(query_vector, top_k=10)
 
             logger.info(f"Test search for '{test_query}':")
             for i, (id_, payload, score) in enumerate(results, 1):
