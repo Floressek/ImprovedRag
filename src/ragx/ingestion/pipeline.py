@@ -239,7 +239,7 @@ def ingest(
             if total_batches % 10 == 0:
                 click.echo(f"  Processed {total_chunks} chunks in {total_batches} batches")
 
-        click.echo(f"\n✓ Ingestion complete!")
+        click.echo("\n✓ Ingestion complete!")
         click.echo(f"  Total chunks: {total_chunks}")
         click.echo(f"  Total batches: {total_batches}")
         click.echo(f"  Points in collection: {vector_store.count()}")

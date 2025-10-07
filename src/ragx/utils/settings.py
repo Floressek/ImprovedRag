@@ -13,6 +13,7 @@ def str_to_bool(value: str) -> bool:
 class AppConfig:
     """General application configuration."""
     app_env: str = os.getenv("APP_ENV", "development")
+    log_level: str = os.getenv("LOG_LEVEL", "INFO")
 
     data_dir: str = os.getenv("DATA_DIR", "./data")
     raw_dir: str = os.getenv("RAW_DATA_DIR", "./data/raw")
@@ -59,7 +60,7 @@ class ChunkerConfig:
     max_chunk_size: int = int(os.getenv("CHUNKER_MAX_CHUNK_SIZE", "512"))
     respect_sections: bool = str_to_bool(os.getenv("CHUNKER_RESPECT_SECTIONS", "true"))
     breakpoint_percentile_threshold: int = int(os.getenv("CHUNKER_BREAKPOINT_PERCENTILE_THRESHOLD", "80"))
-    buffer_size: int = int(os.getenv("CHUNKER_BUFFER_SIZE", "3"))
+    buffer_size: int = int(os.getenv("CHUNKER_BUFFER_SIZE", "5"))
     add_passage_prefix: bool = str_to_bool(os.getenv("CHUNKER_ADD_PASSAGE_PREFIX", "false"))
     context_tail_tokens: int = int(os.getenv("CHUNKER_CONTEXT_TAIL_TOKENS", "0"))
 
@@ -164,12 +165,6 @@ class Settings:
         os.environ["TRANSFORMERS_CACHE"] = self.huggingface.transformers_cache
         os.environ["HF_HUB_CACHE"] = self.huggingface.hf_hub_cache
 
-    # def setup_gpu_config(self) -> None:
-    #     """Setup GPU configuration as environment variables."""
-    #     os.environ["CUDA_VISIBLE_DEVICES"] = self.gpu.cuda_visible_devices
-    #     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = self.gpu.pytorch_cuda_alloc_conf
-
 
 settings = Settings.load()
 settings.setup_huggingface_cache()
-# settings.setup_gpu_config()
