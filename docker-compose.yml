@@ -20,8 +20,8 @@ services:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
 
   ragx-api:
     build:
@@ -58,6 +58,10 @@ services:
 volumes:
   qdrant_storage:
     driver: local
+    driver_opts:
+      type: none
+      device: E:/Bachelors/QdrantDb
+      o: bind
   model_cache:
     driver: local
   huggingface_cache:
