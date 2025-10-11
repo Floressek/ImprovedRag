@@ -40,7 +40,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--language",
-        default="en",
+        default="pl",
         help="Wikipedia language code (en, pl, etc.)",
     )
     parser.add_argument(

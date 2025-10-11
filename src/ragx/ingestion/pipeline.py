@@ -25,7 +25,7 @@ def cli():
 
 
 @click.command()
-@click.option("--language", default="en", help="Wikipedia language code (en, pl, etc.)")
+@click.option("--language", default="pl", help="Wikipedia language code (en, pl, etc.)")
 @click.option("--output-dir", type=click.Path(path_type=Path), default=None, help="Output directory")
 @click.option("--dump-date", default="latest", help="Dump date (YYYYMMDD or 'latest')")
 @click.option("--chunk-number", type=int, default=None, help="Multistream chunk number")
@@ -103,6 +103,7 @@ def ingest(
             chunk_overlap=chunk_overlap,
             model_name_tokenizer=embedding_model,
             model_name_embedder=embedding_model,
+            chunking_model_override=settings.chunker.chunking_model,
         )
 
         pipeline = IngestionPipeline(
@@ -114,6 +115,9 @@ def ingest(
             chunker=chunker,
         )
         click.echo(f"✓ Pipeline created ({settings.chunker.strategy} chunking)")
+
+        if settings.chunker.chunking_model:
+            click.echo(f"  → Using lightweight model for boundaries: {settings.chunker.chunking_model}")
 
         # 3) Process & index
         click.echo("\n2. Processing Wikipedia articles...")
@@ -211,7 +215,7 @@ def search(query: str, top_k: Optional[int], embedding_model: Optional[str]):
         for i, (pid, payload, score) in enumerate(hits, 1):
             click.echo(f"{i}. Score: {score:.4f}")
             click.echo(f"   Doc: {payload.get('doc_title', 'Unknown')}")
-            click.echo(f"   Chunk: {payload.get('position', 0) + 1}/{payload.get('total_chunks', 0)}")
+            click.echo(f"   Chunk: {payload.get('position', 0)}/{payload.get('total_chunks', 0)}")
             text = payload.get("text", "")
             # payload text is clean (no 'passage:'), we embedded with prefix at encode time
             click.echo(f"   Text: {text[:200]}...")
