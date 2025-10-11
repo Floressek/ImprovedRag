@@ -25,7 +25,7 @@ def cli():
 
 
 @click.command()
-@click.option("--language", default="en", help="Wikipedia language code (en, pl, etc.)")
+@click.option("--language", default="pl", help="Wikipedia language code (en, pl, etc.)")
 @click.option("--output-dir", type=click.Path(path_type=Path), default=None, help="Output directory")
 @click.option("--dump-date", default="latest", help="Dump date (YYYYMMDD or 'latest')")
 @click.option("--chunk-number", type=int, default=None, help="Multistream chunk number")
