@@ -116,7 +116,7 @@ ingest-test: setup-qdrant
 ingest-full: setup-qdrant
 	@echo "Full ingestion (10k articles)..."
 	$(PIPELINE) ingest data/processed/wiki_extracted \
-		--max-articles 100000 \
+		--max-articles 200000 \
 		--recreate-collection \
 		--batch-size 400
 	@echo "Full ingestion complete!"

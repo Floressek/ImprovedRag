@@ -7,65 +7,37 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - qdrant_storage:/qdrant/storage
+      - qdrant_data:/qdrant/storage  # Docker managed - najbardziej stabilne
     environment:
       QDRANT__SERVICE__HTTP_PORT: 6333
       QDRANT__SERVICE__GRPC_PORT: 6334
       QDRANT__LOG_LEVEL: INFO
       QDRANT__SERVICE__MAX_REQUEST_SIZE_MB: 256
 
-      # Performance - KLUCZOWE
       QDRANT__STORAGE__PERFORMANCE__MAX_OPTIMIZATION_THREADS: 8
-      QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS: 0
+      QDRANT__STORAGE__OPTIMIZERS__MAX_SEGMENT_SIZE_KB: 200000
+      QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD_KB: 20000
+      QDRANT__STORAGE__OPTIMIZERS__FLUSH_INTERVAL_SEC: 10
 
-      # Optimizer - SEGMENTY
-      QDRANT__STORAGE__OPTIMIZERS__DEFAULT_SEGMENT_NUMBER: 10
-      QDRANT__STORAGE__OPTIMIZERS__MAX_SEGMENT_SIZE_KB: 100000  # 100MB
-      QDRANT__STORAGE__OPTIMIZERS__MEMMAP_THRESHOLD_KB: 50000   # 50MB
-      QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD_KB: 20000 # 20MB
-      QDRANT__STORAGE__OPTIMIZERS__FLUSH_INTERVAL_SEC: 15
-      QDRANT__STORAGE__OPTIMIZERS__VACUUM_MIN_VECTOR_NUMBER: 5000
-      QDRANT__STORAGE__OPTIMIZERS__DELETED_THRESHOLD: 0.2
-
-      QDRANT__STORAGE__HNSW_INDEX__ON_DISK: "false"
-      QDRANT__STORAGE__HNSW_INDEX__M: 16
-      QDRANT__STORAGE__HNSW_INDEX__EF_CONSTRUCT: 100
-      QDRANT__STORAGE__HNSW_INDEX__MAX_INDEXING_THREADS: 8
-
-      QDRANT__STORAGE__ON_DISK_PAYLOAD: "false"
+      # WSZYSTKO on-disk = snapshoty będą kompletne
+      QDRANT__STORAGE__ON_DISK_PAYLOAD: "true"
+      QDRANT__STORAGE__HNSW_INDEX__ON_DISK: "true"
       QDRANT__STORAGE__PERFORMANCE__OPTIMIZERS__DEFAULT_VECTOR_ON_DISK: "true"
 
+      QDRANT__STORAGE__HNSW_INDEX__M: 16
+      QDRANT__STORAGE__HNSW_INDEX__EF_CONSTRUCT: 100
       QDRANT__STORAGE__WAL__WAL_CAPACITY_MB: 64
-      QDRANT__STORAGE__WAL__WAL_SEGMENTS_AHEAD: 0
-
 
     deploy:
       resources:
         limits:
           memory: 20G
         reservations:
-          memory: 8G
-
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/health"]
-      interval: 45s
-      timeout: 20s
-      retries: 5
-      start_period: 120s
+          memory: 12G
 
 volumes:
-  qdrant_storage:
-    driver: local
-    driver_opts:
-      type: none
-      device: E:/Bachelors/QdrantDb
-      o: bind
-  model_cache:
-    driver: local
-  huggingface_cache:
-    driver: local
+  qdrant_data:
 
 networks:
   default:
     name: ragx_network
-    driver: bridge
