@@ -1,6 +1,6 @@
 services:
   qdrant:
-    image: qdrant/qdrant:v1-gpu-nvidia
+    image: qdrant/qdrant:v1.15.1
     container_name: ragx_qdrant
     restart: unless-stopped
     ports:
@@ -8,52 +8,50 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_storage:/qdrant/storage
-      # Removed the problematic config mount - Qdrant works fine with env vars
     environment:
       QDRANT__SERVICE__HTTP_PORT: 6333
       QDRANT__SERVICE__GRPC_PORT: 6334
       QDRANT__LOG_LEVEL: INFO
-      QDRANT__SERVICE__MAX_REQUEST_SIZE_MB: 128
-      QDRANT__SERVICE__MAX_WORKERS: 0
-      QDRANT__STORAGE__PERFORMANCE__MAX_OPTIMIZATION_THREADS: 6
+      QDRANT__SERVICE__MAX_REQUEST_SIZE_MB: 256
+
+      # Performance - KLUCZOWE
+      QDRANT__STORAGE__PERFORMANCE__MAX_OPTIMIZATION_THREADS: 8
+      QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS: 0
+
+      # Optimizer - SEGMENTY
+      QDRANT__STORAGE__OPTIMIZERS__DEFAULT_SEGMENT_NUMBER: 10
+      QDRANT__STORAGE__OPTIMIZERS__MAX_SEGMENT_SIZE_KB: 100000  # 100MB
+      QDRANT__STORAGE__OPTIMIZERS__MEMMAP_THRESHOLD_KB: 50000   # 50MB
+      QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD_KB: 20000 # 20MB
+      QDRANT__STORAGE__OPTIMIZERS__FLUSH_INTERVAL_SEC: 15
+      QDRANT__STORAGE__OPTIMIZERS__VACUUM_MIN_VECTOR_NUMBER: 5000
+      QDRANT__STORAGE__OPTIMIZERS__DELETED_THRESHOLD: 0.2
+
+      QDRANT__STORAGE__HNSW_INDEX__ON_DISK: "false"
+      QDRANT__STORAGE__HNSW_INDEX__M: 16
+      QDRANT__STORAGE__HNSW_INDEX__EF_CONSTRUCT: 100
+      QDRANT__STORAGE__HNSW_INDEX__MAX_INDEXING_THREADS: 8
+
+      QDRANT__STORAGE__ON_DISK_PAYLOAD: "false"
+      QDRANT__STORAGE__PERFORMANCE__OPTIMIZERS__DEFAULT_VECTOR_ON_DISK: "true"
+
+      QDRANT__STORAGE__WAL__WAL_CAPACITY_MB: 64
+      QDRANT__STORAGE__WAL__WAL_SEGMENTS_AHEAD: 0
+
+
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+        reservations:
+          memory: 8G
+
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 45s
+      timeout: 20s
       retries: 5
-      start_period: 60s
-
-  ragx-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: ragx_api
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      QDRANT_URL: http://qdrant:6333
-      PYTHONUNBUFFERED: 1
-      PYTHONPATH: /app/src
-      EMBEDDING_MODEL: Alibaba-NLP/gte-multilingual-base
-      RERANKER_MODEL: jinaai/jina-reranker-v2-base-multilingual
-      LLM_MODEL: Qwen/Qwen2.5-7B-Instruct
-      CUDA_VISIBLE_DEVICES: 0
-      PYTORCH_CUDA_ALLOC_CONF: max_split_size_mb:512
-    volumes:
-      - ./src:/app/src:ro
-      - ./configs:/app/configs:ro
-      - ./data:/app/data
-      - ./scripts:/app/scripts:ro
-      - model_cache:/root/.cache
-      - huggingface_cache:/root/.cache/huggingface
-    depends_on:
-      qdrant:
-        condition: service_healthy
-    ports:
-      - "8000:8000"
-    command: ["python", "-m", "uvicorn", "ragx.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    profiles:
-      - api
+      start_period: 120s
 
 volumes:
   qdrant_storage:
