@@ -1,69 +1,43 @@
 services:
   qdrant:
-    image: qdrant/qdrant:v1-gpu-nvidia
+    image: qdrant/qdrant:v1.15.1
     container_name: ragx_qdrant
     restart: unless-stopped
     ports:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - qdrant_storage:/qdrant/storage
-      # Removed the problematic config mount - Qdrant works fine with env vars
+      - qdrant_data:/qdrant/storage  # Docker managed - najbardziej stabilne
     environment:
       QDRANT__SERVICE__HTTP_PORT: 6333
       QDRANT__SERVICE__GRPC_PORT: 6334
       QDRANT__LOG_LEVEL: INFO
-      QDRANT__SERVICE__MAX_REQUEST_SIZE_MB: 128
-      QDRANT__SERVICE__MAX_WORKERS: 0
-      QDRANT__STORAGE__PERFORMANCE__MAX_OPTIMIZATION_THREADS: 6
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      QDRANT__SERVICE__MAX_REQUEST_SIZE_MB: 256
 
-  ragx-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: ragx_api
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      QDRANT_URL: http://qdrant:6333
-      PYTHONUNBUFFERED: 1
-      PYTHONPATH: /app/src
-      EMBEDDING_MODEL: Alibaba-NLP/gte-multilingual-base
-      RERANKER_MODEL: jinaai/jina-reranker-v2-base-multilingual
-      LLM_MODEL: Qwen/Qwen2.5-7B-Instruct
-      CUDA_VISIBLE_DEVICES: 0
-      PYTORCH_CUDA_ALLOC_CONF: max_split_size_mb:512
-    volumes:
-      - ./src:/app/src:ro
-      - ./configs:/app/configs:ro
-      - ./data:/app/data
-      - ./scripts:/app/scripts:ro
-      - model_cache:/root/.cache
-      - huggingface_cache:/root/.cache/huggingface
-    depends_on:
-      qdrant:
-        condition: service_healthy
-    ports:
-      - "8000:8000"
-    command: ["python", "-m", "uvicorn", "ragx.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    profiles:
-      - api
+      QDRANT__STORAGE__PERFORMANCE__MAX_OPTIMIZATION_THREADS: 8
+      QDRANT__STORAGE__OPTIMIZERS__MAX_SEGMENT_SIZE_KB: 200000
+      QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD_KB: 20000
+      QDRANT__STORAGE__OPTIMIZERS__FLUSH_INTERVAL_SEC: 10
+
+      # WSZYSTKO on-disk = snapshoty będą kompletne
+      QDRANT__STORAGE__ON_DISK_PAYLOAD: "true"
+      QDRANT__STORAGE__HNSW_INDEX__ON_DISK: "true"
+      QDRANT__STORAGE__PERFORMANCE__OPTIMIZERS__DEFAULT_VECTOR_ON_DISK: "true"
+
+      QDRANT__STORAGE__HNSW_INDEX__M: 16
+      QDRANT__STORAGE__HNSW_INDEX__EF_CONSTRUCT: 100
+      QDRANT__STORAGE__WAL__WAL_CAPACITY_MB: 64
+
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+        reservations:
+          memory: 12G
 
 volumes:
-  qdrant_storage:
-    driver: local
-  model_cache:
-    driver: local
-  huggingface_cache:
-    driver: local
+  qdrant_data:
 
 networks:
   default:
     name: ragx_network
-    driver: bridge

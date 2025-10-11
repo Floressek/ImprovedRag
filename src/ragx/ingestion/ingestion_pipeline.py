@@ -158,7 +158,7 @@ class IngestionPipeline:
     def process_in_batches(
             self,
             chunks: Iterator[Chunk],
-            batch_size: int = 100,
+            batch_size: int = 200,
     ) -> Iterator[list[Chunk]]:
         """Process chunks in batches.
 

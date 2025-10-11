@@ -110,15 +110,15 @@ ingest-test: setup-qdrant
 	$(PIPELINE) ingest data/processed/wiki_extracted \
 		--max-articles 1000 \
 		--recreate-collection \
-		--batch-size 100
+		--batch-size 250
 	@echo "Test ingestion complete!"
 
 ingest-full: setup-qdrant
 	@echo "Full ingestion (10k articles)..."
 	$(PIPELINE) ingest data/processed/wiki_extracted \
-		--max-articles 10000 \
+		--max-articles 200000 \
 		--recreate-collection \
-		--batch-size 200
+		--batch-size 400
 	@echo "Full ingestion complete!"
 
 ingest-custom: setup-qdrant
@@ -145,12 +145,12 @@ ingest-experiment: setup-qdrant
 
 search:
 	@echo "Searching: '$(QUERY)'..."
-	$(PIPELINE) search "$(QUERY)" --top-k 5
+	$(PIPELINE) search "$(QUERY)" --top-k 15
 	@echo ""
 
 search-more:
 	@echo "Searching: '$(QUERY)' (top 10)..."
-	$(PIPELINE) search "$(QUERY)" --top-k 10
+	$(PIPELINE) search "$(QUERY)" --top-k 20
 	@echo ""
 
 status:

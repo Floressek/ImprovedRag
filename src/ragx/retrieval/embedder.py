@@ -8,6 +8,7 @@ import torch
 from sentence_transformers import SentenceTransformer
 
 from src.ragx.utils.settings import settings
+from src.ragx.utils.model_registry import model_registry
 
 logger = logging.getLogger(__name__)
 
@@ -62,16 +63,20 @@ class Embedder:
             self.device = device
             logger.info("Using specified device: %s", self.device)
 
-        # Use cache from settings if not provided
-        # cache_dir = cache_dir or settings.huggingface.transformers_cache
+        # Create unique cache key based on model_id and device
+        cache_key = f"embedder:{self.model_id}:{self.device}"
 
         logger.info("Loading embedder model: %s on %s", self.model_id, self.device)
-        self.model = SentenceTransformer(
-            self.model_id,
-            device=self.device,
-            cache_folder=cache_dir,
-            trust_remote_code=trust_remote_code,
-        )
+
+        def _create_model():
+            return SentenceTransformer(
+                self.model_id,
+                device=self.device,
+                cache_folder=cache_dir,
+                trust_remote_code=trust_remote_code,
+            )
+
+        self.model = model_registry.get_or_create(cache_key, _create_model)
 
         max_seq_length = max_seq_length or settings.embedder.max_seq_length
         if max_seq_length is not None:
