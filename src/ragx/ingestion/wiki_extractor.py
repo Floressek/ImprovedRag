@@ -5,7 +5,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Callable
 import shutil
 import re
 
@@ -22,6 +22,7 @@ class WikiArticle:
     text: str
     url: Optional[str] = None
     categories: list[str] = field(default_factory=list)
+    source_file: Optional[str] = None
 
     def to_dict(self) -> dict:
         """
@@ -33,6 +34,7 @@ class WikiArticle:
             "text": self.text,
             "url": self.url or f"https://en.wikipedia.org/wiki/{self.title.replace(' ', '_')}",
             "categories": self.categories,
+            "source_file": self.source_file,
         }
 
 
@@ -41,7 +43,7 @@ class WikiExtractor:
 
     def __init__(
             self,
-            min_text_length: int = 100,
+            min_text_length: int = 10,
             max_articles: Optional[int] = None,
             processes: int = 4,
             bytes_per_file: str = "1M",
@@ -156,44 +158,66 @@ class WikiExtractor:
                 logger.info(f"Cleaning up extracted files in {output_dir}")
                 shutil.rmtree(output_dir)
 
-    def extracted_from_json_dir(self, json_dir: Path) -> Iterator[WikiArticle]:
+    def extracted_from_json_dir(
+            self,
+            json_dir: Path,
+            skip_files: Optional[set[str]] = None,
+            start_from_file: Optional[str] = None,
+            progress_callback: Optional[Callable[[str, str], None]] = None,
+    ) -> Iterator[WikiArticle]:
         """
         Load articles from a directory of JSON files.
-        :param json_dir: Directory containing JSON files
+
+        Args:
+            json_dir: Directory containing JSON files
+            skip_files: Set of file paths to skip (already processed)
+            start_from_file: Start processing from this file (inclusive)
+            progress_callback: Callback(event, file_path) called on file start/complete
+
         Yields:
             WikiArticle instances
         """
         if not json_dir.exists() or not json_dir.is_dir():
             raise FileNotFoundError(f"JSON directory not found: {json_dir}")
 
-        yield from self._parse_extracted_files(json_dir)
+        skip_files = skip_files or set()
 
-    def _parse_extracted_files(self, output_dir: Path) -> Iterator[WikiArticle]:
-        """
-        Parse extracted files in JSONL format (one JSON object per line).
-        WikiExtractor with --json flag produces files named wiki_XX (no extension).
-
-        :param output_dir: Directory with extracted files
-        Yields:
-            WikiArticle instances
-        """
-        wiki_files = sorted(output_dir.glob("**/wiki_*"))
+        wiki_files = sorted(json_dir.glob("**/wiki_*"))
         wiki_files = [f for f in wiki_files if f.is_file() and not f.suffix]
 
         if not wiki_files:
-            logger.warning(f"No extracted files found in {output_dir}")
+            logger.warning(f"No extracted files found in {json_dir}")
             return
 
-        logger.info(f"Parsing {len(wiki_files)} extracted files from {output_dir}")
+        logger.debug(f"Found {len(wiki_files)} extracted files in {json_dir}")
+
+        if start_from_file:
+            try:
+                start_idx = next(i for i, f in enumerate(wiki_files) if f.name == start_from_file or str(f) == start_from_file)
+                wiki_files = wiki_files[start_idx:]
+                logger.debug(f"Starting from file: {start_from_file} (skipping {start_idx} files)")
+            except StopIteration:
+                logger.warning(f"Start file {start_from_file} not found. Processing all files.")
 
         for wiki_file in wiki_files:
+            file_str = str(wiki_file)
+
+            if file_str in skip_files:
+                logger.debug(f"Skipping already processed file: {wiki_file.name}")
+                continue
+
             if self.max_articles and self._article_count >= self.max_articles:
                 logger.info(f"Reached max articles limit: {self.max_articles}")
                 break
 
-            logger.debug(f"Processing file: {wiki_file}")
+            logger.info(f"Processing file: {wiki_file.name}")
+
+            # Notify start
+            if progress_callback:
+                progress_callback("start", file_str)
 
             try:
+                file_article_count = 0
                 with open(wiki_file, 'r', encoding='utf-8') as f:
                     for line_num, line in enumerate(f, 1):
                         line = line.strip()
@@ -210,21 +234,25 @@ class WikiExtractor:
                             text = doc.get('text', '').strip()
 
                             # Omit short articles
-                            if not text or len(text) < 10:
+                            if not text or len(text) < self.min_text_length:
                                 continue
 
+                            text = self._clean_text(text)
+
                             self._article_count += 1
+                            file_article_count += 1
 
                             yield WikiArticle(
                                 id=doc_id,
                                 url=url,
                                 title=title,
-                                text=text
+                                text=text,
+                                source_file=file_str,
                             )
 
                             if self.max_articles and self._article_count >= self.max_articles:
                                 logger.info(f"Reached max articles limit: {self.max_articles}")
-                                return
+                                break
 
                         except json.JSONDecodeError as e:
                             logger.warning(
@@ -232,109 +260,28 @@ class WikiExtractor:
                             )
                             continue
 
+                logger.info(f"Completed {wiki_file.name}: {file_article_count} articles")
+                if progress_callback:
+                    progress_callback("complete", file_str)
+
             except Exception as e:
                 logger.error(f"Error reading {wiki_file}: {e}")
                 continue
 
-    def _parse_json_file(self, file_path: Path) -> Iterator[WikiArticle]:
+    def reset_counter(self) -> None:
+        """Reset article counter."""
+        self._article_count = 0
+
+    def _parse_extracted_files(self, output_dir: Path) -> Iterator[WikiArticle]:
         """
-        Parse a JSON file and yield WikiArticle instances.
-        :param file_path: Path to JSON file
+        Parse extracted files in JSONL format (one JSON object per line).
+        WikiExtractor with --json flag produces files named wiki_XX (no extension).
+
+        :param output_dir: Directory with extracted files
         Yields:
             WikiArticle instances
         """
-        with open(file_path, "r", encoding="utf-8") as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                try:
-                    data = json.loads(line)
-                    article = self._parse_json_article(data)
-
-                    if article and len(article.text) >= self.min_text_length:
-                        self._article_count += 1
-                        yield article
-
-                        if self._article_count % 1000 == 0:
-                            logger.info(f"Extracted {self._article_count} articles so far")
-                except json.JSONDecodeError as e:
-                    logger.warning(f"JSON decode error in {file_path}: {e}")
-                    continue
-
-    def _parse_json_article(self, data: dict) -> Optional[WikiArticle]:
-        """
-        Parse a single JSON article dictionary.
-        :param data: Article data as dictionary
-        Returns:
-            WikiArticle instance or None if invalid
-        """
-        try:
-            article_id = str(data.get("id", ""))
-            title = data.get("title", "")
-            text = data.get("text", "")
-            url = data.get("url", "")
-
-            if not article_id or not title or not text:
-                return None
-
-            text = self._clean_text(text)
-
-            return WikiArticle(
-                id=article_id,
-                title=title,
-                text=text,
-                url=url,
-                categories=[],  # Categories not provided in JSON
-            )
-        except Exception as e:
-            logger.warning(f"Error parsing article data: {e}")
-            return None
-
-    # FIXME: reduce the if levels to separate functions - 3 functions needed
-    def _parse_text_file(self, file_path: Path) -> Iterator[WikiArticle]:
-        """
-        Parse a plain text file and yield WikiArticle instances.
-        :param file_path: Path to text file
-        Yields:
-            WikiArticle instances
-        """
-        with open(file_path, "r", encoding="utf-8") as f:
-            current_article = None
-            current_text = []
-
-            for line in f:
-                # Article start
-                if line.startswith('<doc id="'):
-                    if current_article and current_text:
-                        text = '\n'.join(current_text).strip()
-                        if len(text) >= self.min_text_length:
-                            current_article.text = self._clean_text(text)
-                            self._article_count += 1
-                            yield current_article
-
-                    match = re.match(r'<doc id="([^"]+)" url="([^"]+)" title="([^"]+)">', line)
-                    if match:
-                        current_article = WikiArticle(
-                            id=match.group(1),
-                            title=match.group(3),
-                            text="",
-                            url=match.group(2),
-                        )
-                        current_text = []
-                # End of article
-                elif line.strip() == '</doc>':
-                    if current_article and current_text:
-                        text = '\n'.join(current_text).strip()
-                        if len(text) >= self.min_text_length:
-                            current_article.text = self._clean_text(text)
-                            self._article_count += 1
-                            yield current_article
-                    current_article = None
-                    current_text = []
-
-                elif current_article is not None:
-                    # Article content
-                    current_text.append(line.rstrip())
+        yield from self.extracted_from_json_dir(output_dir)
 
     def _clean_text(self, text: str) -> str:
         """
@@ -351,3 +298,103 @@ class WikiExtractor:
         text = re.sub(r' {2,}', ' ', text)
 
         return text.strip()
+
+    # def _parse_json_file(self, file_path: Path) -> Iterator[WikiArticle]:
+    #     """
+    #     Parse a JSON file and yield WikiArticle instances.
+    #     :param file_path: Path to JSON file
+    #     Yields:
+    #         WikiArticle instances
+    #     """
+    #     with open(file_path, "r", encoding="utf-8") as f:
+    #         for line in f:
+    #             if not line.strip():
+    #                 continue
+    #             try:
+    #                 data = json.loads(line)
+    #                 article = self._parse_json_article(data)
+    #
+    #                 if article and len(article.text) >= self.min_text_length:
+    #                     self._article_count += 1
+    #                     yield article
+    #
+    #                     if self._article_count % 1000 == 0:
+    #                         logger.info(f"Extracted {self._article_count} articles so far")
+    #             except json.JSONDecodeError as e:
+    #                 logger.warning(f"JSON decode error in {file_path}: {e}")
+    #                 continue
+    #
+    # def _parse_json_article(self, data: dict) -> Optional[WikiArticle]:
+    #     """
+    #     Parse a single JSON article dictionary.
+    #     :param data: Article data as dictionary
+    #     Returns:
+    #         WikiArticle instance or None if invalid
+    #     """
+    #     try:
+    #         article_id = str(data.get("id", ""))
+    #         title = data.get("title", "")
+    #         text = data.get("text", "")
+    #         url = data.get("url", "")
+    #
+    #         if not article_id or not title or not text:
+    #             return None
+    #
+    #         text = self._clean_text(text)
+    #
+    #         return WikiArticle(
+    #             id=article_id,
+    #             title=title,
+    #             text=text,
+    #             url=url,
+    #             categories=[],  # Categories not provided in JSON
+    #         )
+    #     except Exception as e:
+    #         logger.warning(f"Error parsing article data: {e}")
+    #         return None
+    #
+    # # FIXME: reduce the if levels to separate functions - 3 functions needed
+    # def _parse_text_file(self, file_path: Path) -> Iterator[WikiArticle]:
+    #     """
+    #     Parse a plain text file and yield WikiArticle instances.
+    #     :param file_path: Path to text file
+    #     Yields:
+    #         WikiArticle instances
+    #     """
+    #     with open(file_path, "r", encoding="utf-8") as f:
+    #         current_article = None
+    #         current_text = []
+    #
+    #         for line in f:
+    #             # Article start
+    #             if line.startswith('<doc id="'):
+    #                 if current_article and current_text:
+    #                     text = '\n'.join(current_text).strip()
+    #                     if len(text) >= self.min_text_length:
+    #                         current_article.text = self._clean_text(text)
+    #                         self._article_count += 1
+    #                         yield current_article
+    #
+    #                 match = re.match(r'<doc id="([^"]+)" url="([^"]+)" title="([^"]+)">', line)
+    #                 if match:
+    #                     current_article = WikiArticle(
+    #                         id=match.group(1),
+    #                         title=match.group(3),
+    #                         text="",
+    #                         url=match.group(2),
+    #                     )
+    #                     current_text = []
+    #             # End of article
+    #             elif line.strip() == '</doc>':
+    #                 if current_article and current_text:
+    #                     text = '\n'.join(current_text).strip()
+    #                     if len(text) >= self.min_text_length:
+    #                         current_article.text = self._clean_text(text)
+    #                         self._article_count += 1
+    #                         yield current_article
+    #                 current_article = None
+    #                 current_text = []
+    #
+    #             elif current_article is not None:
+    #                 # Article content
+    #                 current_text.append(line.rstrip())
