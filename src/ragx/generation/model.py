@@ -5,6 +5,7 @@ from typing import Optional
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers.models.auto.modeling_auto import _BaseModelWithGenerate
 
 from src.ragx.utils.settings import settings
 from src.ragx.utils.model_registry import model_registry
@@ -47,7 +48,7 @@ class LLMModel:
 
         cache_key = f"llm:{self.model_id}:{self.device}:{self.load_in_4bit}"
 
-        def _create_tokenizer():
+        def _create_tokenizer() -> AutoTokenizer:
             return AutoTokenizer.from_pretrained(
                 self.model_id,
                 use_fast=True,
@@ -55,7 +56,7 @@ class LLMModel:
                 cache_dir=settings.huggingface.transformers_cache_dir,
             )
 
-        def _create_model():
+        def _create_model() -> _BaseModelWithGenerate:
             if self.load_in_4bit and self.device == "cuda":
                 bnb_config = BitsAndBytesConfig(
                     load_in_4bit=True,

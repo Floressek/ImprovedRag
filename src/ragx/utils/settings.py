@@ -128,6 +128,15 @@ class HuggingFaceConfig:
     transformers_cache: str = os.getenv("TRANSFORMERS_CACHE", "./models/transformers")
     hf_hub_cache: str = os.getenv("HF_HUB_CACHE", "./models/hub")
 
+@dataclass
+class ChatConfig:
+    """Chat configuration."""
+    max_history: int = int(os.getenv("CHAT_MAX_HISTORY", "10"))
+    system_prompt: str = os.getenv("CHAT_SYSTEM_PROMPT", "You are a helpful assistant.")
+    context_window: int = int(os.getenv("CHAT_CONTEXT_WINDOW", "4096"))
+    temperature: float = float(os.getenv("CHAT_TEMPERATURE", "0.7"))
+    top_p: float = float(os.getenv("CHAT_TOP_P", "0.9"))
+
 
 @dataclass
 class Settings:
@@ -142,6 +151,7 @@ class Settings:
     hnsw: HNSWConfig
     api: APIConfig
     huggingface: HuggingFaceConfig
+    chat: ChatConfig
 
     @classmethod
     def load(cls) -> Settings:
@@ -157,6 +167,7 @@ class Settings:
             hnsw=HNSWConfig(),
             api=APIConfig(),
             huggingface=HuggingFaceConfig(),
+            chat=ChatConfig(),
         )
 
     def setup_huggingface_cache(self) -> None:
