@@ -7,15 +7,15 @@ from typing import Optional, Iterator
 import click
 
 from src.ragx.ingestion.chunkers.chunker import TextChunker, Chunk
-from src.ragx.ingestion.ingestion_pipeline import IngestionPipeline
-from src.ragx.ingestion.wiki_extractor import WikiExtractor
+from src.ragx.ingestion.pipeline.ingestion_pipeline import IngestionPipeline
+from src.ragx.ingestion.extractions.wiki_extractor import WikiExtractor
 from src.ragx.ingestion.utils.download_wiki_dump import download_wikipedia_dump
 from src.ragx.utils.logging_config import setup_logging
-from src.ragx.retrieval.embedder import Embedder
+from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
 from src.ragx.utils.settings import settings
 
-from src.ragx.ingestion.ingestion_progress import IngestionProgress
+from src.ragx.ingestion.pipeline.ingestion_progress import IngestionProgress
 
 logger = logging.getLogger(__name__)
 
