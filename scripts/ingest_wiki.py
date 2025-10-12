@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from dotenv import load_dotenv
 
 from src.ragx.ingestion.chunkers.chunker import TextChunker
-from src.ragx.ingestion.pipeline.ingestion_pipeline import IngestionPipeline
+from src.ragx.ingestion.pipelines.ingestion_pipeline import IngestionPipeline
 from src.ragx.ingestion.extractions.wiki_extractor import WikiExtractor
 from src.ragx.ingestion.utils.download_wiki_dump import download_wikipedia_dump
 from src.ragx.utils.logging_config import setup_logging
@@ -152,7 +152,7 @@ def main() -> None:
     # Setup logging
     setup_logging(level=args.log_level)
 
-    logger.info("Starting Wikipedia ingestion pipeline")
+    logger.info("Starting Wikipedia ingestion pipelines")
     logger.info("Configuration:")
     logger.info("  Language: %s", args.language)
     logger.info("  Max articles: %d", args.max_articles)
@@ -237,7 +237,7 @@ def main() -> None:
             add_passage_prefix=False,
         )
 
-        # Create ingestion pipeline
+        # Create ingestion pipelines
         pipeline = IngestionPipeline(
             extractor=WikiExtractor(
                 max_articles=args.max_articles,
