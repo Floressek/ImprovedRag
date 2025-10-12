@@ -564,9 +564,9 @@ Continuing from: wiki_05
 ### Example 3: Python API
 
 ```python
-from src.ragx.retrieval.embedder import Embedder
+from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
-from src.ragx.retrieval.reranker import Reranker
+from src.ragx.retrieval.rerankers.reranker import Reranker
 
 # Initialize
 embedder = Embedder()
