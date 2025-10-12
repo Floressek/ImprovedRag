@@ -12,7 +12,7 @@ dist/
 .venv/
 venv/
 .env
-.env.*
+.env.example
 !.env.example
 
 # ---- Tools & caches ----
@@ -40,6 +40,7 @@ data/index/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/index/.gitkeep
+data/.ingestion_progress.json
 logs/
 *.log
 

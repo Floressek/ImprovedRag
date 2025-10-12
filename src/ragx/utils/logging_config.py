@@ -7,11 +7,11 @@ class ColoredFormatter(logging.Formatter):
     """Colored log formatter."""
 
     COLORS = {
-        'DEBUG': '\033[36m',    # Cyan
-        'INFO': '\033[32m',     # Green
+        'DEBUG': '\033[36m',  # Cyan
+        'INFO': '\033[32m',  # Green
         'WARNING': '\033[33m',  # Yellow
-        'ERROR': '\033[31m',    # Red
-        'CRITICAL': '\033[35m', # Magenta
+        'ERROR': '\033[31m',  # Red
+        'CRITICAL': '\033[35m',  # Magenta
     }
     RESET = '\033[0m'
     BOLD = '\033[1m'
@@ -56,6 +56,5 @@ def setup_logging(level: str = "INFO") -> None:
     logging.getLogger("transformers").setLevel(logging.WARNING)
     logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
-    # Set our loggers to INFO
     logging.getLogger("src.ragx").setLevel(logging.INFO)
     logging.getLogger("__main__").setLevel(logging.INFO)

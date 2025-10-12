@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, Union, Iterable
+from typing import Optional, Union
 
 import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
+
+from src.ragx.utils.settings import settings
+from src.ragx.utils.model_registry import model_registry
 
 logger = logging.getLogger(__name__)
 
@@ -15,40 +18,44 @@ class Embedder:
 
     def __init__(
             self,
-            model_id: str = "Alibaba-NLP/gte-multilingual-base",
+            model_id: Optional[str] = None,
             device: Optional[str] = None,
-            normalize_embeddings: bool = True,
-            batch_size: int = 32,
-            show_progress: bool = True,
+            normalize_embeddings: Optional[bool] = None,
+            batch_size: Optional[int] = None,
+            show_progress: Optional[bool] = None,
             cache_dir: Optional[str] = None,
-            use_prefixes: bool = False,
-            query_prefix: str = "query: ",
-            passage_prefix: str = "passage: ",
+            use_prefixes: Optional[bool] = None,
+            query_prefix: Optional[str] = None,
+            passage_prefix: Optional[str] = None,
             max_seq_length: Optional[int] = None,
             trust_remote_code: bool = True,
     ):
         """
-        Args:
-            model_id: Model ID from SentenceTransformers or path to local model.
-            device: Device to run the model on (e.g., 'cpu', 'cuda').
-            normalize_embeddings: Whether to L2 normalize the embeddings.
-            batch_size: Batch size for embedding.
-            show_progress: Whether to show a progress bar during embedding.
-            cache_dir: Directory to cache the model.
-            use_prefixes: Whether to prepend prefixes to texts based on type.
-            query_prefix: Prefix to prepend to query texts if use_prefixes is True.
-            passage_prefix: Prefix to prepend to passage texts if use_prefixes is True.
-            max_seq_length: Maximum sequence length for the model. If None, uses model default.
-            trust_remote_code: Whether to trust remote code in model.
-        """
-        self.model_id = model_id
-        self.normalize_embeddings = normalize_embeddings
-        self.batch_size = batch_size
-        self.show_progress = show_progress
-        self.use_prefixes = use_prefixes
-        self.query_prefix = query_prefix
-        self.passage_prefix = passage_prefix
+        Initialize Embedder with optional overrides.
+        If any parameter is None, it will be loaded from settings.
 
+        Args:
+            model_id: Model ID from SentenceTransformers or path (default: from settings)
+            device: Device to run the model on ('cpu', 'cuda', 'auto') (default: from settings)
+            normalize_embeddings: Whether to L2 normalize embeddings (default: from settings)
+            batch_size: Batch size for embedding (default: from settings)
+            show_progress: Whether to show progress bar (default: from settings)
+            cache_dir: Directory to cache the model (default: HF cache from settings)
+            use_prefixes: Whether to prepend prefixes to texts (default: from settings)
+            query_prefix: Prefix for query texts (default: from settings)
+            passage_prefix: Prefix for passage texts (default: from settings)
+            max_seq_length: Maximum sequence length (default: from settings)
+            trust_remote_code: Whether to trust remote code in model
+        """
+        self.model_id = model_id or settings.embedder.model_id
+        self.normalize_embeddings = normalize_embeddings if normalize_embeddings is not None else settings.embedder.normalize_embeddings
+        self.batch_size = batch_size or settings.embedder.batch_size
+        self.show_progress = show_progress if show_progress is not None else settings.embedder.show_progress
+        self.use_prefixes = use_prefixes if use_prefixes is not None else settings.embedder.use_prefixes
+        self.query_prefix = query_prefix or settings.embedder.query_prefix
+        self.passage_prefix = passage_prefix or settings.embedder.passage_prefix
+
+        device = device or settings.embedder.device
         if device is None or device == "auto":
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
             logger.info("Auto-selected device: %s", self.device)
@@ -56,14 +63,22 @@ class Embedder:
             self.device = device
             logger.info("Using specified device: %s", self.device)
 
-        logger.info("Loading embedder model: %s on %s", model_id, self.device)
-        self.model = SentenceTransformer(
-            model_id,
-            device=self.device,
-            cache_folder=cache_dir,
-            trust_remote_code=trust_remote_code,  # Dodano tutaj
-        )
+        # Create unique cache key based on model_id and device
+        cache_key = f"embedder:{self.model_id}:{self.device}"
 
+        logger.info("Loading embedder model: %s on %s", self.model_id, self.device)
+
+        def _create_model():
+            return SentenceTransformer(
+                self.model_id,
+                device=self.device,
+                cache_folder=cache_dir,
+                trust_remote_code=trust_remote_code,
+            )
+
+        self.model = model_registry.get_or_create(cache_key, _create_model)
+
+        max_seq_length = max_seq_length or settings.embedder.max_seq_length
         if max_seq_length is not None:
             try:
                 self.model.max_seq_length = int(max_seq_length)
@@ -77,6 +92,8 @@ class Embedder:
             raise ValueError("Could not determine embedding dimension from model")
 
         logger.info("Embedder initialized with dimension: %d", self.embedding_dim)
+        logger.info("Configuration: use_prefixes=%s, normalize=%s, batch_size=%d",
+                    self.use_prefixes, self.normalize_embeddings, self.batch_size)
 
     def embed_texts(
             self,
