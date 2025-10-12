@@ -277,6 +277,7 @@ def ingest(
     except Exception as e:
         click.echo(f"\n✗ Ingestion failed: {e}", err=True)
         logger.exception("Ingestion pipeline failed")
+        progress.save(progress_file)
         sys.exit(1)
 
 
