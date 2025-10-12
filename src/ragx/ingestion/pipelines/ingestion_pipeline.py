@@ -20,7 +20,7 @@ class IngestionPipeline:
             extractor: Optional[WikiExtractor] = None,
             chunker: Optional[TextChunker] = None,
     ):
-        """Initialize ingestion pipeline.
+        """Initialize ingestion pipelines.
 
         Args:
             extractor: Wikipedia extractor instance
@@ -34,6 +34,7 @@ class IngestionPipeline:
             source: str | Path,
             max_articles: Optional[int] = None,
             max_chunks: Optional[int] = None,
+            skip_files: Optional[set[str]] = None
     ) -> Iterator[Chunk]:
         """Ingest Wikipedia data from dump or extracted JSON.
 
@@ -41,6 +42,7 @@ class IngestionPipeline:
             source: Path to Wikipedia dump or extracted JSON directory
             max_articles: Maximum articles to process
             max_chunks: Maximum chunks to generate
+            skip_files: Files to skip if ingestion was interrupted
 
         Yields:
             Chunk objects
@@ -57,7 +59,10 @@ class IngestionPipeline:
             articles = self.extractor.extract_from_dump(source)
         elif source.is_dir():
             logger.info(f"Processing extracted Wikipedia JSON from: {source}")
-            articles = self.extractor.extracted_from_json_dir(source)
+            articles = self.extractor.extracted_from_json_dir(
+                source,
+                skip_files=skip_files
+            )
         else:
             raise ValueError(f"Invalid source: {source}")
 
@@ -80,6 +85,7 @@ class IngestionPipeline:
                     metadata={
                         "url": article.url,
                         "categories": article.categories,
+                        "source_file": article.source_file
                     }
                 )
 
@@ -104,6 +110,7 @@ class IngestionPipeline:
                     metadata={
                         "url": article.url,
                         "categories": article.categories,
+                        "source_file": article.source_file
                     }
                 )
 
