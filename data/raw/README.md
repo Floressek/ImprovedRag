@@ -24,5 +24,5 @@ vectorization and ingestion into the RAGX knowledge base.
 
 ## Notes
 
-This data serves as the initial raw text corpus. It is not directly used by Qdrant but
-is required for preprocessing and document chunking steps.
+> This data serves as the initial raw text corpus. It is not directly used by Qdrant but
+> is required for preprocessing and document chunking steps.
