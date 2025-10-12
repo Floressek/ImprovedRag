@@ -149,17 +149,6 @@ ingest-from: setup-qdrant
 	@echo "Starting ingestion from file: $(FILE)"
 	python -m src.ragx.ingestion.pipeline ingest data/processed/wiki_extracted --start-from-file $(FILE) --max-articles 10000
 
-# Show detailed ingestion status with file history
-status-detailed:
-	@echo "Detailed ingestion status..."
-	python -m src.ragx.ingestion.pipeline status --show-files
-
-# Clear ingestion progress (start fresh)
-clear-progress:
-	@echo "Clearing ingestion progress..."
-	@rm -f data/.ingestion_progress.json
-	@echo "Progress cleared. Next ingestion will start from scratch."
-
 # ============================================================================
 # Search & Status
 # ============================================================================
@@ -182,6 +171,17 @@ status:
 	@echo "System Check:"
 	@echo "Python:   $$($(PY) --version)"
 	@powershell -Command "try { $$null = Invoke-RestMethod -Uri 'http://localhost:6333/' -TimeoutSec 2; Write-Host 'Qdrant:   Running' } catch { Write-Host 'Qdrant:   Not running' }"
+
+# Show detailed ingestion status with file history
+status-detailed:
+	@echo "Detailed ingestion status..."
+	python -m src.ragx.ingestion.pipeline status --show-files
+
+# Clear ingestion progress (start fresh)
+clear-progress:
+	@echo "Clearing ingestion progress..."
+	@rm -f data/.ingestion_progress.json
+	@echo "Progress cleared. Next ingestion will start from scratch."
 
 # ============================================================================
 # Docker Commands
