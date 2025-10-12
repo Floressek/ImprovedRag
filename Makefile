@@ -116,7 +116,7 @@ ingest-test: setup-qdrant
 ingest-full: setup-qdrant
 	@echo "Full ingestion (10k articles)..."
 	$(PIPELINE) ingest data/processed/wiki_extracted \
-		--max-articles 200000 \
+		--max-articles 1000000 \
 		--recreate-collection \
 		--batch-size 400
 	@echo "Full ingestion complete!"
@@ -138,6 +138,27 @@ ingest-experiment: setup-qdrant
 		--chunk-overlap $(CHUNK_OVERLAP) \
 		--recreate-collection
 	@echo "Experimental ingestion complete!"
+
+# Resume ingestion from last processed file
+ingest-resume: setup-qdrant
+	@echo "Resuming ingestion from last processed file..."
+	python -m src.ragx.ingestion.pipeline ingest data/processed/wiki_extracted --resume --max-articles 10000
+
+# Start ingestion from specific file (use: make ingest-from FILE=wiki_00)
+ingest-from: setup-qdrant
+	@echo "Starting ingestion from file: $(FILE)"
+	python -m src.ragx.ingestion.pipeline ingest data/processed/wiki_extracted --start-from-file $(FILE) --max-articles 10000
+
+# Show detailed ingestion status with file history
+status-detailed:
+	@echo "Detailed ingestion status..."
+	python -m src.ragx.ingestion.pipeline status --show-files
+
+# Clear ingestion progress (start fresh)
+clear-progress:
+	@echo "Clearing ingestion progress..."
+	@rm -f data/.ingestion_progress.json
+	@echo "Progress cleared. Next ingestion will start from scratch."
 
 # ============================================================================
 # Search & Status
