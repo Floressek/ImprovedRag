@@ -6,6 +6,8 @@ from typing import Any, Optional, Union
 import torch
 from sentence_transformers import CrossEncoder
 
+from src.ragx.utils.settings import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,8 +18,8 @@ class Reranker:
             self,
             model_id: str = "jinaai/jina-reranker-v2-base-multilingual",
             device: Optional[str] = None,
-            batch_size: int = 16,
-            max_length: int = 512,
+            batch_size: Optional[int] = None,
+            max_length: Optional[int] = None,
             show_progress: bool = False,
     ):
         """Initialize reranker.
@@ -31,8 +33,8 @@ class Reranker:
             cache_dir: Cache directory for model files
         """
         self.model_id = model_id
-        self.batch_size = batch_size
-        self.max_length = max_length
+        self.batch_size = batch_size if batch_size is not None else settings.reranker.batch_size
+        self.max_length = max_length if max_length is not None else settings.reranker.max_length
         self.show_progress = show_progress
 
         # Determine device
@@ -123,7 +125,7 @@ class Reranker:
             passages: list[str],
             top_k: Optional[int] = None,
             batch_size: Optional[int] = None,
-    ) -> list[tuple[int, float]]:
+    ) -> list[Any] | list[tuple[int, tuple[int, Any]]]:
         """Rerank raw text passages.
 
         Args:
