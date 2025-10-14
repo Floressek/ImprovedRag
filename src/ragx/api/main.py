@@ -62,7 +62,7 @@ app.include_router(chat.router)
 
 
 # app.include_router(search.router)
-# app.include_router(health.router)
+app.include_router(health.router)
 
 @app.get("/api")
 async def root():
@@ -91,5 +91,6 @@ if __name__ == "__main__":
         host=settings.api.host,
         port=settings.api.port,
         reload_excludes=["*.pyc", "__pycache__"],
-        log_level=settings.app.log_level.lower()
+        log_level=settings.app.log_level.lower(),
+        access_log=True
     )
