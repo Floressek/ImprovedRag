@@ -50,6 +50,7 @@ class Reranker:
             model_id,
             device=self.device,
             max_length=max_length,
+            trust_remote_code=True,
         )
 
         logger.info(f"Reranker initialized: {model_id}")

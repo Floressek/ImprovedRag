@@ -5,7 +5,6 @@ from typing import Optional
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from transformers.models.auto.modeling_auto import _BaseModelWithGenerate
 
 from src.ragx.utils.settings import settings
 from src.ragx.utils.model_registry import model_registry
@@ -20,7 +19,7 @@ class LLMModel:
             self,
             model_id: Optional[str] = None,
             device: Optional[str] = None,
-            load_in_4bit: bool = False,
+            load_in_4bit: Optional[bool] = None,
             trust_remote_code: bool = True,
             **kwargs,
     ):
@@ -38,6 +37,9 @@ class LLMModel:
         self.model_id = model_id or settings.llm.model_id
         self.load_in_4bit = load_in_4bit if load_in_4bit is not None else settings.llm.load_in_4bit
 
+        logger.warning(f"🔍 DEBUG: load_in_4bit parameter = {load_in_4bit}")
+        logger.warning(f"🔍 DEBUG: settings.llm.load_in_4bit = {settings.llm.load_in_4bit}")
+        logger.warning(f"🔍 DEBUG: self.load_in_4bit = {self.load_in_4bit}")
         device = device or settings.llm.device
         if device is None or device == "auto":
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -53,10 +55,11 @@ class LLMModel:
                 self.model_id,
                 use_fast=True,
                 trust_remote_code=trust_remote_code,
-                cache_dir=settings.huggingface.transformers_cache_dir,
+                cache_dir=settings.huggingface.hf_hub_cache,
             )
 
-        def _create_model() -> _BaseModelWithGenerate:
+        # def _create_model() -> AutoModelForCausalLM:
+        def _create_model():
             if self.load_in_4bit and self.device == "cuda":
                 bnb_config = BitsAndBytesConfig(
                     load_in_4bit=True,
@@ -69,7 +72,7 @@ class LLMModel:
                     quantization_config=bnb_config,
                     device_map="auto",
                     trust_remote_code=trust_remote_code,
-                    cache_dir=settings.huggingface.transformers_cache_dir,
+                    cache_dir=settings.huggingface.hf_hub_cache,
                     **kwargs,
                 )
             else:
@@ -77,7 +80,7 @@ class LLMModel:
                     self.model_id,
                     device_map="auto" if self.device == "cuda" else None,
                     trust_remote_code=trust_remote_code,
-                    cache_dir=settings.huggingface.transformers_cache_dir,
+                    cache_dir=settings.huggingface.hf_hub_cache,
                     **kwargs,
                 )
 
