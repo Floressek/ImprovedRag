@@ -26,8 +26,6 @@ class RerankerEnhancer(Enhancer):
             raise ValueError(f"top_k must be > 0, got {self.top_k}")
         logger.info("RerankerEnhancer initialized (top_k=%s)", self.top_k)
 
-        logger.info(f"RerankerEnhancer initialized top_k{self.top_k}")
-
     def process(
             self,
             query: str,

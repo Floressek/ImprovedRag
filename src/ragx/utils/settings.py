@@ -89,11 +89,11 @@ class RerankerConfig:
 class LLMConfig:
     """LLM model configuration."""
     model_id: str = os.getenv("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
-    device: str = os.getenv("LLM_DEVICE", "auto")
+    device: str = os.getenv("LLM_DEVICE", "cuda")
     load_in_4bit: bool = str_to_bool(os.getenv("LLM_LOAD_IN_4BIT", "true"))
-    max_new_tokens: int = int(os.getenv("LLM_MAX_NEW_TOKENS", "300"))
+    max_new_tokens: int = int(os.getenv("LLM_MAX_NEW_TOKENS", "100"))
     temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.2"))
-
+    top_p: float = float(os.getenv("LLM_TOP_P", "0.9"))
 
 @dataclass
 class RetrievalConfig:
@@ -113,15 +113,6 @@ class HNSWConfig:
 
 
 @dataclass
-class APIConfig:
-    """API server configuration."""
-    host: str = os.getenv("API_HOST", "0.0.0.0")
-    port: int = int(os.getenv("API_PORT", "8000"))
-    workers: int = int(os.getenv("API_WORKERS", "1"))
-    reload: bool = str_to_bool(os.getenv("API_RELOAD", "false"))
-
-
-@dataclass
 class HuggingFaceConfig:
     """HuggingFace configuration."""
     hf_home: str = os.getenv("HF_HOME", "./models/huggingface")
@@ -136,6 +127,14 @@ class ChatConfig:
     context_window: int = int(os.getenv("CHAT_CONTEXT_WINDOW", "4096"))
     temperature: float = float(os.getenv("CHAT_TEMPERATURE", "0.7"))
     top_p: float = float(os.getenv("CHAT_TOP_P", "0.9"))
+
+@dataclass
+class APIConfig:
+    """API server configuration."""
+    host: str = os.getenv("API_HOST", "0.0.0.0")
+    port: int = int(os.getenv("API_PORT", "8000"))
+    workers: int = int(os.getenv("API_WORKERS", "1"))
+    reload: bool = str_to_bool(os.getenv("API_RELOAD", "true"))
 
 
 @dataclass
