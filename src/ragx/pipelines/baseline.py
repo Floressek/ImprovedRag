@@ -65,9 +65,10 @@ class BaselinePipeline(BasePipeline):
             contexts.append({
                 "id": doc_id,
                 "text": payload.get("text", ""),
-                "doc_title": payload.get("title", "Unknown"),
-                "score": float(score),
-                "source": metadata.get("url", "Unknown"),
+                "doc_title": payload.get("doc_title", "Unknown"),
+                "url": metadata.get("url"),
+                "retrieval_score": float(score),
+                "rerank_score": None,
                 "position": payload.get("position", 0),
                 "total_chunks": payload.get("total_chunks", 1),
             })
