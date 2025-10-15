@@ -59,5 +59,5 @@ def get_enhanced_pipeline() -> EnhancedPipeline:
     return EnhancedPipeline(
         embedder=get_embedder(),
         vector_store=get_vector_store(),
-        reranker_enhancer=RerankerEnhancer(reranker=get_reranker_enhancer())
+        reranker_enhancer=get_reranker_enhancer()
     )

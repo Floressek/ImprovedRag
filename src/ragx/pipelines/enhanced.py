@@ -72,13 +72,14 @@ class EnhancedPipeline(BasePipeline):
         # Step 3: Format Contexts
         contexts = []
         for idx, payload, score in results:
+            metadata = payload.get("metadata", {})
             contexts.append({
                 "id": idx,
                 "text": payload.get("text", ""),
-                "doc_title": payload.get("title", "Unknown"),
-                "score": float(score),
+                "doc_title": payload.get("doc_title", "Unknown"),
                 "position": payload.get("position", 0),
                 "retrieval_score": payload.get("retrieval_score"),
+                "url": metadata.get("url"),
                 "rerank_score": payload.get("rerank_score"),
             })
 
@@ -145,7 +146,7 @@ class EnhancedPipeline(BasePipeline):
             contexts.append({
                 "id": idx,
                 "text": payload.get("text", ""),
-                "doc_title": payload.get("title", "Unknown"),
+                "doc_title": payload.get("doc_title", "Unknown"),
                 "score": float(score),
                 "position": payload.get("position", 0),
                 "retrieval_score": payload.get("retrieval_score"),
