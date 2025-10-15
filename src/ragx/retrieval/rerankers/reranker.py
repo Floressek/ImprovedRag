@@ -32,7 +32,7 @@ class Reranker:
             show_progress: Whether to show progress bar
             cache_dir: Cache directory for model files
         """
-        self.model_id = model_id
+        self.model_id = model_id or settings.reranker.model_id
         self.batch_size = batch_size if batch_size is not None else settings.reranker.batch_size
         self.max_length = max_length if max_length is not None else settings.reranker.max_length
         self.show_progress = show_progress

@@ -30,7 +30,6 @@ class SourceInfo(BaseModel):
     id: str
     doc_title: str
     text: str
-    score: float
     position: int
     retrieval_score: Optional[float] = None
     rerank_score: Optional[float] = None
@@ -58,13 +57,16 @@ class SearchResult(BaseModel):
     text: str
     score: float
     position: int
+    url: Optional[str] = None
+    total_chunks: Optional[int] = None
 
 
 class RerankRequest(BaseModel):
     """Request model for /rerank endpoint."""
     query: str = Field(..., min_length=1)
-    documents: List[Dict[str, Any]]
-    top_k: int = Field(5, ge=1, le=50)
+    # documents: List[Dict[str, Any]]
+    top_k_retrival: int = Field(5, ge=1, le=100)
+    top_k_reranker: int = Field(5, ge=1, le=50)
 
 
 class HealthResponse(BaseModel):
