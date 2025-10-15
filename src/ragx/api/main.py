@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+import time
 import warnings
 from contextlib import asynccontextmanager
+from fastapi import Request
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -57,12 +59,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+
+    logger.info(f"📨 Incoming: {request.method} {request.url.path}")
+
+    response = await call_next(request)
+
+    process_time = (time.time() - start_time) * 1000
+    logger.info(
+        f"📤 Response: {request.method} {request.url.path} "
+        f"Status={response.status_code} Time={process_time:.2f}ms"
+    )
+
+    return response
+
+
 # Routers
 app.include_router(chat.router)
 
-
-# app.include_router(search.router)
+app.include_router(search.router)
 app.include_router(health.router)
+
 
 @app.get("/api")
 async def root():

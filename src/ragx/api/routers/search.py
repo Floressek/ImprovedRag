@@ -23,4 +23,72 @@ async def search(
         vector_store: QdrantStore = Depends(get_vector_store),
 ):
     """Search for documents in the vector store."""
-    logger.info(f"Searching for documents in the vector store...")
+    logger.info("Searching for documents in the vector store...")
+    query_vector = embedder.embed_query(request.query)
+
+    results = vector_store.search(
+        query_vector,
+        top_k=request.top_k,
+        filter_dict=request.filters,
+    )
+
+    output = []
+    for doc_id, payload, score in results:
+        metadata = payload.get("metadata", {})
+        output.append(SearchResult(
+            id=str(doc_id),
+            doc_title=payload.get("doc_title", "Unknown"),
+            text=payload.get("text", ""),
+            score=float(score),
+            position=payload.get("position", 0),
+            url=metadata.get("url"),
+            total_chunks=payload.get("total_chunks", 1),
+        ))
+    logger.info(f"Output: {output}")
+    return output
+
+
+@router.post("/rerank")
+async def rerank(
+        request: RerankRequest,
+        reranker: Reranker = Depends(get_reranker),
+        embedder: Embedder = Depends(get_embedder),
+        vector_store: QdrantStore = Depends(get_vector_store),
+):
+    """Rerank documents using the reranker."""
+    logger.info("Reranking documents...")
+
+    query_vector = embedder.embed_query(request.query)
+    results = vector_store.search(
+        query_vector,
+        top_k=request.top_k_retrival,
+    )
+
+    # tuple to dict conversion should be a separate function
+    documents = []
+    for doc_id, payload, score in results:
+        documents.append({
+            "id": str(doc_id),
+            "text": payload.get("text", ""),
+            "doc_title": payload.get("doc_title", "Unknown"),
+            "payload": payload,
+            "retrieval_score": float(score),
+        })
+
+    reranked_documents = reranker.rerank(
+        query=request.query,
+        documents=documents,
+        top_k=request.top_k_reranker,
+    )
+
+    output = []
+    for doc, score in reranked_documents:
+        output.append({
+            "id": doc["id"],
+            "doc_title": doc["doc_title"],
+            "text": doc["text"],
+            "retrieval_score": doc.get("retrieval_score"),
+            "rerank_score": float(score),
+        })
+
+    return output

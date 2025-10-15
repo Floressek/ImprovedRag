@@ -100,7 +100,7 @@ class RetrievalConfig:
     """Retrieval pipelines configuration."""
     top_k_retrieve: int = int(os.getenv("TOP_K_RETRIEVE", "80"))
     rerank_top_m: int = int(os.getenv("RERANK_TOP_M", "50"))
-    context_top_n: int = int(os.getenv("CONTEXT_TOP_N", "6"))
+    context_top_n: int = int(os.getenv("CONTEXT_TOP_N", "10"))
 
 
 @dataclass
