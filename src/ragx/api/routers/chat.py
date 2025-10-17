@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Dict, Any
 
-from dns.e164 import query
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
