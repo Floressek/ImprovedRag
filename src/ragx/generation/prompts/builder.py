@@ -44,13 +44,16 @@ def build_rag_prompt(
         max_history: Optional[int] = None,
         system_instructions: Optional[str] = None,
 ) -> str:
-    """Format chat history for a prompt.
+    """
+    Build a Retrieval-Augmented Generation (RAG) prompt by combining system instructions,
+    formatted chat history, context documents, and the user's query.
+
     Args:
-        query: The user's query string
-        contexts: List of context documents with 'text' field
-        chat_history: List of chat messages with 'role' and 'content'
-        max_history: Maximum number of recent messages to include
-        system_instructions: Custom system instructions to override default
+        query: The user's query string.
+        contexts: List of context documents with 'text' field.
+        chat_history: List of chat messages with 'role' and 'content'.
+        max_history: Maximum number of recent messages to include.
+        system_instructions: Custom system instructions to override default.
     """
     default_system_prompt = """
     You are a helpful assistant. Answer questions using ONLY the provided context sources.
