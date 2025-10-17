@@ -89,18 +89,18 @@ class RerankerConfig:
 class LLMConfig:
     """LLM model configuration."""
     model_id: str = os.getenv("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
-    device: str = os.getenv("LLM_DEVICE", "auto")
+    device: str = os.getenv("LLM_DEVICE", "cuda")
     load_in_4bit: bool = str_to_bool(os.getenv("LLM_LOAD_IN_4BIT", "true"))
-    max_new_tokens: int = int(os.getenv("LLM_MAX_NEW_TOKENS", "300"))
+    max_new_tokens: int = int(os.getenv("LLM_MAX_NEW_TOKENS", "100"))
     temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.2"))
-
+    top_p: float = float(os.getenv("LLM_TOP_P", "0.9"))
 
 @dataclass
 class RetrievalConfig:
-    """Retrieval pipeline configuration."""
-    top_k_retrieve: int = int(os.getenv("TOP_K_RETRIEVE", "80"))
-    rerank_top_m: int = int(os.getenv("RERANK_TOP_M", "50"))
-    context_top_n: int = int(os.getenv("CONTEXT_TOP_N", "6"))
+    """Retrieval pipelines configuration."""
+    top_k_retrieve: int = int(os.getenv("TOP_K_RETRIEVE", "100"))
+    rerank_top_m: int = int(os.getenv("RERANK_TOP_M", "80"))
+    context_top_n: int = int(os.getenv("CONTEXT_TOP_N", "8"))
 
 
 @dataclass
@@ -113,20 +113,28 @@ class HNSWConfig:
 
 
 @dataclass
-class APIConfig:
-    """API server configuration."""
-    host: str = os.getenv("API_HOST", "0.0.0.0")
-    port: int = int(os.getenv("API_PORT", "8000"))
-    workers: int = int(os.getenv("API_WORKERS", "1"))
-    reload: bool = str_to_bool(os.getenv("API_RELOAD", "false"))
-
-
-@dataclass
 class HuggingFaceConfig:
     """HuggingFace configuration."""
     hf_home: str = os.getenv("HF_HOME", "./models/huggingface")
     transformers_cache: str = os.getenv("TRANSFORMERS_CACHE", "./models/transformers")
     hf_hub_cache: str = os.getenv("HF_HUB_CACHE", "./models/hub")
+
+@dataclass
+class ChatConfig:
+    """Chat configuration."""
+    max_history: int = int(os.getenv("CHAT_MAX_HISTORY", "10"))
+    system_prompt: str = os.getenv("CHAT_SYSTEM_PROMPT", "You are a helpful assistant.")
+    context_window: int = int(os.getenv("CHAT_CONTEXT_WINDOW", "4096"))
+    temperature: float = float(os.getenv("CHAT_TEMPERATURE", "0.7"))
+    top_p: float = float(os.getenv("CHAT_TOP_P", "0.9"))
+
+@dataclass
+class APIConfig:
+    """API server configuration."""
+    host: str = os.getenv("API_HOST", "0.0.0.0")
+    port: int = int(os.getenv("API_PORT", "8000"))
+    workers: int = int(os.getenv("API_WORKERS", "1"))
+    reload: bool = str_to_bool(os.getenv("API_RELOAD", "true"))
 
 
 @dataclass
@@ -142,6 +150,7 @@ class Settings:
     hnsw: HNSWConfig
     api: APIConfig
     huggingface: HuggingFaceConfig
+    chat: ChatConfig
 
     @classmethod
     def load(cls) -> Settings:
@@ -157,6 +166,7 @@ class Settings:
             hnsw=HNSWConfig(),
             api=APIConfig(),
             huggingface=HuggingFaceConfig(),
+            chat=ChatConfig(),
         )
 
     def setup_huggingface_cache(self) -> None:

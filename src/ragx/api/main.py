@@ -1,43 +1,116 @@
-"""FastAPI app placeholder with lifespan management comments.
-No external dependencies are imported to keep the scaffold light.
-"""
 from __future__ import annotations
-from typing import Callable, Any, List, Tuple
+
+import logging
+import time
+import warnings
+from contextlib import asynccontextmanager
+from fastapi import Request
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from src.ragx.api.routers import chat, search, health
+from src.ragx.api.dependencies import (
+    get_baseline_pipeline,
+    get_enhanced_pipeline,
+)
+from src.ragx.utils.logging_config import setup_logging
+from src.ragx.utils.settings import settings
+
+setup_logging(level=settings.app.log_level)
+logger = logging.getLogger(__name__)
+warnings.filterwarnings("ignore", message=".*flash_attn is not installed.*")
 
 
-class DummyApp:
-    """Minimal stand-in for a web framework app.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown."""
+    logger.info("🚀 Starting RAGx API server...")
 
-    Stores registered routes as tuples of (path, handler_name).
-    """
+    # Warmup models
+    logger.info("Warming up models...")
+    baseline = get_baseline_pipeline()
+    enhanced = get_enhanced_pipeline()
 
-    def __init__(self) -> None:
-        self.routes: List[Tuple[str, str]] = []
-        self.middlewares: List[str] = []
+    logger.info("✓ Models ready")
+    logger.info(f"✓ Collection: {settings.qdrant.collection_name}")
+    logger.info(f"✓ Embedder: {settings.embedder.model_id}")
+    logger.info(f"✓ Reranker: {settings.reranker.model_id}")
+    logger.info(f"✓ LLM: {settings.llm.model_id}")
 
-    def add_route(self, path: str, handler: Callable[..., Any]) -> None:
-        self.routes.append((path, getattr(handler, "__name__", "handler")))
+    yield
 
-    def add_middleware(self, name: str) -> None:
-        self.middlewares.append(name)
-
-
-app = DummyApp()
-
-
-def on_startup() -> None:
-    """Placeholder for startup events."""
-    # e.g., connect to vector store, load models
-    pass
+    logger.info("Shutting down RAGx API server...")
 
 
-def on_shutdown() -> None:
-    """Placeholder for shutdown events."""
-    # e.g., close connections, flush logs
-    pass
+app = FastAPI(
+    title="RAGx API",
+    description="RAGx API service",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+
+    logger.info(f"📨 Incoming: {request.method} {request.url.path}")
+
+    response = await call_next(request)
+
+    process_time = (time.time() - start_time) * 1000
+    logger.info(
+        f"📤 Response: {request.method} {request.url.path} "
+        f"Status={response.status_code} Time={process_time:.2f}ms"
+    )
+
+    return response
+
+
+# Routers
+app.include_router(chat.router)
+
+app.include_router(search.router)
+app.include_router(health.router)
+
+
+@app.get("/api")
+async def root():
+    """Root endpoint."""
+    return {
+        "name": "RAGx API",
+        "version": "0.1.0",
+        "docs": "/docs",
+        "endpoints": {
+            "baseline": "/ask/baseline",
+            # "baseline_stream": "/ask/baseline/stream",
+            # "enhanced": "/ask/enhanced",
+            # "enhanced_stream": "/ask/enhanced/stream",
+            # "search": "/search",
+            # "rerank": "/rerank",
+            # "health": "/health",
+        },
+    }
 
 
 if __name__ == "__main__":
-    on_startup()
-    print("API placeholder app initialized with", len(app.routes), "routes")
-    on_shutdown()
+    import uvicorn
+
+    uvicorn.run(
+        "src.ragx.api.main:app",
+        host=settings.api.host,
+        port=settings.api.port,
+        reload_excludes=["*.pyc", "__pycache__"],
+        log_level=settings.app.log_level.lower(),
+        access_log=True
+    )

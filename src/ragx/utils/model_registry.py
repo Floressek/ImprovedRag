@@ -1,4 +1,3 @@
-"""Singleton registry for shared model instances to avoid reloading."""
 from __future__ import annotations
 
 import logging

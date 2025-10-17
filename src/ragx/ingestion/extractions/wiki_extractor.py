@@ -195,7 +195,7 @@ class WikiExtractor:
             try:
                 start_idx = next(i for i, f in enumerate(wiki_files) if f.name == start_from_file or str(f) == start_from_file)
                 wiki_files = wiki_files[start_idx:]
-                logger.debug(f"Starting from file: {start_from_file} (skipping {start_idx} files)")
+                logger.info(f"Starting from file: {start_from_file} (skipping {start_idx} files)")
             except StopIteration:
                 logger.warning(f"Start file {start_from_file} not found. Processing all files.")
 
@@ -203,7 +203,7 @@ class WikiExtractor:
             file_str = str(wiki_file)
 
             if file_str in skip_files:
-                logger.debug(f"Skipping already processed file: {wiki_file.name}")
+                logger.info(f"Skipping already processed file: {wiki_file.name}")
                 continue
 
             if self.max_articles and self._article_count >= self.max_articles:
