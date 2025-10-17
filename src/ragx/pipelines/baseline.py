@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaselinePipeline(BasePipeline):
-    """Baseline RAG pipline: Retrival + LLM generation. -> Benchmark for the enhanced pipeline."""
+    """Baseline RAG pipeline: Retrieval + LLM generation. -> Benchmark for the enhanced pipeline."""
 
     def __init__(
             self,
