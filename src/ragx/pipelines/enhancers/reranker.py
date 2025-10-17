@@ -9,7 +9,7 @@ from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)
 
-ResultT = Tuple[str, Dict[str, Any], float]  # (doc_id, payload, retrival_score)
+ResultT = Tuple[str, Dict[str, Any], float]  # (doc_id, payload, retrieval_score)
 
 
 class RerankerEnhancer(Enhancer):
