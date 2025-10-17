@@ -51,7 +51,7 @@ class EnhancedPipeline(BasePipeline):
         max_history = max_history or settings.chat.max_history
         start = time.time()
 
-        # Step 1: Retrival
+        # Step 1: Retrieval
         query_vector = self.embedder.embed_query(query)
 
         retrival_start = time.time()
