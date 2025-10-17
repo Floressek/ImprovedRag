@@ -1,6 +1,9 @@
 from __future__ import annotations
 import logging
 import sys
+import warnings
+
+warnings.filterwarnings("ignore", message=".*flash_attn is not installed.*")
 
 
 class ColoredFormatter(logging.Formatter):

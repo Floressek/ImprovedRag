@@ -258,14 +258,14 @@ See `configs/models.yaml` for detailed model settings:
 ### Command-Line Interface
 
 ```bash
-# Ingestion pipeline
-python -m src.ragx.ingestion.pipeline --help
+# Ingestion pipelines
+python -m src.ragx.ingestion.pipelines --help
 
 # Available commands:
-python -m src.ragx.ingestion.pipeline download --language pl
-python -m src.ragx.ingestion.pipeline ingest <source> --max-articles 10000
-python -m src.ragx.ingestion.pipeline status
-python -m src.ragx.ingestion.pipeline search "query text"
+python -m src.ragx.ingestion.pipelines download --language pl
+python -m src.ragx.ingestion.pipelines ingest <source> --max-articles 10000
+python -m src.ragx.ingestion.pipelines status
+python -m src.ragx.ingestion.pipelines search "query text"
 ```
 
 ### Makefile Commands
@@ -564,9 +564,9 @@ Continuing from: wiki_05
 ### Example 3: Python API
 
 ```python
-from src.ragx.retrieval.embedder import Embedder
+from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
-from src.ragx.retrieval.reranker import Reranker
+from src.ragx.retrieval.rerankers.reranker import Reranker
 
 # Initialize
 embedder = Embedder()

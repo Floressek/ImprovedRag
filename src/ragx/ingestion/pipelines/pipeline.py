@@ -7,15 +7,15 @@ from typing import Optional, Iterator
 import click
 
 from src.ragx.ingestion.chunkers.chunker import TextChunker, Chunk
-from src.ragx.ingestion.ingestion_pipeline import IngestionPipeline
-from src.ragx.ingestion.wiki_extractor import WikiExtractor
+from src.ragx.ingestion.pipelines.ingestion_pipeline import IngestionPipeline
+from src.ragx.ingestion.extractions.wiki_extractor import WikiExtractor
 from src.ragx.ingestion.utils.download_wiki_dump import download_wikipedia_dump
 from src.ragx.utils.logging_config import setup_logging
-from src.ragx.retrieval.embedder import Embedder
+from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
 from src.ragx.utils.settings import settings
 
-from src.ragx.ingestion.ingestion_progress import IngestionProgress
+from src.ragx.ingestion.pipelines.ingestion_progress import IngestionProgress
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,7 @@ def ingest(
         )
         click.echo("✓ Vector store ready")
 
-        # 2) Chunker & pipeline (NO prefix in stored text — we add at embedding time)
+        # 2) Chunker & pipelines (NO prefix in stored text — we add at embedding time)
         chunker = TextChunker(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -166,56 +166,79 @@ def ingest(
         def track_chunks(chunks_iter: Iterator[Chunk]):
             """Wrapper to track article/file progress."""
             current_file = None
+            current_doc_id = None
             file_chunk_count = 0
+            file_doc_ids = set()
 
             for chunk in chunks_iter:
                 chunk_dict = chunk.to_dict()
                 source_file = chunk_dict.get("metadata", {}).get("source_file")
+                doc_id = chunk_dict.get("doc_id")  # ← DODANE
 
                 # Detect file change
                 if source_file and source_file != current_file:
                     # Complete previous file
                     if current_file:
+                        file_article_count = len(file_doc_ids)
                         progress.complete_file(current_file)
+
+                        # Update metadata with final counts
+                        if current_file in progress.file_metadata:
+                            progress.file_metadata[current_file]["articles_count"] = file_article_count
+                            progress.file_metadata[current_file]["chunks_count"] = file_chunk_count
+
                         progress.save(progress_file)
-                        click.echo(f"  ✓ Completed: {Path(current_file).name} ({file_chunk_count} chunks)")
+                        rel_path = Path(current_file).relative_to(source) if source in Path(current_file).parents else Path(current_file).name
+                        click.echo(f"  ✓ Completed: {rel_path} ({file_article_count} articles, {file_chunk_count} chunks)")
 
-                    # Start new file
+                    # Start new file (WikiExtractor handles it)
                     current_file = source_file
+                    current_doc_id = None
                     file_chunk_count = 0
-
-                    # Skip if already processed
-                    if current_file in skip_files:
-                        click.echo(f"  ⏭ Skipping: {Path(current_file).name} (already processed)")
-                        continue
+                    file_doc_ids = set()
 
                     progress.start_file(current_file)
                     progress.save(progress_file)
-                    click.echo(f"\n→ Started: {Path(current_file).name}")
+                    rel_path = Path(current_file).relative_to(source) if source in Path(current_file).parents else Path(current_file).name
+                    click.echo(f"\n→ Started: {rel_path}")
 
                 # Track chunk
                 if source_file:
                     file_chunk_count += 1
                     progress.total_chunks += 1
-                    # Estimate articles (assuming ~5 chunks per article on average)
-                    if file_chunk_count % 5 == 0:
-                        progress.total_articles += 1
-                        if current_file in progress.file_metadata:
-                            progress.file_metadata[current_file]["articles_count"] += 1
-                            progress.file_metadata[current_file]["chunks_count"] = file_chunk_count
+
+                    # Collect unique doc_ids for this file
+                    if doc_id:
+                        file_doc_ids.add(doc_id)
+
+                        # Update global counter only for NEW articles
+                        if doc_id != current_doc_id:
+                            current_doc_id = doc_id
+                            progress.total_articles += 1
+
+                    if current_file in progress.file_metadata:
+                        progress.file_metadata[current_file]["chunks_count"] = file_chunk_count
 
                 yield chunk
 
             # Complete last file
-            if current_file and current_file not in skip_files:
+            if current_file:
+                file_article_count = len(file_doc_ids)
                 progress.complete_file(current_file)
+
+                if current_file in progress.file_metadata:
+                    progress.file_metadata[current_file]["articles_count"] = file_article_count
+                    progress.file_metadata[current_file]["chunks_count"] = file_chunk_count
+
                 progress.save(progress_file)
-                click.echo(f"  ✓ Completed: {Path(current_file).name} ({file_chunk_count} chunks)")
+                rel_path = Path(current_file).relative_to(source) if source in Path(current_file).parents else Path(current_file).name
+                click.echo(f"  ✓ Completed: {rel_path} ({file_article_count} articles, {file_chunk_count} chunks)")
 
         chunks_iter = pipeline.ingest_wikipedia(
             source=source,
             max_articles=max_articles,
             max_chunks=max_chunks,
+            skip_files=skip_files,
         )
 
         # Wrap with progress tracking
@@ -276,7 +299,7 @@ def ingest(
         sys.exit(1)
     except Exception as e:
         click.echo(f"\n✗ Ingestion failed: {e}", err=True)
-        logger.exception("Ingestion pipeline failed")
+        logger.exception("Ingestion pipelines failed")
         progress.save(progress_file)
         sys.exit(1)
 
