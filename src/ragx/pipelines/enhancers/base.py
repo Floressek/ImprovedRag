@@ -13,7 +13,7 @@ class Enhancer(ABC):
             query: str,
             results: List[tuple]
     ) -> List[tuple]:
-        """Process retrival results."""
+        """Process retrieval results."""
         pass
 
     @property
