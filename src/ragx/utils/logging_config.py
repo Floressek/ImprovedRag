@@ -51,6 +51,9 @@ def setup_logging(level: str = "INFO") -> None:
     root.addHandler(handler)
     root.setLevel(level.upper() if isinstance(level, str) else level)
 
+    for logger_name in ["transformers", "transformers_modules", "sentence_transformers"]:
+        logging.getLogger(logger_name).setLevel(logging.ERROR)
+
     # Silence noisy libraries
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
