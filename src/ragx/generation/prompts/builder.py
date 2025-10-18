@@ -60,6 +60,8 @@ def build_rag_prompt(
     Every factual claim MUST be cited using [N] format, where N is the source number.
     If the answer is not in the sources, say "I cannot find this information in the provided sources."
     Be concise and accurate.
+    
+    IMPORTANT: Answer only using polish language unless the question is not in polish.
     """
 
     system_prompt = system_instructions or default_system_prompt

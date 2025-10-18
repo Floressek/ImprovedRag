@@ -19,7 +19,6 @@ from src.ragx.utils.settings import settings
 
 setup_logging(level=settings.app.log_level)
 logger = logging.getLogger(__name__)
-warnings.filterwarnings("ignore", message=".*flash_attn is not installed.*")
 
 
 @asynccontextmanager
