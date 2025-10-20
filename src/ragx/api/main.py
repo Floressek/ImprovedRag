@@ -98,11 +98,10 @@ async def log_requests(request: Request, call_next):
 
 
 # Routers
-app.include_router(chat.router)
-
-app.include_router(search.router)
-app.include_router(health.router)
 app.include_router(llm.router)
+app.include_router(search.router)
+app.include_router(chat.router)
+app.include_router(health.router)
 
 
 @app.get("/api")
