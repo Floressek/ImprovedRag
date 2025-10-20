@@ -26,10 +26,10 @@ async def generate_llm(
     Returns:
         Generated text response
     """
-    logger.info(f"📝 LLM generate request: prompt_length={len(request.prompt)}")
-    final_prompt = request.prompt
-    if request.custom_instructions:
-        final_prompt = f"{request.custom_instructions}\n\n{final_prompt}"
+    logger.info(f"📝 LLM generate request: prompt_length={len(request.query)}")
+    final_prompt = request.query
+    if request.system_prompt:
+        final_prompt = f"{request.system_prompt}\n\n{final_prompt}"
 
     llm = LLMInference()
 
@@ -37,6 +37,7 @@ async def generate_llm(
         prompt=final_prompt,
         temperature=request.temperature,
         max_new_tokens=request.max_tokens,
+        chain_of_thought_enabled=request.chain_of_thought_enabled,
     )
 
     logger.info(f"✅ LLM generated: response_length={len(response)}")
@@ -47,7 +48,7 @@ async def generate_llm(
     return {
         "response": response,
         "metadata": {
-            "prompt_length": len(request.prompt),
+            "query": len(request.query),
             "response_length": len(response),
             "temperature": used_temperature,
             "max_tokens": used_max_tokens,

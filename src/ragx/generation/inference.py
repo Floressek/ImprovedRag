@@ -142,6 +142,7 @@ class LLMInference:
             prompt: str,
             temperature: Optional[float] = None,
             max_new_tokens: Optional[int] = None,
+            chain_of_thought_enabled: Optional[bool] = True,
     ) -> str:
         """Generate text from prompt with optional streaming.
 
@@ -149,6 +150,7 @@ class LLMInference:
             prompt: Input prompt string
             temperature: Sampling temperature
             max_new_tokens: Maximum new tokens to generate
+            chain_of_thought_enabled: Enable chain-of-thought reasoning
         """
         temperature = temperature if temperature is not None else self.temperature
         max_new_tokens = max_new_tokens or self.max_new_tokens
@@ -159,6 +161,7 @@ class LLMInference:
                 prompt=prompt,
                 temperature=temperature,
                 max_new_tokens=max_new_tokens,
+                chain_of_thought_enabled=chain_of_thought_enabled,
             )
 
         # for HuggingFace

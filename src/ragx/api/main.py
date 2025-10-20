@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import time
-import warnings
 from contextlib import asynccontextmanager
 from fastapi import Request
 
@@ -14,6 +13,7 @@ from src.ragx.api.dependencies import (
     get_baseline_pipeline,
     get_enhanced_pipeline,
 )
+from src.ragx.retrieval.vector_stores.qdrant_store import QdrantConnectionError
 from src.ragx.utils.logging_config import setup_logging
 from src.ragx.utils.settings import settings
 
@@ -26,16 +26,37 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown."""
     logger.info("🚀 Starting RAGx API server...")
 
-    # Warmup models
-    logger.info("Warming up models...")
-    baseline = get_baseline_pipeline()
-    enhanced = get_enhanced_pipeline()
+    try:
+        # Warmup models
+        logger.info("Warming up models...")
+        baseline = get_baseline_pipeline()
+        enhanced = get_enhanced_pipeline()
 
-    logger.info("✓ Models ready")
-    logger.info(f"✓ Collection: {settings.qdrant.collection_name}")
-    logger.info(f"✓ Embedder: {settings.embedder.model_id}")
-    logger.info(f"✓ Reranker: {settings.reranker.model_id}")
-    logger.info(f"✓ LLM: {settings.llm.model_id}")
+        logger.info("✓ Models ready")
+        logger.info(f"✓ Collection: {settings.qdrant.collection_name}")
+        logger.info(f"✓ Embedder: {settings.embedder.model_id}")
+        logger.info(f"✓ Reranker: {settings.reranker.model_id}")
+        logger.info(f"✓ LLM: {settings.llm.model_id}")
+
+    except QdrantConnectionError as e:
+        logger.error("=" * 80)
+        logger.error("❌ STARTUP FAILED: Cannot connect to Qdrant")
+        logger.error("=" * 80)
+        logger.error(str(e))
+        logger.error("")
+        logger.error("💡 Solutions:")
+        logger.error("   1. Start Qdrant: docker-compose up -d qdrant")
+        logger.error("   2. Check Qdrant URL in .env: QDRANT_URL=%s", settings.qdrant.url)
+        logger.error("   3. Verify Qdrant is accessible: curl %s/collections", settings.qdrant.url)
+        logger.error("=" * 80)
+        raise
+    except Exception as e:
+        logger.error("=" * 80)
+        logger.error("❌ STARTUP FAILED: Unexpected error")
+        logger.error("=" * 80)
+        logger.error(f"{type(e).__name__}: {e}", exc_info=True)
+        logger.error("=" * 80)
+        raise
 
     yield
 

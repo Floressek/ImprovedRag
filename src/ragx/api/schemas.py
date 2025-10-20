@@ -12,7 +12,7 @@ class ChatMessage(BaseModel):
 
 class LLMRequest(BaseModel):
     """Request model for direct LLM generation without RAG."""
-    prompt: str = Field(..., description="Prompt to generate answer")
+    query: str = Field(..., description="Query to generate answer")
     temperature: Optional[float] = Field(
         None,
         description="Sampling temperature",
@@ -25,9 +25,13 @@ class LLMRequest(BaseModel):
         ge=1000,
         le=32000
     )
-    custom_instructions: Optional[str] = Field(
+    system_prompt: Optional[str] = Field(
         None,
         description="Custom instruction to append to prompt"
+    )
+    chain_of_thought_enabled: Optional[bool] = Field(
+        None,
+        description="Enable chain of thought"
     )
 
 

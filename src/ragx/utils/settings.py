@@ -41,6 +41,8 @@ class QdrantConfig:
     distance_metric: str = os.getenv("QDRANT_DISTANCE_METRIC", "cosine")
     timeout_s: int = int(os.getenv("QDRANT_TIMEOUT_S", "60"))
     recreate_collection: bool = str_to_bool(os.getenv("QDRANT_RECREATE_COLLECTION", "false"))
+    max_retries: int = int(os.getenv("QDRANT_MAX_RETRIES", "3"))
+    retry_delay: float = float(os.getenv("QDRANT_RETRY_DELAY", "2.0"))
 
 
 @dataclass
