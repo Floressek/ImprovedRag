@@ -13,7 +13,7 @@ from src.ragx.retrieval.rerankers.reranker import Reranker
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Search"])
+router = APIRouter(prefix="/search", tags=["Search"])
 
 
 @router.post("/search", response_model=List[SearchResult])

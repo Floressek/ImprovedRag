@@ -10,7 +10,7 @@ from src.ragx.generation.inference import LLMInference
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["LLM"])
+router = APIRouter(prefix="/llm", tags=["LLM"])
 
 
 @router.post("/generate", response_model=LLMResponse)
