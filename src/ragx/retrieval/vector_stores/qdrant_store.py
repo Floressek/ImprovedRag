@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Optional, Sequence, Tuple, List, Union
 from uuid import uuid4
 
+from aiohttp.log import client_logger
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -25,6 +27,10 @@ IdLike = Union[str, int]
 Vector = Sequence[float]
 
 
+class QdrantConnectionError(Exception):
+    pass
+
+
 class QdrantStore:
     """Quadrant vector store implementation."""
 
@@ -37,6 +43,8 @@ class QdrantStore:
             distance_metric: Optional[str] = None,
             recreate_collection: Optional[bool] = None,
             timeout_s: Optional[int] = None,
+            max_retries: Optional[int] = None,
+            retry_delay: Optional[float] = None,
     ):
         """
         Initialize QdrantStore with optional overrides.
@@ -50,6 +58,8 @@ class QdrantStore:
             distance_metric: Distance metric (default: from config)
             recreate_collection: Whether to recreate collection (default: from config)
             timeout_s: Connection timeout in seconds (default: from config)
+            max_retries: Maximum number of retries for connection errors (default: 3)
+            retry_delay: Delay between retries in seconds (default: 2.0)
         """
         self.url = url or settings.qdrant.url
         self.api_key = api_key or settings.qdrant.api_key
@@ -58,20 +68,50 @@ class QdrantStore:
         self.distance_metric = self._to_distance(distance_metric or settings.qdrant.distance_metric)
         recreate = recreate_collection if recreate_collection is not None else settings.qdrant.recreate_collection
         timeout = timeout_s or settings.qdrant.timeout_s
+        self.max_retries = max_retries or settings.qdrant.max_retries
+        self.retry_delay = retry_delay or settings.qdrant.retry_delay
 
-        self.client = QdrantClient(url=self.url,
-                                   api_key=self.api_key,
-                                   timeout=timeout,
-                                   verify=False
-                                   )
-
-        try:
-            collections = self.client.get_collections()
-            logger.info(f"Available collections: {[c.name for c in collections.collections]}")
-        except Exception as e:
-            logger.error(f"Failed to get collections: {e}")
-
+        logger.info(f"Connecting to Qdrant at {self.url}...")
+        self.client = self._connect_with_retry(timeout)
         self._ensure_collection(recreate)
+        logger.info(f"✓ QdrantStore initialized successfully (collection: {self.collection_name})")
+
+    def _connect_with_retry(self, timeout: int) -> QdrantClient:
+        """Connect to Qdrant with retries on connection errors."""
+        last_error = None
+
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                logger.info(f"Connecting to Qdrant (attempt {attempt}/{self.max_retries})...")
+
+                client = QdrantClient(
+                    url=self.url,
+                    api_key=self.api_key,
+                    timeout=timeout,
+                    verify=False
+                )
+
+                collections = client.get_collections()
+                logger.info(f"Available collections: {[c.name for c in collections.collections]}")
+                return client
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    f"Connection attempt {attempt}/{self.max_retries} failed: {type(e).__name__}: {e}"
+                )
+
+                if attempt < self.max_retries:
+                    logger.info(f"Retrying in {self.retry_delay} seconds...")
+                    time.sleep(self.retry_delay)
+                else:
+                    logger.error(f"Failed to connect to Qdrant after {self.max_retries} attempts.")
+
+        error_msg = (
+            f"Failed to connect to Qdrant at {self.url} after {self.max_retries} attempts. "
+            f"Please ensure Qdrant is running and accessible. "
+            f"Last error: {type(last_error).__name__}: {last_error}"
+        )
+        raise QdrantConnectionError(error_msg) from last_error
 
     @staticmethod
     def _to_distance(metric: str) -> Distance:
