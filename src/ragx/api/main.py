@@ -9,7 +9,7 @@ from fastapi import Request
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.ragx.api.routers import chat, search, health
+from src.ragx.api.routers import chat, search, health, llm
 from src.ragx.api.dependencies import (
     get_baseline_pipeline,
     get_enhanced_pipeline,
@@ -81,6 +81,7 @@ app.include_router(chat.router)
 
 app.include_router(search.router)
 app.include_router(health.router)
+app.include_router(llm.router)
 
 
 @app.get("/api")
@@ -93,11 +94,12 @@ async def root():
         "endpoints": {
             "baseline": "/ask/baseline",
             # "baseline_stream": "/ask/baseline/stream",
-            # "enhanced": "/ask/enhanced",
+            "enhanced": "/ask/enhanced",
             # "enhanced_stream": "/ask/enhanced/stream",
-            # "search": "/search",
-            # "rerank": "/rerank",
-            # "health": "/health",
+            "llm": "/llm",
+            "search": "/search",
+            "rerank": "/rerank",
+            "health": "/health",
         },
     }
 
