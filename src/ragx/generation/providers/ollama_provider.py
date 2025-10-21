@@ -40,11 +40,11 @@ class OllamaProvider:
             available = [m.model for m in models.models]
             logger.info(f"Available Ollama models: {available}")
 
-            if model_name not in available:
-                logger.warning(f"Model {model_name} not found in Ollama models. Using default model.")
-                logger.info(f"Pulling model {model_name} from Ollama server. (This may take a while...)")
-                ollama.pull(model_name)
-                logger.info(f"Model {model_name} pulled from Ollama server.")
+            if self.model_name not in available:
+                logger.warning(f"Model {self.model_name} not found in Ollama models. Using default model.")
+                logger.info(f"Pulling model {self.model_name} from Ollama server. (This may take a while...)")
+                ollama.pull(self.model_name)
+                logger.info(f"Model {self.model_name} pulled from Ollama server.")
         except Exception as e:
             logger.error(f"Failed to load Ollama model: {e}")
             raise RuntimeError("Ollama model load failed") from e

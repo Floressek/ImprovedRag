@@ -5,7 +5,6 @@ import time
 from typing import Any, Optional, Sequence, Tuple, List, Union
 from uuid import uuid4
 
-from aiohttp.log import client_logger
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,

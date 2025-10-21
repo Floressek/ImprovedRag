@@ -1,5 +1,5 @@
 model_mapping = {
-    # Qwen3 models (wit CoT)
+    # Qwen3 models (with CoT)
     "Qwen/Qwen3-4B-Instruct": "qwen3:4b",
     "Qwen/Qwen3-8B-Instruct": "qwen3:8b",
     "Qwen/Qwen3-14B-Instruct": "qwen3:14b",
