@@ -89,7 +89,7 @@ class PromptBuilder:
 
             formatted.append("\n".join(parts))
 
-        return "\n" + "=" * 50 + "\n".join(formatted) + "\n" + "=" * 50
+        return "\n" + "=" * 50 + "\n" + "\n".join(formatted) + "\n" + "=" * 50
 
     def _format_grouped_contexts(
             self,
