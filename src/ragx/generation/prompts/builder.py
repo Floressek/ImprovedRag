@@ -125,7 +125,7 @@ class PromptBuilder:
 
             formatted.append("\n".join(doc_parts))
 
-        return "\n" + "=" * 50 + "\n".join(formatted) + "\n" + "=" * 50
+        return "\n" + "=" * 50 + "\n" + "\n\n".join(formatted) + "\n" + "=" * 50
 
     def build(
             self,
