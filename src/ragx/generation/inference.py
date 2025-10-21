@@ -144,12 +144,18 @@ class LLMInference:
         max_new_tokens = max_new_tokens or self.max_new_tokens
 
         # Use new provider interface
-        if self.provider in ['ollama', 'vllm'] and self._provider_instance:
+        if self.provider == 'ollama' and self._provider_instance:
             return self._provider_instance.generate(
                 prompt=prompt,
                 temperature=temperature,
                 max_new_tokens=max_new_tokens,
                 chain_of_thought_enabled=chain_of_thought_enabled,
+            )
+        elif self.provider == 'vllm' and self._provider_instance:
+            return self._provider_instance.generate(
+                prompt=prompt,
+                temperature=temperature,
+                max_new_tokens=max_new_tokens,
             )
 
         # for HuggingFace
