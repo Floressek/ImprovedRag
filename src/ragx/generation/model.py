@@ -58,7 +58,6 @@ class LLMModel:
                 cache_dir=settings.huggingface.hf_hub_cache,
             )
 
-        # def _create_model() -> AutoModelForCausalLM:
         def _create_model():
             if self.load_in_4bit and self.device == "cuda":
                 bnb_config = BitsAndBytesConfig(
