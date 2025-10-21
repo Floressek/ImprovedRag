@@ -40,7 +40,6 @@ template: |
   <question>
   USER QUESTION: {query}
   LANGUAGE DETECTED: {detected_language}
-  QUERY TYPE: {query_type}
   </question>
   
   <thinking_process>
