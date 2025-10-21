@@ -175,7 +175,7 @@ class PromptBuilder:
         if config.use_cot and config.think_tag_style == "qwen":
             think_tag_start = "<think>"
             think_tag_end = "</think>"
-        # most other models use the <thinkING> tag so here i will write llama but its multipurpose
+        # Most other models use the <thinking> tag (e.g., LLaMA), so this style is multipurpose
         elif config.use_cot and config.think_tag_style == "llama":
             think_tag_start = "<thinking>"
             think_tag_end = "</thinking>"
