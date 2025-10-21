@@ -1,0 +1,31 @@
+unrestricted:
+  # free jorge kinda mode
+  prompt: |
+    Think step by step about the source and question.
+    Take your time to analyze thoroughly.
+    
+    <think>
+    </think>
+
+guided_brief:
+  # fast thinking mode
+  prompt: |
+    Quick analysis:
+    - Main relevant sources:
+    - Key facts:
+    - Answer approach:
+
+guided_detailed:
+  # structurized but detailed
+  prompt: |
+    Step 1: Identify all relevant sources
+    {list sources with relevance scores}
+    
+    Step 2: Extract key information
+    {facts from each source}
+    
+    Step 3: Check for contradictions
+    {any conflicts}
+    
+    Step 4: Formulate comprehensive answer
+    {reasoning for answer structure}
