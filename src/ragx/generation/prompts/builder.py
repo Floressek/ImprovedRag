@@ -1,120 +1,330 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Dict, Any, Optional
+import yaml
+import re
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Tuple
+from langdetect import detect, LangDetectException
+
+from src.ragx.generation.prompts.utils.prompt_config import PromptConfig
+from src.ragx.generation.prompts.utils.prompt_tools import get_confidence_level, get_quality_check_reminder, \
+    format_contexts_simple, get_default_template
 from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)
 
 
-def format_chat_history(
-        chat_history: Optional[List[Dict[str, str]]] = None,
-        max_history: Optional[int] = None
-) -> str:
-    """Format chat history for a prompt.
+class PromptBuilder:
+    """Advanced prompt builder with template support and smart formatting."""
 
-    Args:
-        chat_history: List of chat messages with 'role' and 'content'
-        max_history: Maximum number of recent messages to include
-    """
-    if not chat_history:
-        return ""
+    def __init__(self, template_dir: Optional[Path] = None):
+        self.template_dir = template_dir or (Path(__file__).parent / "templates")
+        self._templates_cache = {}
+        self._components_cache = {}
 
-    max_history = max_history if max_history is not None else settings.chat.max_history
+    def detect_language(self, text: str) -> str:
+        """Detect language of the text. => currently purposefully we are using 2 languages"""
+        try:
+            lang_code = detect(text)
+            return "Polish" if lang_code == "pl" else "English"
+        except LangDetectException:
+            if re.search(r'[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]', text):
+                return "Polish"
+            else:
+                return "English"
 
-    if max_history is not None and len(chat_history) > max_history:
-        # if the max history is exceeded, take the most recent messages - last in the list is most recent
-        recent = chat_history[-max_history:]
-    else:
-        recent = chat_history
+    def format_contexts_advanced(
+            self,
+            contexts: List[Dict[str, Any]],
+            include_metadata: bool = True,
+            group_by_doc: bool = False
+    ) -> str:
+        """
+        Advanced context formatting with metadata and grouping options.
 
-    formatted = []
-    for msg in recent:
-        role = msg.get("role", "user")
-        content = msg.get("content", "")
-        formatted.append(f"{role.capitalize()}: {content}")
+        Args:
+            contexts: List of context dictionaries
+            include_metadata: Include scores and positions
+            group_by_doc: Group chunks from same document
+        """
+        if not contexts:
+            return "[No sources available]"
 
-    return "\n".join(formatted)
+        if group_by_doc:
+            return self._format_grouped_contexts(contexts, include_metadata)
 
+        formatted = []
+        for idx, ctx in enumerate(contexts, 1):
+            text = ctx.get("text", "").strip()
+            title = ctx.get("doc_title", "Unknown")
 
-def build_rag_prompt(
-        query: str,
-        contexts: List[Dict[str, Any]],
-        chat_history: Optional[List[Dict[str, str]]] = None,
-        max_history: Optional[int] = None,
-        system_instructions: Optional[str] = None,
-) -> str:
-    """
-    Build a Retrieval-Augmented Generation (RAG) prompt by combining system instructions,
-    formatted chat history, context documents, and the user's query.
+            parts = [f"[{idx} SOURCE: {title}]"]
 
-    Args:
-        query: The user's query string.
-        contexts: List of context documents with 'text' field.
-        chat_history: List of chat messages with 'role' and 'content'.
-        max_history: Maximum number of recent messages to include.
-        system_instructions: Custom system instructions to override default.
-    """
-    # default_system_prompt = """
-    #     You are a helpful assistant. Answer questions using ONLY the provided context sources.
-    #     Every factual claim MUST be cited using [N] format, where N is the source number.
-    #     If the answer is not in the sources, say "I cannot find this information in the provided sources."
-    #     Be concise and accurate.
-    #     """
+            if include_metadata:
+                metadata_parts = []
 
-    default_system_prompt = """You are a helpful assistant. 
-    
-        CRITICAL RULES:
-        1. Answer ONLY using the provided context sources
-        2. EVERY factual claim MUST include citation [N] where N is source number
-        3. If information is not in sources, say "I cannot find this information in the provided sources."
-        4. Answer in the SAME language as the question
-        5. Be accurate and detailed
-        
-        FORMAT:
-        First, briefly think about which sources are relevant (1-2 sentences max).
-        Then provide your answer with ALL required citations [N].
+                rerank_score = ctx.get("rerank_score")
+                if rerank_score is not None:
+                    confidence = get_confidence_level(rerank_score)
+
+                    metadata_parts.append(f"relevance: {rerank_score:.3f} ({confidence})")
+
+                elif ctx.get("retrieval_score") is not None:
+                    score = ctx.get("retrieval_score")
+                    metadata_parts.append(f"similarity: {score:.3f}")
+
+                position = ctx.get("position", 0)
+                total = ctx.get("total_chunks", 1)
+                if total > 1:
+                    metadata_parts.append(f"chunk: {position}/{total}")
+
+                if metadata_parts:
+                    parts.append(f"[{', '.join(metadata_parts)}]")
+
+            parts.append(f"CONTENT: {text}")
+
+            if include_metadata and ctx.get("rerank_score", 1.0) < 0.3:
+                parts.append("Note: Low relevance score - use with caution")
+
+            formatted.append("\n".join(parts))
+
+        return "\n" + "=" * 50 + "\n".join(formatted) + "\n" + "=" * 50
+
+    def _format_grouped_contexts(
+            self,
+            contexts: List[Dict[str, Any]],
+            include_metadata: bool = True
+    ) -> str:
+        """Format contexts grouped by document."""
+        grouped = {}
+        for idx, ctx in enumerate(contexts, 1):
+            title = ctx.get("doc_title", "Unknown")
+            if title not in grouped:
+                grouped[title] = []
+            ctx["_idx"] = idx
+            grouped[title].append(ctx)
+
+        formatted = []
+        for title, chunks in grouped.items():
+            doc_parts = [f"DOCUMENT: {title}"]
+
+            if include_metadata:
+                scores = [c.get("rerank_score", c.get("retrieval_score", 0.0)) for c in chunks]
+                avg_score = sum(scores) / len(scores) if scores else 0.0
+                doc_parts.append(f"[Average relevance: {avg_score:.3f}, Chunks: {len(chunks)}]")
+
+            # if empty line
+            doc_parts.append("")
+
+            for chunk in sorted(chunks, key=lambda c: c.get("position", 0)):
+                idx = chunk['_idx']
+                text = chunk.get("text", "").strip()
+                doc_parts.append(f"[{idx}] {text}")
+                doc_parts.append("")  # format purpose (separation of chunls)
+
+            formatted.append("\n".join(doc_parts))
+
+        return "\n" + "=" * 50 + "\n".join(formatted) + "\n" + "=" * 50
+
+    def build(
+            self,
+            query: str,
+            contexts: List[Dict[str, Any]],
+            template_name: str = 'basic',
+            chat_history: Optional[List[Dict[str, str]]] = None,
+            max_history: Optional[int] = None,
+            config: Optional[PromptConfig] = None,
+            **kwargs
+    ) -> str:
+        """
+        Build advanced prompt from template.
+
+        Args:
+            query: User question
+            contexts: Retrieved contexts with metadata
+            template_name: Template to use
+            chat_history: Optional conversation history
+            max_history: Maximum history entries
+            config: Prompt configuration options
+            **kwargs: Additional template variables
+        """
+        config = config or PromptConfig()
+
+        template_data = self.load_template(template_name)
+        template_str = template_data.get("template", "")
+
+        detected_language = self.detect_language(query) if config.detect_language else "English"
+
+        language_instruction = f"Answer entirely in {detected_language}"
+        if detected_language == "Polish":
+            language_instruction = "Odpowiedz WYŁĄCZNIE po polsku"
+
+        if template_name == 'enhanced':
+            contexts_formatted = self.format_contexts_advanced(
+                contexts,
+                include_metadata=config.include_metadata,
+                # group_by_doc=query
+            )
+        else:
+            contexts_formatted = format_contexts_simple(contexts)
+
+        # model based, change second one when needed!
+        think_tag_start = ""
+        think_tag_end = ""
+        if config.use_cot and config.think_tag_style == "qwen":
+            think_tag_start = "<think>"
+            think_tag_end = "</think>"
+        # most other models use the <thinkING> tag so here i will write llama but its multipurpose
+        elif config.use_cot and config.think_tag_style == "llama":
+            think_tag_start = "<thinking>"
+            think_tag_end = "</thinking>"
+
+        history_str = ""
+        if chat_history:
+            history_str = self._format_chat_history(chat_history, max_history)
+
+        prompt_vars = {
+            "query": query,
+            "contexts": contexts_formatted,
+            "contexts_with_metadata": contexts_formatted,  # enhanced purposes
+            "chat_history": history_str,
+            "detected_language": detected_language,
+            "think_tag_start": think_tag_start,
+            "think_tag_end": think_tag_end,
+            **kwargs
+        }
+
+        try:
+            prompt = template_str.format(**prompt_vars)
+        except KeyError as e:
+            logger.warning(f"Missing template variable: {e}")
+            prompt = self._build_fallback_prompt(query, contexts, detected_language)
+
+        if template_name == 'enhanced' and config.strict_citations:
+            prompt += get_quality_check_reminder(detected_language)
+
+        return prompt.strip()
+
+    def _format_chat_history(
+            self,
+            chat_history: Optional[List[Dict[str, str]]] = None,
+            max_history: Optional[int] = None
+    ) -> str:
+        """Format chat history for a prompt.
+
+        Args:
+            chat_history: List of chat messages with 'role' and 'content'
+            max_history: Maximum number of recent messages to include
+        """
+        if not chat_history:
+            return ""
+
+        max_history = max_history if max_history is not None else settings.chat.max_history
+
+        if max_history is not None and len(chat_history) > max_history:
+            # if the max history is exceeded, take the most recent messages - last in the list is most recent
+            recent = chat_history[-max_history:]
+        else:
+            recent = chat_history
+
+        formatted = []
+        for msg in recent:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            formatted.append(f"{role}: {content}")
+
+        return "\n".join(formatted)
+
+    def _build_fallback_prompt(
+            self,
+            query: str,
+            contexts: List[Dict[str, Any]],
+            language: str
+    ) -> str:
+        """Fallback prompt if template fails."""
+        contexts_str = format_contexts_simple(contexts)
+        return f"""
+            Sources:
+            {contexts_str}
+            
+            Question: {query}
+            
+            Instructions: Answer only from sources with [N] citations. Language: {language}
+            
+            Answer:
         """
 
-    system_prompt = system_instructions or default_system_prompt
+    def load_template(
+            self,
+            name: str
+    ) -> dict:
+        """Load and cache template data."""
+        if name in self._templates_cache:
+            return self._templates_cache[name]
 
-    history_text = format_chat_history(chat_history, max_history)
+        template_path = self.template_dir / f"{name}.yaml"
+        if not template_path.exists():
+            logger.warning(f"Template not found: {template_path}")
+            return {"template": get_default_template()}
 
-    context_parts = []
-    for idx, ctx in enumerate(contexts, 1):
-        text = ctx.get("text", "")
-        title = ctx.get("doc_title", "Unknown")  # add it from metadata from qdrant
-        context_parts.append(f"[{idx}] (Source: {title})\n{text}")
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template = yaml.safe_load(f)
 
-    contexts_text = "\n\n".join(context_parts)
+        self._templates_cache[name] = template
+        return template
 
-    prompt_parts = [
-        "[SYSTEM]",
-        system_prompt,
-        "",
-    ]
 
-    if history_text:
-        prompt_parts.extend([
-            "[CHAT HISTORY]",
-            history_text,
-            "",
-        ])
+def build_prompt_for_pipeline(
+        pipeline_type: str,
+        query: str,
+        contexts: List[Dict[str, Any]],
+        model_name: Optional[str] = None,
+        **kwargs
+) -> Tuple[str, PromptConfig]:
+    """
+    Build optimal prompt for pipeline type.
 
-    prompt_parts.extend([
-        "[CONTEXT]",
-        contexts_text,
-        "",
-        "[QUESTION]",
-        query,
-        "IMPORTANT: Provide the answer in the SAME language as the question above. so if the question is in Polish, answer ENTIRELY in Polish."
-        "",
-        "Think step-by-step, but keep it brief:",
-        "1. Which sources contain relevant info?",
-        "2. What are the key facts?",
-        "3. Formulate answer with citations.",
-        "",
-        "[YOUR ANSWER WITH CITATIONS]",
-    ])
+    Args:
+        pipeline_type: Pipeline type
+        query: User question
+        contexts: Retrieved contexts with metadata
+        model_name: Model name
 
-    return "\n".join(prompt_parts)
+    Returns:
+        Tuple of (prompt, config_used)
+    """
+    builder = PromptBuilder()
+
+    if pipeline_type == "baseline":
+        template = "basic"
+        config = PromptConfig(
+            use_cot=False,
+            include_metadata=False,
+            strict_citations=True,
+            detect_language=True,
+            check_contradictions=False,
+            confidence_scoring=False,
+            think_tag_style="none"
+        )
+    else:
+        template = "enhanced"
+        config = PromptConfig(
+            use_cot=True,
+            include_metadata=True,
+            strict_citations=True,
+            detect_language=True,
+            check_contradictions=True,
+            confidence_scoring=True,
+            think_tag_style="qwen" if model_name and "qwen" in model_name.lower() else "none"
+        )
+
+    prompt = builder.build(
+        query=query,
+        contexts=contexts,
+        template_name=template,
+        config=config,
+        **kwargs
+    )
+
+    return prompt, config
