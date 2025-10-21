@@ -24,7 +24,7 @@ class PromptBuilder:
         self._components_cache = {}
 
     def detect_language(self, text: str) -> str:
-        """Detect language of the text. => currently purposefully we are using 2 languages"""
+        """Detect language of the text. Currently supports Polish and English language detection."""
         try:
             lang_code = detect(text)
             return "Polish" if lang_code == "pl" else "English"
