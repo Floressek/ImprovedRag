@@ -8,6 +8,7 @@ from transformers import TextIteratorStreamer
 from threading import Thread
 
 from src.ragx.generation.model import LLMModel
+from src.ragx.generation.types.model_types import model_mapping
 from src.ragx.utils.model_registry import model_registry
 from src.ragx.utils.settings import settings
 from src.ragx.generation.providers.ollama_provider import OllamaProvider
@@ -78,19 +79,6 @@ class LLMInference:
         """Initialize LLM provider instance"""
         if self.provider == 'ollama':
             try:
-                model_mapping = {
-                    # Qwen3 models (wit CoT)
-                    "Qwen/Qwen3-4B-Instruct": "qwen3:4b",
-                    "Qwen/Qwen3-8B-Instruct": "qwen3:8b",
-                    "Qwen/Qwen3-14B-Instruct": "qwen3:14b",
-                    "Qwen/Qwen3-32B-Instruct": "qwen3:32b",
-                    "Qwen/Qwen3-30B-A3B-Instruct": "qwen3:30b-a3b",
-
-                    # Qwen2.5 models (older models for tests - without CoT)
-                    "Qwen/Qwen2.5-3B-Instruct": "qwen2.5:3b",
-                    "Qwen/Qwen2.5-7B-Instruct": "qwen2.5:7b",
-                    "Qwen/Qwen2.5-14B-Instruct": "qwen2.5:14b",
-                }
                 ollama_model = model_mapping.get(self.model_id)
                 if ollama_model is None:
                     logger.warning(f"Model {self.model_id} not found in Ollama models. Using default model.")
@@ -192,7 +180,7 @@ class LLMInference:
             temperature: Optional[float] = None,
             max_new_tokens: Optional[int] = None,
     ) -> Iterator[str]:
-        """Generate text from prompt with streaming.
+        """Generate text from prompt with streaming. CURRENTLY, THE STREAMING IS NOT USED.
 
         Args:
             prompt: Input prompt string
