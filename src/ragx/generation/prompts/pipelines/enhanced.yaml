@@ -1,0 +1,25 @@
+name: "enhanced_pipeline"
+model_requirements: "qwen3|llama3"
+use_cot: true
+cot_style: "unrestricted"  # or "guided_detailed"
+
+template: |
+  SYSTEM: You are an expert in source analysis. Think step by step.
+  
+  SOURCES (sorted by relevance):
+  {contexts_formatted_with_scores}
+  
+  QUESTION: {query}
+  
+  {thinking_component}
+  
+  GUIDELINES:
+  1. Thoroughly analyze all relevant sources
+  2. Identify key facts and connections (mention any contradictions)
+  3. If there is no source that provides the answer, say: "Information not found in the sources."
+  4. Mark facts with [number of sources] to indicate how many sources provide them.
+  5. Verify information consistency
+  6. Formulate a comprehensive answer
+  7. Every claim must have a [citation]
+  
+  ANSWER (with full citations):
