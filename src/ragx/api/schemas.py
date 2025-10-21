@@ -10,6 +10,37 @@ class ChatMessage(BaseModel):
     content: str = Field(..., description="Message content")
 
 
+class LLMRequest(BaseModel):
+    """Request model for direct LLM generation without RAG."""
+    query: str = Field(..., description="Query to generate answer")
+    temperature: Optional[float] = Field(
+        None,
+        description="Sampling temperature",
+        ge=0.0,
+        le=2.0
+    )
+    max_tokens: Optional[int] = Field(
+        None,
+        description="Maximum number of tokens to generate",
+        ge=1000,
+        le=32000
+    )
+    system_prompt: Optional[str] = Field(
+        None,
+        description="Custom instruction to append to prompt"
+    )
+    chain_of_thought_enabled: Optional[bool] = Field(
+        None,
+        description="Enable chain of thought"
+    )
+
+
+class LLMResponse(BaseModel):
+    """Response model for direct LLM generation."""
+    response: str = Field(..., description="Generated text from LLM")
+    metadata: Dict[str, Any] = Field(..., description="Metadata about the generation")
+
+
 class AskRequest(BaseModel):
     """Ask request model. /ask endpoint."""
     query: str = Field(..., description="Question to ask", min_length=1)
@@ -33,7 +64,7 @@ class SourceInfo(BaseModel):
     position: int
     retrieval_score: Optional[float] = None
     rerank_score: Optional[float] = None
-    url: Optional[str] = None # TO BE ADDED
+    url: Optional[str] = None  # TO BE ADDED
 
 
 class AskResponse(BaseModel):

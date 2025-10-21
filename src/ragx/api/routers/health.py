@@ -9,7 +9,7 @@ from src.ragx.api.dependencies import get_embedder, get_vector_store, get_rerank
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Health"])
+router = APIRouter(prefix="/info", tags=["Health"])
 
 
 @router.get("/health", response_model=HealthResponse)
