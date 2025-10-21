@@ -98,7 +98,7 @@ class BaselinePipeline(BasePipeline):
         answer = self.llm.generate(
             prompt,
             chain_of_thought_enabled=False,
-            temperature=0.3,
+            temperature=0.5,
         )
         llm_time = (time.time() - llm_start) * 1000
 

@@ -93,6 +93,10 @@ class OllamaProvider:
             thinking_process = response.get('thinking', '')
             logger.info(f"Thinking process: {thinking_process}")
 
+        if not generated_text or len(generated_text.strip()) == 0:
+            logger.error("Error response from Ollama! Common error with lack of max_new_tokens.")
+            return "I apologise, I couldn't generate a proper response. "
+
         return generated_text
 
     def generate_stream(
