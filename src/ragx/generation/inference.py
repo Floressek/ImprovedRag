@@ -8,7 +8,7 @@ from transformers import TextIteratorStreamer
 from threading import Thread
 
 from src.ragx.generation.model import LLMModel
-from src.ragx.generation.types.model_types import model_mapping
+from src.ragx.generation.types.model_types import MODEL_MAPPING
 from src.ragx.utils.model_registry import model_registry
 from src.ragx.utils.settings import settings
 from src.ragx.generation.providers.ollama_provider import OllamaProvider
@@ -79,7 +79,7 @@ class LLMInference:
         """Initialize LLM provider instance"""
         if self.provider == 'ollama':
             try:
-                ollama_model = model_mapping.get(self.model_id)
+                ollama_model = MODEL_MAPPING.get(self.model_id)
                 if ollama_model is None:
                     logger.warning(f"Model {self.model_id} not found in Ollama models. Using default model.")
                     ollama_model = "qwen3:4b"
