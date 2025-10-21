@@ -190,6 +190,7 @@ class PromptBuilder:
             "contexts_with_metadata": contexts_formatted,  # enhanced purposes
             "chat_history": history_str,
             "detected_language": detected_language,
+            "language_instruction": language_instruction,
             "think_tag_start": think_tag_start,
             "think_tag_end": think_tag_end,
             **kwargs
