@@ -8,7 +8,7 @@ from src.ragx.pipelines.base import BasePipeline
 from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
 from src.ragx.generation.inference import LLMInference
-from src.ragx.generation.prompts.builder import build_rag_prompt
+from src.ragx.generation.prompts.builder import PromptBuilder, PromptConfig
 from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,16 @@ class BaselinePipeline(BasePipeline):
         )
         self.llm = llm or LLMInference()
         self.top_k = top_k or settings.retrieval.context_top_n
+
+        # prompt
+        self.prompt_builder = PromptBuilder()
+        # Basic values for RAG
+        self.prompt_config = PromptConfig(
+            use_cot=False,
+            include_metadata=False,
+            strict_citations=True,
+            detect_language=True,
+        )
 
         logger.info(f"BaselinePipeline initialized with (top_k = {self.top_k}).")
 
@@ -74,16 +84,22 @@ class BaselinePipeline(BasePipeline):
             })
 
         # Step 4: Build prompt
-        prompt = build_rag_prompt(
+        prompt = self.prompt_builder.build(
             query=query,
             contexts=contexts,
+            template_name="basic",
             chat_history=chat_history,
             max_history=max_history,
+            config=self.prompt_config,
         )
 
         # 5. Generate answer
         llm_start = time.time()
-        answer = self.llm.generate(prompt)
+        answer = self.llm.generate(
+            prompt,
+            chain_of_thought_enabled=False,
+            temperature=0.5,
+        )
         llm_time = (time.time() - llm_start) * 1000
 
         total_time = (time.time() - start_time) * 1000

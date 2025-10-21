@@ -1,0 +1,26 @@
+qwen3_unrestricted: |
+  <think>
+  Let me carefully analyze all the provided sources to answer this question.
+  I should pay attention to relevance scores and potential contradictions.
+  
+  [Unrestricted reasoning]
+  </think>
+
+structured_analysis: |
+  THINKING FRAMEWORK:
+  
+  A. Source Overview:
+  {for each source}
+  - Source [{id}]: {title} (relevance: {score})
+    Key info: {what it contains}
+  {/for}
+  
+  B. Information Mapping:
+  - Direct answers to question: {which sources}
+  - Supporting context: {which sources}
+  - Potential conflicts: {identify any}
+  
+  C. Synthesis Strategy:
+  - Primary claims: {main points with strongest support}
+  - Secondary points: {additional relevant info}
+  - Caveats: {what's missing or uncertain}

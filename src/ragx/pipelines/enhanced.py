@@ -9,7 +9,7 @@ from src.ragx.pipelines.enhancers.reranker import RerankerEnhancer
 from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
 from src.ragx.generation.inference import LLMInference
-from src.ragx.generation.prompts.builder import build_rag_prompt
+from src.ragx.generation.prompts.builder import PromptBuilder, PromptConfig
 from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,21 @@ class EnhancedPipeline(BasePipeline):
         self.llm = llm or LLMInference()
 
         self.initial_top_k = initial_top_k or settings.retrieval.top_k_retrieve
+
+        self.prompt_builder = PromptBuilder()
+
+        model_name = settings.llm.model_id.lower()
+        think_style = "qwen" if "qwen" in model_name else "none"
+
+        self.prompt_config = PromptConfig(
+            use_cot=True,
+            include_metadata=True,
+            strict_citations=True,
+            detect_language=True,
+            check_contradictions=True,
+            confidence_scoring=True,
+            think_tag_style=think_style,
+        )
 
         logger.info(
             f"EnhancedPipeline initialized "
@@ -84,11 +99,13 @@ class EnhancedPipeline(BasePipeline):
             })
 
         # Step 4: Generation
-        prompt = build_rag_prompt(
+        prompt = self.prompt_builder.build(
             query=query,
             contexts=contexts,
+            template_name="enhanced",
             chat_history=chat_history,
             max_history=max_history,
+            config=self.prompt_config,
         )
 
         llm_start = time.time()
