@@ -94,7 +94,7 @@ class LLMConfig:
     model_name: str = os.getenv("LLM_MODEL_NAME_OLLAMA", "Qwen/Qwen2.5-7B-Instruct")
     device: str = os.getenv("LLM_DEVICE", "cuda")
     load_in_4bit: bool = str_to_bool(os.getenv("LLM_LOAD_IN_4BIT", "true"))
-    max_new_tokens: int = int(os.getenv("LLM_MAX_NEW_TOKENS", "100"))
+    max_new_tokens: int = int(os.getenv("LLM_MAX_NEW_TOKENS", "2000"))
     temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.2"))
     top_p: float = float(os.getenv("LLM_TOP_P", "0.9"))
     provider: str = os.getenv("LLM_PROVIDER", "huggingface")
@@ -103,6 +103,7 @@ class LLMConfig:
     gpu_memory_utilization: float = float(os.getenv("GPU_MEMORY_UTILIZATION", "0.9"))
     trust_remote_code: bool = str_to_bool(os.getenv("TRUST_REMOTE_CODE", "true"))
     quantization: Optional[str] = os.getenv("QUANTIZATION", "awq")
+
     max_model_len: int = int(os.getenv("MAX_MODEL_LEN", "8192"))
     repetition_penalty: float = float(os.getenv("REPETITION_PENALTY", "1.1"))
 

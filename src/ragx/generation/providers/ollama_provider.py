@@ -73,7 +73,6 @@ class OllamaProvider:
             Generated text
         """
         chain_of_thought_enabled = chain_of_thought_enabled or False
-        logger.info(f"Chain of Thought enabled: {chain_of_thought_enabled}")
         response = ollama.generate(
             model=self.model_name,
             prompt=prompt,
