@@ -55,12 +55,26 @@ def build_rag_prompt(
         max_history: Maximum number of recent messages to include.
         system_instructions: Custom system instructions to override default.
     """
-    default_system_prompt = """
-    You are a helpful assistant. Answer questions using ONLY the provided context sources.
-    Every factual claim MUST be cited using [N] format, where N is the source number.
-    If the answer is not in the sources, say "I cannot find this information in the provided sources."
-    Be concise and accurate.
-    """
+    # default_system_prompt = """
+    #     You are a helpful assistant. Answer questions using ONLY the provided context sources.
+    #     Every factual claim MUST be cited using [N] format, where N is the source number.
+    #     If the answer is not in the sources, say "I cannot find this information in the provided sources."
+    #     Be concise and accurate.
+    #     """
+
+    default_system_prompt = """You are a helpful assistant. 
+    
+        CRITICAL RULES:
+        1. Answer ONLY using the provided context sources
+        2. EVERY factual claim MUST include citation [N] where N is source number
+        3. If information is not in sources, say "I cannot find this information in the provided sources."
+        4. Answer in the SAME language as the question
+        5. Be accurate and detailed
+        
+        FORMAT:
+        First, briefly think about which sources are relevant (1-2 sentences max).
+        Then provide your answer with ALL required citations [N].
+        """
 
     system_prompt = system_instructions or default_system_prompt
 
@@ -93,8 +107,14 @@ def build_rag_prompt(
         "",
         "[QUESTION]",
         query,
+        "IMPORTANT: Provide the answer in the SAME language as the question above. so if the question is in Polish, answer ENTIRELY in Polish."
         "",
-        "[ANSWER]",
+        "Think step-by-step, but keep it brief:",
+        "1. Which sources contain relevant info?",
+        "2. What are the key facts?",
+        "3. Formulate answer with citations.",
+        "",
+        "[YOUR ANSWER WITH CITATIONS]",
     ])
 
     return "\n".join(prompt_parts)

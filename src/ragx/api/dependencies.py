@@ -7,7 +7,7 @@ from src.ragx.pipelines.baseline import BaselinePipeline
 from src.ragx.pipelines.enhanced import EnhancedPipeline
 from src.ragx.pipelines.enhancers.reranker import RerankerEnhancer
 from src.ragx.retrieval.embedder.embedder import Embedder
-from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
+from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore, QdrantConnectionError
 from src.ragx.retrieval.rerankers.reranker import Reranker
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,13 @@ def get_embedder() -> Embedder:
 def get_vector_store() -> QdrantStore:
     """Get the cached vector store instance."""
     logger.info("Loading vector store...")
-    return QdrantStore()
+    try:
+        return QdrantStore()
+    except QdrantConnectionError:
+        raise  # handled by main lifespan
+    except Exception as e:
+        logger.error(f"Error loading vector store: {e}")
+        raise
 
 
 @lru_cache(maxsize=1)
@@ -32,6 +38,7 @@ def get_reranker() -> Reranker:
     """Get the cached reranker instance."""
     logger.info("Loading reranker...")
     return Reranker()
+
 
 @lru_cache(maxsize=1)
 def get_reranker_enhancer() -> RerankerEnhancer:
