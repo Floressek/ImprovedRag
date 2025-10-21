@@ -144,7 +144,7 @@ class OllamaProvider:
         Returns:
             Generated text
         """
-        response = ollama.generate(
+        response = ollama.chat(
             model=self.model_name,
             messages=messages,
             options={
