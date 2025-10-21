@@ -107,7 +107,7 @@ def build_rag_prompt(
         "",
         "[QUESTION]",
         query,
-        "IMPORTANT:  Provide the answer in the SAME language as the question above. so if the question is in Polish, answer ENTIRELY in Polish."
+        "IMPORTANT: Provide the answer in the SAME language as the question above. so if the question is in Polish, answer ENTIRELY in Polish."
         "",
         "Think step-by-step, but keep it brief:",
         "1. Which sources contain relevant info?",
