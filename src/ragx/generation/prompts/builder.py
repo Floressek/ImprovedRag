@@ -205,6 +205,7 @@ class PromptBuilder:
         if template_name == 'enhanced' and config.strict_citations:
             prompt += get_quality_check_reminder(detected_language)
 
+        logger.info(f"Prompt built: {prompt}")
         return prompt.strip()
 
     def _format_chat_history(

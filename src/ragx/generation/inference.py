@@ -143,6 +143,9 @@ class LLMInference:
         temperature = temperature if temperature is not None else self.temperature
         max_new_tokens = max_new_tokens or self.max_new_tokens
 
+        logger.info(f"chains of thought enabled: {chain_of_thought_enabled}")
+        logger.info(f"temperature: {temperature}")
+
         # Use new provider interface
         if self.provider == 'ollama' and self._provider_instance:
             return self._provider_instance.generate(

@@ -7,7 +7,7 @@ template: |
   SYSTEM:  You are an expert research analyst skilled at extracting and synthesizing information from multiple sources.
   
   <context_section>
-  SOURCES (ranked by relevance):
+  RETRIEVED SOURCES (ranked by relevance):
   {contexts_with_metadata}
   </context_section>
   
@@ -68,6 +68,7 @@ template: |
   
   <answer_instruction>
   Based on your analysis above, provide a comprehensive answer.
+  [Expand on the topic with full sentences and proper citations throughout]
   Remember: {language_instruction}
   Quality check: Ensure EVERY sentence with a factual claim has [citation].
   </answer_instruction>
