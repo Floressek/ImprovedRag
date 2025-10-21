@@ -1,0 +1,20 @@
+strict_grounding: |
+  GROUNDING PROTOCOL:
+  - Level 1: Direct statements from sources → cite exactly
+  - Level 2: Reasonable inferences from sources → cite and mark as "based on"
+  - Level 3: Missing information → explicitly state "not found in sources"
+  
+  VERIFICATION CHECKLIST:
+  □ No claims without citations
+  □ No knowledge from training data  
+  □ All sources properly attributed
+  □ Contradictions explicitly noted
+
+advanced_grounding: |
+  SOURCE RELIABILITY ASSESSMENT:
+  - High confidence: Recent sources with high rerank scores (>0.7)
+  - Medium confidence: Older or lower-scored sources (0.4-0.7)
+  - Low confidence: Poor match sources (<0.4) - use cautiously
+  
+  When confidence varies:
+  "According to [1] (high confidence)..." vs "Source [5] suggests (low confidence)..."

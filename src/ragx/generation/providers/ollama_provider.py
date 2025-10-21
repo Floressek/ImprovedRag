@@ -72,6 +72,7 @@ class OllamaProvider:
         Returns:
             Generated text
         """
+        chain_of_thought_enabled = chain_of_thought_enabled or False
         response = ollama.generate(
             model=self.model_name,
             prompt=prompt,
@@ -79,7 +80,7 @@ class OllamaProvider:
                 "temperature": temperature or settings.llm.temperature,
                 "num_predict": max_new_tokens or settings.llm.max_new_tokens,
                 "top_p": top_p or settings.llm.top_p,
-                "think": chain_of_thought_enabled or False,
+                "think": chain_of_thought_enabled,
             }
         )
         # logger.info(f"Response: {response}")
@@ -90,6 +91,10 @@ class OllamaProvider:
         if chain_of_thought_enabled:
             thinking_process = response.get('thinking', '')
             logger.info(f"Thinking process: {thinking_process}")
+
+        if not generated_text or len(generated_text.strip()) == 0:
+            logger.error("Error response from Ollama! Common error with lack of max_new_tokens.")
+            return "I apologise, I couldn't generate a proper response. "
 
         return generated_text
 
