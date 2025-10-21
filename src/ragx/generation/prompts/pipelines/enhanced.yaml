@@ -9,17 +9,21 @@ template: |
   SOURCES (sorted by relevance):
   {contexts_formatted_with_scores}
   
+  CRITICAL INSTRUCTIONS:
+    1. Thoroughly analyze all relevant sources
+    2. Identify key facts and connections (mention any contradictions)
+    3. If there is no source that provides the answer, say: "Information not found in the sources."
+    4. Mark facts with [number of sources] to indicate how many sources provide them.
+    5. Verify information consistency
+    6. Formulate a comprehensive answer
+    7. EVERY factual claim MUST include [N] citation
+  
   QUESTION: {query}
   
-  {thinking_component}
-  
-  GUIDELINES:
-  1. Thoroughly analyze all relevant sources
-  2. Identify key facts and connections (mention any contradictions)
-  3. If there is no source that provides the answer, say: "Information not found in the sources."
-  4. Mark facts with [number of sources] to indicate how many sources provide them.
-  5. Verify information consistency
-  6. Formulate a comprehensive answer
-  7. Every claim must have a [citation]
+  ANALYSIS (think carefully):
+  - Which sources are most relevant?
+  - What are the key facts?
+  - Are there any contradictions?
+  - How should I structure the answer?
   
   ANSWER (with full citations):
