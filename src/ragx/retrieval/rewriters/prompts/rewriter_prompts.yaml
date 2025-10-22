@@ -1,0 +1,101 @@
+decision:
+  system: |
+    You are an expert in query analysis for information retrieval.
+    Your task is to decide whether a given query is in need of decomposition.
+    
+    template: |
+    QUESTION: {query}
+    
+    {linguistic_context}
+    
+    TASK: Analyze whether the question requires decomposition into simpler sub-questions to improve retrieval effectiveness.
+    
+    CONSIDERATIONS:
+    1. Does the question connect multiple related facts/concepts? (multihop)
+    2. Are there subordinate clauses connecting entities? 
+    3. Will decomposition improve retrieval quality?
+    4. Does the query contain more than one clause?
+    
+    Respond ONLY in JSON format:
+    {{
+      "is_multihop": true/false,
+      "confidence": 0.0-1.0,
+      "reasoning": "short reasoning in English",
+      "action": "decompose" | "expand" | "passthrough"
+    }}
+    
+    IMPORTANT: The response MUST be a valid JSON with no additional text!
+
+decompose:
+  system: |
+    You are an expert in query decomposition.
+    You break down complex queries into a couple of sub-questions.
+    
+    template: |
+    ORIGINAL QUERY: {query}
+    
+    {linguistic_context}
+    
+    TASK: Break down this query into a couple of independent sub-questions, that can be answered separately.
+    
+    REQUIREMENTS:
+    - Each sub-question must be independently answerable
+    - Retain all entities and key information
+    - Questions must be in the same language as the original
+    - Be specific and clear
+    - Sub-questions should be simpler than the original
+    
+    Response format (ONLY JSON):
+    {{
+      "sub_queries": ["question1", "question2", "question3"]
+    }}
+    
+    IMPORTANT: ONLY JSON, no additional text!
+
+verification:
+  system: |
+    You are an expert in query validation.
+    You verify whether sub-questions are correct and independently answerable.
+
+  template: |
+    ORIGINAL QUERY: {original}
+    PURPOSED SUB-QUESTIONS: {sub_queries}
+    
+    Validate each sub-question:
+    1. Can it be answered independently?
+    2. Does it retain the intent of the original query?
+    3. Is it clear and specific?
+    4. Is it neither too broad nor too narrow?
+    
+    Respond in JSON format:
+    {{
+      "valid": true/false,
+      "issues": ["issue1", "issue2"] or [],
+      "corrected_queries": ["corrected1", "corrected2"] or null
+    }}
+    
+    If "valid": false, provide "corrected_queries" with corrected versions.
+    IMPORTANT: Response ONLY in JSON!
+
+expand_simple:
+  system: |
+    You are an expert in expanding simple queries.
+    You add relevant keywords and synonyms.
+
+  template: |
+    QUERY: {query}
+    
+    {linguistic_context}
+    
+    TASK: Expand this query with relevant keywords, synonyms, and related terms.
+    
+    RULES:
+    - Retain the original language
+    - Maximum of 15 words in the expanded query
+    - Add synonyms for key terms
+    - Remove filler words ("hmm", "well")
+    
+    Format (JSON):
+    {{
+      "expanded_query": "expanded query with keywords"
+    }}
