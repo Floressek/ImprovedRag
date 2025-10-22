@@ -6,6 +6,7 @@ from typing import Optional, Iterator
 import ollama
 
 from src.ragx.utils.settings import settings
+from src.ragx.generation.providers.helpers.ollama_startup import ensure_ollama_running
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class OllamaProvider:
             self,
             model_name: Optional[str] = None,
             host: Optional[str] = None,
-            timeout: int = 120,
+            timeout: int = 30,
     ):
         """
         Initialize Ollama client.
@@ -36,6 +37,8 @@ class OllamaProvider:
         logger.info(f"  - Timeout: {self.timeout} seconds")
 
         try:
+            if not ensure_ollama_running(timeout=self.timeout, host=self.host):
+                raise RuntimeError("Ollama server not running")
             models = ollama.list()
             available = [m.model for m in models.models]
             logger.info(f"Available Ollama models: {available}")

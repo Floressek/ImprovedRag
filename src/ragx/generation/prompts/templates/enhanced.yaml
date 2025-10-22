@@ -31,6 +31,7 @@ template: |
   <negative_constraints>
   DO NOT:
   ❌ Add information from your training data
+  ❌ Add the user question to the answer
   ❌ Make assumptions when information is missing
   ❌ Skip citations for ANY factual claim
   ❌ Mix languages in your response

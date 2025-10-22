@@ -97,8 +97,11 @@ class LLMConfig:
     max_new_tokens: int = int(os.getenv("LLM_MAX_NEW_TOKENS", "2000"))
     temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.2"))
     top_p: float = float(os.getenv("LLM_TOP_P", "0.9"))
+
     provider: str = os.getenv("LLM_PROVIDER", "huggingface")
     ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    ollama_models_path: str = os.getenv("OLLAMA_MODELS_PATH", r"E:\Models\Ollama\.ollama\models")
+
     tensor_parallel_size: int = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))
     gpu_memory_utilization: float = float(os.getenv("GPU_MEMORY_UTILIZATION", "0.9"))
     trust_remote_code: bool = str_to_bool(os.getenv("TRUST_REMOTE_CODE", "true"))
