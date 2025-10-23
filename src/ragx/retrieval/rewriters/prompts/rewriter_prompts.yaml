@@ -3,7 +3,7 @@ decision:
     You are an expert in query analysis for information retrieval.
     Your task is to decide whether a given query is in need of decomposition.
     
-    template: |
+  template: |
     QUESTION: {query}
     
     {linguistic_context}
@@ -31,7 +31,7 @@ decompose:
     You are an expert in query decomposition.
     You break down complex queries into a couple of sub-questions.
     
-    template: |
+  template: |
     ORIGINAL QUERY: {query}
     
     {linguistic_context}
