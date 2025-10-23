@@ -110,12 +110,21 @@ class LLMConfig:
     max_model_len: int = int(os.getenv("MAX_MODEL_LEN", "8192"))
     repetition_penalty: float = float(os.getenv("REPETITION_PENALTY", "1.1"))
 
+
 @dataclass
 class RetrievalConfig:
     """Retrieval pipelines configuration."""
     top_k_retrieve: int = int(os.getenv("TOP_K_RETRIEVE", "100"))
     rerank_top_m: int = int(os.getenv("RERANK_TOP_M", "80"))
     context_top_n: int = int(os.getenv("CONTEXT_TOP_N", "8"))
+
+@dataclass()
+class RewriteConfig:
+    """Rewrite configuration."""
+    max_tokens: int = int(os.getenv("REWRITE_MAX_TOKENS", "1024"))
+    temperature: float = float(os.getenv("REWRITE_TEMPERATURE", "0.2"))
+    enabled: bool = str_to_bool(os.getenv("REWRITE_ENABLED", "true"))
+    verify_before_retrieval: bool = str_to_bool(os.getenv("REWRITE_VERIFY_BEFORE_RETRIEVAL", "true"))
 
 
 @dataclass
@@ -182,6 +191,7 @@ class Settings:
             api=APIConfig(),
             huggingface=HuggingFaceConfig(),
             chat=ChatConfig(),
+            rewrite=RewriteConfig()
         )
 
     def setup_huggingface_cache(self) -> None:
