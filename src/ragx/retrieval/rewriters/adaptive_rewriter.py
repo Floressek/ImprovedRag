@@ -238,6 +238,68 @@ class AdaptiveQueryRewriter:
 
         return [query]  # Fallback to original query
 
+    def _expand_simple(
+            self,
+            query: str,
+            features: LinguisticFeatures
+    ) -> str:
+        """Expand simple query based on linguistic context."""
+        prompt_config = self.prompts["expand"]
+        system = prompt_config["system"]
+        template = prompt_config["template"]
+
+        prompt = f"{system}\n\n{template}".format(
+            query=query,
+            linguistic_context=features.to_context_string(),
+        )
+
+        try:
+            response = self.llm.generate(
+                prompt=prompt,
+                temperature=self.temperature,
+                max_new_tokens=self.max_tokens,
+                chain_of_thought_enabled=False,
+            ).strip()
+
+            parsed = self._safe_parse(response)
+            if parsed and "expanded_query" in parsed:
+                return parsed["expanded_query"]
+
+        except Exception as e:
+            logger.error(f"Expand LLM error: {e}")
+
+        return query
+
+
+    def _verify_subqueries(self, original: str, sub_queries: List[str]) -> Dict[str, Any]:
+        """Verify sub-queries before retrieval."""
+        prompt_config = self.prompts["verification"]
+        system = prompt_config["system"]
+        template = prompt_config["template"]
+
+        prompt = f"{system}\n\n{template}".format(
+            original=original,
+            sub_queries=json.dumps(sub_queries, ensure_ascii=False),
+        )
+
+        try:
+            response = self.llm.generate(
+                prompt=prompt,
+                temperature=self.temperature,
+                max_new_tokens=self.max_tokens,
+                chain_of_thought_enabled=False,
+            ).strip()
+
+            parsed = self._safe_parse(response)
+            if parsed:
+                return parsed
+
+        except Exception as e:
+            logger.error(f"Verification failed: {e}")
+
+        # Fallback: assume valid
+        return {"valid": True, "issues": [], "corrected_queries": None}
+
     def _safe_parse(self, text: str) -> Optional[Dict[str, Any]]:
         """Parse JSON response safely. -> to be improved later"""
         text = text.stip()
