@@ -10,9 +10,10 @@ unified_decision:
     {linguistic_context}
 
     DECISION RULES (high priority):
-    - COMPARISON: "X vs Y", "X or Y", "difference between X and Y"
+    - COMPARISON: "X vs Y", "X or Y", "difference between X and Y", "who had more impact X or Y"
       -> action = "decompose"
       -> one sub-question per entity about the SPECIFIC attribute being compared.
+      -> Example: "King A or King B had greater impact?" -> "What was King A's impact?", "What was King B's impact?"
     - SIMILARITY/COMMONALITY: "what do X and Y have in common", "similarities between X and Y"
       -> action = "decompose"
       -> ask for CHARACTERISTICS/FEATURES of EACH entity (do NOT use the word "similarities" in sub-questions).
@@ -30,6 +31,7 @@ unified_decision:
         * 1 ≤ number of sub_queries ≤ 20
         * Each sub-question must be independently answerable from a KB.
         * Retain all entities and the compared attribute (if any).
+        * For comparisons: Ask "What/How [attribute] [entity]?" NOT "How much influence did [entity] have?"
         * Max length of each sub-question: 160 characters.
     - When "expand":
         * Provide "expanded_query" ≤ 20 words (keywords, synonyms, related terms). No filler words.
@@ -42,6 +44,9 @@ unified_decision:
     EXAMPLES:
     Q: "ziemniaki vs pomidory błonnik?"
     → {{"is_multihop": true, "action": "decompose", "sub_queries": ["Ile błonnika mają ziemniaki?", "Ile błonnika mają pomidory?"], "expanded_query": null, "reasoning": "comparison by fiber", "confidence": 0.92}}
+
+    Q: "Król Mieszko I czy Bolesław Chrobry miał większy wpływ na rozwój Polski?"
+    → {{"is_multihop": true, "action": "decompose", "sub_queries": ["Jaki był wpływ króla Mieszka I na rozwój Polski?", "Jaki był wpływ króla Bolesława Chrobrego na rozwój Polski?"], "expanded_query": null, "reasoning": "comparison of rulers' impact", "confidence": 0.90}}
 
     Q: "what is the capital of Poland?"
     → {{"is_multihop": false, "action": "passthrough", "sub_queries": null, "expanded_query": null, "reasoning": "single factual lookup", "confidence": 0.95}}

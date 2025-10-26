@@ -179,6 +179,8 @@ class AdaptiveQueryRewriter:
 
         logger.info(f"LLM decision prompt: {prompt}")
 
+
+        # TODO fallback z retry jak zwroci nie JSONA to wrzucamy do LLM one more time i potem dopiero sie basic
         try:
             response = self.llm.generate(
                 prompt=prompt,
