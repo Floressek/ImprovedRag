@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import logging
 import spacy
-from dataclasses import dataclass, asdict
-from typing import Optional, List, Tuple
 from spacy.tokens import Doc, Token
 
 from src.ragx.retrieval.analyzers.linguistic_features import LinguisticFeatures
@@ -45,7 +43,7 @@ class LinguisticAnalyzer:
                         f"  python -m spacy download {fallback_model}"
                     )
 
-        self.nlp = model_registry.get(cache_key, _load_spacy)
+        self.nlp = model_registry.get_or_create(cache_key, _load_spacy)
         logger.info(f"LinguisticAnalyzer ready: {self.nlp.meta['name']}")
 
     def analyze(self, query: str) -> LinguisticFeatures:

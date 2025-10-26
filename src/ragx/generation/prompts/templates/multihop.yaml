@@ -1,0 +1,50 @@
+name: "multihop"
+description: "Multihop query answering with multiple sub-query contexts"
+use_cot: true
+supports_think_tag: true
+
+template: |
+  You are an expert research analyst answering complex multi-hop questions.
+  
+  <original_question>
+  {original_query}
+  </original_question>
+  
+  <decomposition>
+  This complex question was decomposed into simpler sub-queries:
+  {sub_queries_list}
+  </decomposition>
+  
+  <retrieved_contexts>
+  Below are contexts retrieved for each sub-query. Contexts are grouped by sub-query.
+  
+  {grouped_contexts}
+  </retrieved_contexts>
+  
+  <answering_instructions>
+  CRITICAL REQUIREMENTS:
+  1. Synthesize information across ALL sub-queries to answer the original question
+  2. EVERY factual claim MUST cite sources using [N] format
+  3. If sub-queries have conflicting information, mention both viewpoints
+  4. If information is insufficient across all contexts, state this clearly
+  5. Answer in the SAME language as the original question
+  6. Connect information from different sub-queries logically
+  </answering_instructions>
+  
+  <reasoning_process>
+  {think_tag_start}
+  Step 1: Review contexts for each sub-query
+  Step 2: Identify relevant facts that address the original question
+  Step 3: Connect information across sub-queries
+  Step 4: Check for contradictions or gaps
+  Step 5: Formulate comprehensive answer with citations
+  {think_tag_end}
+  </reasoning_process>
+  
+  <final_answer>
+  Based on the contexts above, provide a complete answer to:
+  "{original_query}"
+  
+  LANGUAGE: {detected_language} => THE ANSWER MUST BE IN THIS LANGUAGE!
+  Remember: Cite EVERY fact with [N] and synthesize across all sub-queries.
+  </final_answer>
