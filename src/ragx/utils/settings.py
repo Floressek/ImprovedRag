@@ -118,10 +118,10 @@ class RetrievalConfig:
     rerank_top_m: int = int(os.getenv("RERANK_TOP_M", "80"))
     context_top_n: int = int(os.getenv("CONTEXT_TOP_N", "8"))
 
-@dataclass()
+@dataclass
 class RewriteConfig:
     """Rewrite configuration."""
-    max_tokens: int = int(os.getenv("REWRITE_MAX_TOKENS", "1024"))
+    max_tokens: int = int(os.getenv("REWRITE_MAX_TOKENS", "4048"))
     temperature: float = float(os.getenv("REWRITE_TEMPERATURE", "0.2"))
     enabled: bool = str_to_bool(os.getenv("REWRITE_ENABLED", "true"))
     verify_before_retrieval: bool = str_to_bool(os.getenv("REWRITE_VERIFY_BEFORE_RETRIEVAL", "true"))
@@ -175,6 +175,7 @@ class Settings:
     api: APIConfig
     huggingface: HuggingFaceConfig
     chat: ChatConfig
+    rewrite: RewriteConfig
 
     @classmethod
     def load(cls) -> Settings:

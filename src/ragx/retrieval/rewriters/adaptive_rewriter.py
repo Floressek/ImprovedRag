@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import json
+import re
+
 import yaml
 from typing import Optional, List, Dict, Any
 from pathlib import Path
@@ -23,7 +25,7 @@ class AdaptiveQueryRewriter:
             analyzer: Optional[LinguisticAnalyzer] = None,
             prompts_path: Optional[Path] = None,
             temperature: Optional[float] = None,
-            max_tokens: Optional[int] = 256,
+            max_tokens: Optional[int] = None,
             verify_before_retrieval: bool = True,
             enabled: Optional[bool] = True,
     ):
@@ -122,21 +124,21 @@ class AdaptiveQueryRewriter:
         if decision["action"] == "decompose":
             sub_queries = self._decompose(query, features)
 
-            # Step 4: Verify before retrival
-            if self.verify_before_retrieval and len(sub_queries) > 1:
-                verified = self._verify_subqueries(query, sub_queries)
-                if not verified["valid"]:
-                    logger.warning(f"Verification failed: {verified['issues']}")
-                    if verified["corrected_queries"]:
-                        sub_queries = verified["corrected_queries"]
-                    else:
-                        return {
-                            "original": query,
-                            "queries": [query],
-                            "is_multihop": False,
-                            "reasoning": f"verification failed: {verified['issues']}",
-                            "linguistic_features": features,
-                        }
+            # # Step 4: Verify before retrival
+            # if self.verify_before_retrieval and len(sub_queries) > 1:
+            #     verified = self._verify_subqueries(query, sub_queries)
+            #     if not verified["valid"]:
+            #         logger.warning(f"Verification failed: {verified['issues']}")
+            #         if verified["corrected_queries"]:
+            #             sub_queries = verified["corrected_queries"]
+            #         else:
+            #             return {
+            #                 "original": query,
+            #                 "queries": [query],
+            #                 "is_multihop": False,
+            #                 "reasoning": f"verification failed: {verified['issues']}",
+            #                 "linguistic_features": features,
+            #             }
 
             logger.info(f"Decomposed into {len(sub_queries)} sub-queries")
             return {
@@ -192,7 +194,7 @@ class AdaptiveQueryRewriter:
                 chain_of_thought_enabled=False,
             ).strip()
 
-            decision = self._parse_json(response)
+            decision = self._safe_parse(response)
             if decision:
                 return decision
 
@@ -221,6 +223,8 @@ class AdaptiveQueryRewriter:
             linguistic_context=features.to_context_string(),
         )
 
+        logger.debug(f"Decompose prompt length: {len(prompt)} chars")
+
         try:
             response = self.llm.generate(
                 prompt=prompt,
@@ -229,14 +233,43 @@ class AdaptiveQueryRewriter:
                 chain_of_thought_enabled=False,
             ).strip()
 
+            logger.debug(f"Decompose raw response: {response[:300]}")
+
             parsed = self._safe_parse(response)
-            if parsed and "sub_queries" in parsed:
-                return parsed["sub_queries"]
+
+            # Handle multiple possible keys: sub_queries, sub_questions, queries, questions
+            if isinstance(parsed, dict):
+                for key in ["sub_queries", "sub_questions", "queries", "questions"]:
+                    if key in parsed:
+                        sub_queries = parsed[key]
+                        break
+                else:
+                    logger.warning(f"No valid sub-queries key found in: {list(parsed.keys())}")
+                    return [query]
+            elif isinstance(parsed, list):
+                sub_queries = parsed
+                logger.info("LLM returned list directly (not wrapped in object)")
+            else:
+                logger.warning(f"Unexpected parsed format: {type(parsed)}")
+                return [query]
+
+            # Validate sub-queries
+            if not isinstance(sub_queries, list) or len(sub_queries) == 0:
+                logger.warning(f"Invalid sub_queries: {sub_queries}")
+                return [query]
+            valid_queries = [q for q in sub_queries if isinstance(q, str) and len(q.strip()) > 0]
+
+            if not valid_queries:
+                logger.warning("No valid sub-queries after filtering")
+                return [query]
+
+            logger.info(f"Successfully decomposed into {len(valid_queries)} sub-queries")
+            return valid_queries
 
         except Exception as e:
             logger.error(f"Decompose LLM error: {e}")
 
-        return [query]  # Fallback to original query
+        return [query]
 
     def _expand_simple(
             self,
@@ -300,9 +333,13 @@ class AdaptiveQueryRewriter:
         # Fallback: assume valid
         return {"valid": True, "issues": [], "corrected_queries": None}
 
-    def _safe_parse(self, text: str) -> Optional[Dict[str, Any]]:
+    def _safe_parse(self, text: str) -> Optional[Any]:
         """Parse JSON response safely. -> to be improved later"""
-        text = text.stip()
+        if not text:
+            logger.warning("Empty response from LLM")
+            return None
+        original_text = text
+        text = text.strip()
 
         # markdown code block
         if text.startswith("```"):
@@ -311,8 +348,21 @@ class AdaptiveQueryRewriter:
 
         text = text.replace("```json", "").replace("```", "").strip()
 
+        json_obj_match = re.search(r'\{.*\}', text, re.DOTALL)
+        json_list_match = re.search(r'\[.*\]', text, re.DOTALL)
+
+        if json_obj_match:
+            text = json_obj_match.group(0)
+        elif json_list_match:
+            text = json_list_match.group(0)
         try:
-            return json.loads(text)
+            parsed = json.loads(text)
+            logger.debug(f"Successfully parsed JSON: type={type(parsed)}")
+            return parsed
         except json.JSONDecodeError as e:
-            logger.warning(f"JSON parse failed: {e}\nText: {text[:200]}")
+            logger.warning(
+                f"JSON parse failed: {e}\n"
+                f"Original text: {original_text[:300]}\n"
+                f"Cleaned text: {text[:300]}"
+            )
             return None
