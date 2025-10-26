@@ -325,7 +325,7 @@ class PromptBuilder:
 
                 section.append(f"[{global_idx}] SOURCE: {title}")
 
-                # Optional: include scores
+                # Scores
                 rerank_score = ctx.get("rerank_score")
                 retrieval_score = ctx.get("retrieval_score")
                 if rerank_score is not None:
