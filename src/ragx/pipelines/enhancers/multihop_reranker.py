@@ -169,12 +169,12 @@ class MultihopRerankerEnhancer(Enhancer):
             else:
                 fused_score = max(scores)  # Default to max
 
-            base_payload["fusion_metadata"] = str({
+            base_payload["fusion_metadata"] = {
                 "source_subqueries": list(sub_queries),
                 "local_scores": list(scores),
                 "num_occurrences": len(entries),
                 "aggregation": self.fusion_strategy,
-            })
+            }
             base_payload["fused_score"] = str(fused_score)
 
             fused_results.append((doc_id, base_payload, float(fused_score)))
