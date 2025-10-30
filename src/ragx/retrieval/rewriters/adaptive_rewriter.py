@@ -41,10 +41,10 @@ class AdaptiveQueryRewriter:
             verify_before_retrieval: Verify query before retrieval
             enabled: Enable query rewriter
         """
-        self.max_tokens = max_tokens or settings.rewrite.max_tokens
-        self.temperature = temperature or settings.rewrite.temperature
-        self.enabled = enabled or settings.rewrite.enabled
-        self.verify_before_retrieval = verify_before_retrieval or settings.rewrite.verify_before_retrieval
+        self.max_tokens = max_tokens if max_tokens is not None else settings.rewrite.max_tokens
+        self.temperature = temperature if temperature is not None else settings.rewrite.temperature
+        self.enabled = enabled if enabled is not None else settings.rewrite.enabled
+        self.verify_before_retrieval = verify_before_retrieval if verify_before_retrieval is not None else settings.rewrite.verify_before_retrieval
 
         if prompts_path is None:
             prompts_path = Path(__file__).parent / "prompts" / "rewriter_prompts.yaml"
