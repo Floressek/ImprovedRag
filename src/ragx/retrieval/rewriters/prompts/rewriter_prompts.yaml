@@ -1,98 +1,73 @@
-decision:
+unified_decision:
   system: |
-    You are an expert in query analysis for information retrieval.
-    Your task is to decide whether a given query needs decomposition for better retrieval.
-    
+    You are an expert query analyzer for retrieval systems. 
+    Decide whether the input query requires decomposition (multihop), simple expansion, or passthrough.
+    Your goal is to maximize retrieval precision and minimize latency.
+
   template: |
-    QUESTION: {query}
-    
+    QUERY (preserve language): {query}
+
     {linguistic_context}
-    
-    TASK: Analyze whether the question requires decomposition into simpler sub-questions.
-    
-    CRITICAL PATTERNS REQUIRING DECOMPOSITION (multihop):
-    1. COMPARISON queries (e.g., "X vs Y", "X or Y", "difference between X and Y")
-       → These ALWAYS need decomposition to retrieve information about EACH entity separately
-    2. SIMILARITY/COMMONALITY queries (e.g., "similarities between X and Y", "what do X and Y have in common")
-       → These need decomposition to retrieve characteristics of EACH entity separately
-    3. Questions connecting multiple facts/concepts (e.g., "Who directed the movie starring X?")
-    4. Questions with subordinate clauses connecting different entities
-    5. Questions with multiple clauses requiring separate lookups
-    
-    EXAMPLES OF MULTIHOP:
-    - "ziemniaki vs pomidory, co ma więcej błonnika?" → YES (comparison, needs info about BOTH)
-    - "What has more protein, chicken or beef?" → YES (comparison)
-    - "Jakie są podobieństwa między X a Y?" → YES (similarity, needs characteristics of BOTH)
-    - "What do dogs and cats have in common?" → YES (commonality)
-    - "Who directed the movie where Tom Hanks played a soldier?" → YES (multiple facts)
-    
-    EXAMPLES OF PASSTHROUGH:
-    - "What is the capital of Poland?" → NO (single fact)
-    - "How to make pizza?" → NO (single concept)
-    
-    Respond ONLY in JSON format:
+
+    DECISION RULES (high priority):
+    - COMPARISON: "X vs Y", "X or Y", "difference between X and Y", "who had more impact X or Y"
+      -> action = "decompose"
+      -> one sub-question per entity about the SPECIFIC attribute being compared.
+      -> Example: "King A or King B had greater impact?" -> "What was King A's impact?", "What was King B's impact?"
+    - SIMILARITY/COMMONALITY: "what do X and Y have in common", "similarities between X and Y"
+      -> action = "decompose"
+      -> ask for CHARACTERISTICS/FEATURES of EACH entity (do NOT use the word "similarities" in sub-questions).
+    - MULTI-FACT / CHAINING: queries that link entities via clauses (e.g., "Who directed the movie starring X?")
+      -> action = "decompose" into steps.
+    - TEMPORAL: "events between X and Y", "from A to B"
+      -> action = "decompose" into sub-questions per segment/time anchor.
+    - SIMPLE LOOKUP / DEFINITION / HOW-TO
+      -> If concise and single-fact: "passthrough".
+      -> If too broad/ambiguous but single-topic: "expand" with targeted keywords.
+
+    HARD REQUIREMENTS:
+    - Keep language of sub-questions identical to QUERY language.
+    - When "decompose":
+        * 1 ≤ number of sub_queries ≤ 20
+        * Each sub-question must be independently answerable from a KB.
+        * Retain all entities and the compared attribute (if any).
+        * For comparisons: Ask "What/How [attribute] [entity]?" NOT "How much influence did [entity] have?"
+        * Max length of each sub-question: 160 characters.
+    - When "expand":
+        * Provide "expanded_query" ≤ 20 words (keywords, synonyms, related terms). No filler words.
+    - "reasoning" must be concise (≤ 30 words).
+    - Confidence ∈ [0.0, 1.0]. Prefer:
+        * 0.8–1.0 for obvious comparison/similarity patterns and clear multi-hop clauses.
+        * 0.6–0.8 for mild ambiguity.
+        * <0.6 when query is vague or ill-formed.
+
+    EXAMPLES:
+    Q: "ziemniaki vs pomidory błonnik?"
+    → {{"is_multihop": true, "action": "decompose", "sub_queries": ["Ile błonnika mają ziemniaki?", "Ile błonnika mają pomidory?"], "expanded_query": null, "reasoning": "comparison by fiber", "confidence": 0.92}}
+
+    Q: "Król Mieszko I czy Bolesław Chrobry miał większy wpływ na rozwój Polski?"
+    → {{"is_multihop": true, "action": "decompose", "sub_queries": ["Jaki był wpływ króla Mieszka I na rozwój Polski?", "Jaki był wpływ króla Bolesława Chrobrego na rozwój Polski?"], "expanded_query": null, "reasoning": "comparison of rulers' impact", "confidence": 0.90}}
+
+    Q: "what is the capital of Poland?"
+    → {{"is_multihop": false, "action": "passthrough", "sub_queries": null, "expanded_query": null, "reasoning": "single factual lookup", "confidence": 0.95}}
+
+    Q: "machine learning"
+    → {{"is_multihop": false, "action": "expand", "sub_queries": null, "expanded_query": "machine learning algorithms supervised unsupervised deep learning neural networks", "reasoning": "too broad; add keywords", "confidence": 0.7}}
+
+    OUTPUT FORMAT:
+    - RESPOND WITH A SINGLE VALID JSON OBJECT ONLY (NO MARKDOWN, NO CODE FENCE, NO EXTRA TEXT).
+    - The output MUST start with '{{' and end with '}}'.
+
+    RESPONSE SHAPE:
     {{
       "is_multihop": true/false,
-      "confidence": 0.0-1.0,
-      "reasoning": "short reasoning in English",
-      "action": "decompose" | "expand" | "passthrough"
+      "action": "decompose" | "expand" | "passthrough",
+      "sub_queries": ["q1", "q2"] or null,
+      "expanded_query": "..." or null,
+      "reasoning": "short why",
+      "confidence": 0.0-1.0
     }}
-    
-    IMPORTANT: 
-    - Comparison queries (vs, or, difference) MUST be marked as multihop!
-    - Similarity/commonality queries MUST be marked as multihop!
-    - Response MUST be valid JSON with no additional text!
 
-decompose:
-  system: |
-    You are an expert in query decomposition for information retrieval.
-    You break down complex queries into independent sub-questions.
-    
-  template: |
-    ORIGINAL QUERY: {query}
-    
-    {linguistic_context}
-    
-    TASK: Break down this query into independent sub-questions that can be answered separately.
-    
-    DECOMPOSITION STRATEGIES:
-    
-    1. COMPARISON queries ("X vs Y", "X or Y"):
-       → Create one sub-question for EACH entity about the SPECIFIC attribute being compared
-       Example: "carrots vs tomatoes, how much fiber?" 
-       - "How much fiber in carrots?"
-       - "How much fiber in tomatoes?"
-    
-    2. SIMILARITY/COMMONALITY queries ("similarities between X and Y", "what do X and Y have in common"):
-       → Create sub-questions asking about CHARACTERISTICS/FEATURES of each entity
-       Example: "What are similarities between Slavic and Norse mythology?"
-       - "What are the main characteristics and features of Slavic mythology?"
-       - "What are the main characteristics and features of Norse mythology?"
-       
-       Example: "Co łączy jabłka i pomarańcze?"
-       - "Jakie są właściwości i cechy jabłek?"
-       - "Jakie są właściwości i cechy pomarańczy?"
-    
-    3. MULTI-ENTITY queries: Separate each entity into its own question about its properties
-    
-    4. MULTI-HOP queries: Break the chain of reasoning into steps
-    
-    REQUIREMENTS:
-    - Each sub-question must be independently answerable from a knowledge base
-    - For SIMILARITY queries: ask about CHARACTERISTICS, not similarities
-    - For COMPARISON queries: ask about the SPECIFIC ATTRIBUTE being compared
-    - Retain all entities and key attributes from the original
-    - Questions must be in the SAME language as the original
-    - Be specific and clear
-    - Sub-questions should be simpler than the original
-    - Do NOT include the word "similarities" or "commonalities" in sub-questions
-    
-    Response format (ONLY JSON):
-    {{
-      "sub_queries": ["question1", "question2", ...]
-    }}
-    
-    IMPORTANT: ONLY JSON, no additional text!
 
 verification:
   system: |
@@ -144,6 +119,58 @@ expand_simple:
     Format (JSON):
     {{
       "expanded_query": "expanded query with keywords and synonyms"
+    }}
+    
+    IMPORTANT: ONLY JSON, no additional text!
+
+
+decompose:
+  system: |
+    You are an expert in query decomposition for information retrieval.
+    You break down complex queries into independent sub-questions.
+
+  template: |
+    ORIGINAL QUERY: {query}
+    
+    {linguistic_context}
+    
+    TASK: Break down this query into independent sub-questions that can be answered separately.
+    
+    DECOMPOSITION STRATEGIES:
+    
+    1. COMPARISON queries ("X vs Y", "X or Y"):
+       → Create one sub-question for EACH entity about the SPECIFIC attribute being compared
+       Example: "carrots vs tomatoes, how much fiber?" 
+       - "How much fiber in carrots?"
+       - "How much fiber in tomatoes?"
+    
+    2. SIMILARITY/COMMONALITY queries ("similarities between X and Y", "what do X and Y have in common"):
+       → Create sub-questions asking about CHARACTERISTICS/FEATURES of each entity
+       Example: "What are similarities between Slavic and Norse mythology?"
+       - "What are the main characteristics and features of Slavic mythology?"
+       - "What are the main characteristics and features of Norse mythology?"
+    
+       Example: "Co łączy jabłka i pomarańcze?"
+       - "Jakie są właściwości i cechy jabłek?"
+       - "Jakie są właściwości i cechy pomarańczy?"
+    
+    3. MULTI-ENTITY queries: Separate each entity into its own question about its properties
+    
+    4. MULTI-HOP queries: Break the chain of reasoning into steps
+    
+    REQUIREMENTS:
+    - Each sub-question must be independently answerable from a knowledge base
+    - For SIMILARITY queries: ask about CHARACTERISTICS, not similarities
+    - For COMPARISON queries: ask about the SPECIFIC ATTRIBUTE being compared
+    - Retain all entities and key attributes from the original
+    - Questions must be in the SAME language as the original
+    - Be specific and clear
+    - Sub-questions should be simpler than the original
+    - Do NOT include the word "similarities" or "commonalities" in sub-questions
+    
+    Response format (ONLY JSON):
+    {{
+      "sub_queries": ["question1", "question2", ...]
     }}
     
     IMPORTANT: ONLY JSON, no additional text!

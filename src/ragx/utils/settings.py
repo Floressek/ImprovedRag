@@ -126,6 +126,14 @@ class RewriteConfig:
     enabled: bool = str_to_bool(os.getenv("REWRITE_ENABLED", "true"))
     verify_before_retrieval: bool = str_to_bool(os.getenv("REWRITE_VERIFY_BEFORE_RETRIEVAL", "true"))
 
+@dataclass
+class MultihopConfig:
+    """Multihop configuration."""
+    fusion_strategy: str = os.getenv("MULTIHOP_FUSION_STRATEGY", "max")
+    global_rerank_weight: float = float(os.getenv("MULTIHOP_GLOBAL_RANKER_WEIGHT", "0.6"))
+    top_k_per_subquery: int = int(os.getenv("MULTIHOP_TOP_K_PER_SUBQUERY", "20"))
+    final_top_k: int = int(os.getenv("MULTIHOP_FINAL_TOP_K", "10"))
+
 
 @dataclass
 class HNSWConfig:
@@ -176,6 +184,7 @@ class Settings:
     huggingface: HuggingFaceConfig
     chat: ChatConfig
     rewrite: RewriteConfig
+    multihop: MultihopConfig
 
     @classmethod
     def load(cls) -> Settings:
@@ -192,7 +201,8 @@ class Settings:
             api=APIConfig(),
             huggingface=HuggingFaceConfig(),
             chat=ChatConfig(),
-            rewrite=RewriteConfig()
+            rewrite=RewriteConfig(),
+            multihop=MultihopConfig()
         )
 
     def setup_huggingface_cache(self) -> None:

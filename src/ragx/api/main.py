@@ -106,7 +106,7 @@ app.include_router(health.router)
 
 @app.get("/api")
 async def root():
-    """Root endpoint."""
+    """Root endpoint. -> stream wont be implemented till a UI is built."""
     return {
         "name": "RAGx API",
         "version": "0.1.0",
@@ -120,6 +120,8 @@ async def root():
             "search": "/search",
             "rerank": "/rerank",
             "health": "/health",
+            # reminder add a new query rewrite + multihop
+            # add cove endpoint
         },
     }
 

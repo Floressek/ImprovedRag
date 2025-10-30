@@ -60,8 +60,13 @@ class PromptBuilder:
         for idx, ctx in enumerate(contexts, 1):
             text = ctx.get("text", "").strip()
             title = ctx.get("doc_title", "Unknown")
+            position = ctx.get("position", 0)
+            total = ctx.get("total_chunks", 1)
 
-            parts = [f"[{idx} SOURCE: {title}]"]
+            if total > 1:
+                parts = [f"[{idx}] SOURCE: {title} (Fragment {position + 1}/{total})"]
+            else:
+                parts = [f"[{idx}] SOURCE: {title}"]
 
             if include_metadata:
                 metadata_parts = []
@@ -295,8 +300,7 @@ class PromptBuilder:
         grouped = defaultdict(list)
         for ctx in contexts:
             source_subquery = ctx.get("source_subquery", "")
-            if source_subquery not in grouped:
-                grouped[source_subquery] = []
+            # no additional grouping if source_subquery is missing
             grouped[source_subquery].append(ctx)
 
         return dict(grouped)
@@ -307,6 +311,9 @@ class PromptBuilder:
             sub_queries: List[str],
     ) -> str:
         """Format grouped contexts for multihop prompt."""
+        if not grouped:
+            return "[No contexts available]"
+
         formatted_sections = []
         global_idx = 1
 
@@ -315,23 +322,52 @@ class PromptBuilder:
             contexts = grouped.get(sub_query, [])
 
             if not contexts:
+                section = [
+                    f"\n{'=' * 60}",
+                    f"SUB-QUERY: {sub_query}",
+                    f"{'=' * 60}",
+                    "[No contexts found for this sub-query]",
+                    ""
+                ]
+                formatted_sections.append("\n".join(section))
                 continue
 
-            section = [f"\n{'=' * 60}", f"SUB-QUERY: {sub_query}", f"{'=' * 60}\n"]
+            section = [
+                f"\n{'=' * 60}",
+                f"SUB-QUERY: {sub_query}",
+                f"{'=' * 60}\n"
+            ]
 
             for ctx in contexts:
                 text = ctx.get("text", "").strip()
                 title = ctx.get("doc_title", "Unknown")
+                position = ctx.get("position", 0)
+                total = ctx.get("total_chunks", 1)
 
-                section.append(f"[{global_idx}] SOURCE: {title}")
+                if total > 1:
+                    section.append(f"[{global_idx}] SOURCE: {title} (Fragment {position + 1}/{total})")
+                else:
+                    section.append(f"[{global_idx}] SOURCE: {title}")
 
-                # Optional: include scores
-                rerank_score = ctx.get("rerank_score")
-                retrieval_score = ctx.get("retrieval_score")
-                if rerank_score is not None:
-                    section.append(f"    Relevance: {rerank_score:.3f}")
-                elif retrieval_score is not None:
-                    section.append(f"    Similarity: {retrieval_score:.3f}")
+                # Scores
+                final_score = ctx.get("final_score")
+                if final_score is not None:
+                    confidence = get_confidence_level(final_score)
+                    section.append(f"    Relevance: {final_score:.3f} ({confidence})")
+
+                # rerank_score = ctx.get("rerank_score")
+                # retrieval_score = ctx.get("retrieval_score")
+                # if rerank_score is not None:
+                #     section.append(f"    Relevance: {rerank_score:.3f}")
+                # elif retrieval_score is not None:
+                #     section.append(f"    Similarity: {retrieval_score:.3f}")
+
+                fusion_meta = ctx.get("fusion_metadata", {})
+                if fusion_meta.get("num_occurrences", 1) > 1:
+                    source_sqs = fusion_meta.get("source_subqueries", [])
+                    section.append(
+                        f"    ℹ Also relevant to {len(source_sqs)} sub-queries"
+                    )
 
                 section.append(f"    CONTENT: {text}\n")
 
