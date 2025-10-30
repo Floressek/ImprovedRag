@@ -180,7 +180,7 @@ class AdaptiveQueryRewriter:
         logger.info(f"LLM decision prompt: {prompt}")
 
 
-        # TODO fallback z retry jak zwroci nie JSONA to wrzucamy do LLM one more time i potem dopiero sie basic
+        # TODO: Add fallback with retry - if LLM returns non-JSON, retry once before falling back to basic passthrough
         try:
             response = self.llm.generate(
                 prompt=prompt,
