@@ -295,8 +295,7 @@ class PromptBuilder:
         grouped = defaultdict(list)
         for ctx in contexts:
             source_subquery = ctx.get("source_subquery", "")
-            if source_subquery not in grouped:
-                grouped[source_subquery] = []
+            # no additional grouping if source_subquery is missing
             grouped[source_subquery].append(ctx)
 
         return dict(grouped)
@@ -307,6 +306,9 @@ class PromptBuilder:
             sub_queries: List[str],
     ) -> str:
         """Format grouped contexts for multihop prompt."""
+        if not grouped:
+            return "[No contexts available]"
+
         formatted_sections = []
         global_idx = 1
 
