@@ -48,8 +48,8 @@ class MultihopRerankerEnhancer(Enhancer):
             f"MultihopRerankerEnhancer initialized "
             f"(per_subquery={self.top_k_per_subquery}, "
             f"final={self.final_top_k}, "
-            f"fusion={fusion_strategy}, "
-            f"global_weight={global_rerank_weight})"
+            f"fusion={self.fusion_strategy}, "
+            f"global_weight={self.global_rerank_weight})"
         )
 
     def process(
