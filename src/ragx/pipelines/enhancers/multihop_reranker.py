@@ -175,7 +175,7 @@ class MultihopRerankerEnhancer(Enhancer):
                 "num_occurrences": len(entries),
                 "aggregation": self.fusion_strategy,
             }
-            base_payload["fused_score"] = str(fused_score)
+            base_payload["fused_score"] = fused_score
 
             fused_results.append((doc_id, base_payload, float(fused_score)))
 
