@@ -99,7 +99,7 @@ def get_reranker_enhancer() -> RerankerEnhancer:
         reranker=get_reranker()
     )
 
-@lru_cache(1)
+@lru_cache(maxsize=1)
 def get_multihop_reranker() -> MultihopRerankerEnhancer:
     """Get cached multihop reranker."""
     logger.info("Creating MultihopRerankerEnhancer...")
