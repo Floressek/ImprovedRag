@@ -60,7 +60,6 @@ class AdaptiveQueryRewriter:
                 max_new_tokens=self.max_tokens,
             )
 
-        # is this the right way? maybe used cached model from generation? but its before its init...
         self.llm = llm or model_registry.get_or_create(cache_key, _create_llm)
 
         logger.info(
