@@ -130,7 +130,7 @@ class EnhancedPipeline(BasePipeline):
 
         # Step 3: Reranking
         rerank_start = time.time()
-        final_top_k = top_k or self.reranker_enhancer.top_k
+        final_top_k = top_k if top_k is not None else self.reranker_enhancer.top_k
 
         original_reranker_top_k = self.reranker_enhancer.top_k
 
@@ -162,8 +162,6 @@ class EnhancedPipeline(BasePipeline):
                 context_dict["source_subquery"] = payload["source_subquery"]
 
             contexts.append(context_dict)
-
-
 
         # Step 5: Generation
         prompt = self.prompt_builder.build(
@@ -251,7 +249,7 @@ class EnhancedPipeline(BasePipeline):
             })
 
         # Step 4: Generation
-        prompt =  self.prompt_builder.build(
+        prompt = self.prompt_builder.build(
             query=query,
             contexts=contexts,
             chat_history=chat_history,
