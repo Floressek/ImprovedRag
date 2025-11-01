@@ -5,7 +5,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from src.ragx.api.schemas import SearchRequest, SearchResult, RerankRequest
+from src.ragx.api.schemas.search import SearchRequest, SearchResult, RerankRequest
 from src.ragx.api.dependencies import get_embedder, get_vector_store, get_reranker
 from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
