@@ -60,16 +60,11 @@ template: |
   Step-by-step analysis (be thorough):
   
   {think_tag_start}
-  Step 1: Review contexts for each sub-query
-  Step 2: Identify relevant facts that address the original question
-  Step 3: Connect information across sub-queries
-  Step 4: Check for contradictions or gaps
-  Step 5: Formulate comprehensive answer with citations
+  DO NOT OVERCOMPLICATE IT, U HAVE THE DATA AND THE SCORES, JUST USE THEM.
   {think_tag_end}
-  </reasoning_process>
   
   <final_answer>
-  Based on the contexts above, provide a complete answer to:
+  Based on the contexts above, provide a complete answer (min. of 2/3 sentences) to:
   "{original_query}"
 
   LANGUAGE: {detected_language} => THE ANSWER MUST BE IN THIS LANGUAGE!
