@@ -26,6 +26,13 @@ unified_decision:
       -> action = "decompose" into steps.
     - TEMPORAL: "events between X and Y", "from A to B"
       -> action = "decompose" into sub-questions per segment/time anchor.
+    - AGGREGATION/COUNTING: "how many X", "total number of Y", "sum of Z"
+      -> action = "decompose" into sub-questions gathering individual items
+      -> Example: "How many Nobel prizes did Poland win?" -> "List Polish Nobel laureates", "Count Nobel prizes per person"
+    - SUPERLATIVE + ENTITY: "what is the best/worst/most/least X that does Y"
+      -> action = "decompose"
+      -> sub-queries about candidates + their ranking attribute
+      -> Example: "What's the fastest car under 50k?" -> "List cars under 50k", "What are top speeds of these cars?"
     - SIMPLE LOOKUP / DEFINITION / HOW-TO
       -> If concise and single-fact: "passthrough".
       -> If too broad/ambiguous but single-topic: "expand" with targeted keywords.
@@ -49,19 +56,34 @@ unified_decision:
 
     EXAMPLES:
     Q: "Polska to największy kraj europejski?"
-    → {{"is_multihop": true, "action": "decompose", "sub_queries": ["Jaka jest powierzchnia Polski?", "Jaki jest największy kraj w Europie?"], "expanded_query": null, "reasoning": "verification of superlative claim", "confidence": 0.88}}
+    → {{"is_multihop": true, "action": "decompose", "query_type": "verification", "sub_queries": ["Jaka jest powierzchnia Polski?", "Jaki jest największy kraj w Europie?"], "expanded_query": null, "reasoning": "verification of superlative claim", "confidence": 0.88}}
 
     Q: "ziemniaki vs pomidory błonnik?"
-    → {{"is_multihop": true, "action": "decompose", "sub_queries": ["Ile błonnika mają ziemniaki?", "Ile błonnika mają pomidory?"], "expanded_query": null, "reasoning": "comparison by fiber", "confidence": 0.92}}
+    → {{"is_multihop": true, "action": "decompose", "query_type": "comparison", "sub_queries": ["Ile błonnika mają ziemniaki?", "Ile błonnika mają pomidory?"], "expanded_query": null, "reasoning": "comparison by fiber", "confidence": 0.92}}
 
     Q: "Król Mieszko I czy Bolesław Chrobry miał większy wpływ na rozwój Polski?"
-    → {{"is_multihop": true, "action": "decompose", "sub_queries": ["Jaki był wpływ króla Mieszka I na rozwój Polski?", "Jaki był wpływ króla Bolesława Chrobrego na rozwój Polski?"], "expanded_query": null, "reasoning": "comparison of rulers' impact", "confidence": 0.90}}
+    → {{"is_multihop": true, "action": "decompose", "query_type": "comparison", "sub_queries": ["Jaki był wpływ króla Mieszka I na rozwój Polski?", "Jaki był wpływ króla Bolesława Chrobrego na rozwój Polski?"], "expanded_query": null, "reasoning": "comparison of rulers' impact", "confidence": 0.90}}
+
+    Q: "Co łączy mitologię słowiańską i nordycką?"
+    → {{"is_multihop": true, "action": "decompose", "query_type": "similarity", "sub_queries": ["Jakie są główne cechy i charakterystyka mitologii słowiańskiej?", "Jakie są główne cechy i charakterystyka mitologii nordyckiej?"], "expanded_query": null, "reasoning": "similarity query about characteristics", "confidence": 0.85}}
+
+    Q: "Who directed the movie starring Leonardo DiCaprio and Kate Winslet about Titanic?"
+    → {{"is_multihop": true, "action": "decompose", "query_type": "chaining", "sub_queries": ["What movie starred Leonardo DiCaprio and Kate Winslet about Titanic?", "Who directed that movie?"], "expanded_query": null, "reasoning": "multi-hop chaining query", "confidence": 0.87}}
+
+    Q: "Jakie wydarzenia miały miejsce w Polsce między 1939 a 1945?"
+    → {{"is_multihop": true, "action": "decompose", "query_type": "temporal", "sub_queries": ["Jakie wydarzenia miały miejsce w Polsce w 1939 roku?", "Jakie wydarzenia miały miejsce w Polsce w latach 1940-1944?", "Jakie wydarzenia miały miejsce w Polsce w 1945 roku?"], "expanded_query": null, "reasoning": "temporal range query", "confidence": 0.83}}
+
+    Q: "Ile nagród Nobla zdobyła Polska?"
+    → {{"is_multihop": true, "action": "decompose", "query_type": "aggregation", "sub_queries": ["Kto z Polaków otrzymał nagrodę Nobla?", "Ile nagród Nobla otrzymał każdy z polskich laureatów?"], "expanded_query": null, "reasoning": "counting/aggregation query", "confidence": 0.89}}
+
+    Q: "What is the fastest car under 50k dollars?"
+    → {{"is_multihop": true, "action": "decompose", "query_type": "superlative", "sub_queries": ["What cars are available under 50k dollars?", "What are the top speeds of these cars?"], "expanded_query": null, "reasoning": "superlative with constraint", "confidence": 0.86}}
 
     Q: "what is the capital of Poland?"
-    → {{"is_multihop": false, "action": "passthrough", "sub_queries": null, "expanded_query": null, "reasoning": "single factual lookup", "confidence": 0.95}}
+    → {{"is_multihop": false, "action": "passthrough", "query_type": "simple", "sub_queries": null, "expanded_query": null, "reasoning": "single factual lookup", "confidence": 0.95}}
 
     Q: "machine learning"
-    → {{"is_multihop": false, "action": "expand", "sub_queries": null, "expanded_query": "machine learning algorithms supervised unsupervised deep learning neural networks", "reasoning": "too broad; add keywords", "confidence": 0.7}}
+    → {{"is_multihop": false, "action": "expand", "query_type": "simple", "sub_queries": null, "expanded_query": "machine learning algorithms supervised unsupervised deep learning neural networks", "reasoning": "too broad; add keywords", "confidence": 0.7}}
 
     OUTPUT FORMAT:
     - RESPOND WITH A SINGLE VALID JSON OBJECT ONLY (NO MARKDOWN, NO CODE FENCE, NO EXTRA TEXT).
@@ -71,6 +93,7 @@ unified_decision:
     {{
       "is_multihop": true/false,
       "action": "decompose" | "expand" | "passthrough",
+      "query_type": "verification" | "comparison" | "similarity" | "chaining" | "temporal" | "aggregation" | "superlative" | "simple",
       "sub_queries": ["q1", "q2"] or null,
       "expanded_query": "..." or null,
       "reasoning": "short why",

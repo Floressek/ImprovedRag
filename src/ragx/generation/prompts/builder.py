@@ -207,6 +207,7 @@ class PromptBuilder:
         prompt_vars = {
             "query": query,
             "contexts": contexts_formatted,
+            "contexts_formatted": contexts_formatted,
             "contexts_with_metadata": contexts_formatted,  # enhanced purposes
             "chat_history": history_str,
             "detected_language": detected_language,

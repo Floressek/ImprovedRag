@@ -99,6 +99,7 @@ class EnhancedPipeline(BasePipeline):
         original_query = rewrite_result["original"]
         queries = rewrite_result["queries"]
         is_multihop = rewrite_result["is_multihop"]
+        query_type = rewrite_result.get("query_type", "general")
 
         logger.info(
             f"Query analysis: multihop={is_multihop}, "
@@ -134,6 +135,7 @@ class EnhancedPipeline(BasePipeline):
                 original_query=original_query,
                 results_by_subquery=results_by_subquery,
                 override_top_k=top_k,
+                query_type=query_type
             )
 
             rerank_time = (time.time() - rerank_start) * 1000
