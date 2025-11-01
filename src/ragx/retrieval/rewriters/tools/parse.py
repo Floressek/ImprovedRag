@@ -197,6 +197,19 @@ def validate_rewriter_response(parsed: Any) -> bool:
         logger.warning(f"is_multihop must be boolean, got {type(parsed['is_multihop'])}")
         return False
 
+    # Validate query_type if present (optional but should be valid if present)
+    if "query_type" in parsed:
+        valid_query_types = [
+            "verification", "comparison", "similarity", "chaining",
+            "temporal", "aggregation", "superlative", "simple"
+        ]
+        if parsed["query_type"] not in valid_query_types:
+            logger.warning(
+                f"Invalid query_type: {parsed['query_type']}, "
+                f"expected one of {valid_query_types}"
+            )
+            return False
+
     # Action-specific validation
     if parsed["action"] == "decompose":
         if "sub_queries" not in parsed or not isinstance(parsed.get("sub_queries"), list):
