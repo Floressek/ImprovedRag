@@ -38,7 +38,12 @@ class SourceInfo(BaseModel):
     position: int
     retrieval_score: Optional[float] = None
     rerank_score: Optional[float] = None
+    local_rerank_score: Optional[float] = None
+    fused_score: Optional[float] = None
+    global_rerank_score: Optional[float] = None
+    final_score: Optional[float] = None
     url: Optional[str] = None
+    fusion_metadata: Optional[Dict[str, Any]] = None
 
 
 class AskResponse(BaseModel):
