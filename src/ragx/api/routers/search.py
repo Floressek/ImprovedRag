@@ -83,12 +83,17 @@ async def rerank(
 
     output = []
     for doc, score in reranked_documents:
+        payload = doc["payload"]
+        metadata = payload.get("metadata", {})
         output.append({
             "id": doc["id"],
             "doc_title": doc["doc_title"],
             "text": doc["text"],
             "retrieval_score": doc.get("retrieval_score"),
             "rerank_score": float(score),
+            "position": payload.get("position", 0),
+            "total_chunks": payload.get("total_chunks", 1),
+            "url": metadata.get("url"),
         })
 
     return output
