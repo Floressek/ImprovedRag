@@ -96,7 +96,7 @@ class RerankRequest(BaseModel):
     """Request model for /rerank endpoint."""
     query: str = Field(..., min_length=1)
     # documents: List[Dict[str, Any]]
-    top_k_retrival: int = Field(5, ge=1, le=100)
+    top_k_retrival: int = Field(5, ge=1, le=300)
     top_k_reranker: int = Field(5, ge=1, le=50)
 
 
