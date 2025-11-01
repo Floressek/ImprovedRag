@@ -4,6 +4,7 @@ import logging
 from typing import Tuple, Dict, Any, Optional, List
 
 from src.ragx.pipelines.enhancers.base import Enhancer
+from src.ragx.retrieval.constants import QUERY_TYPE_WEIGHTS, get_query_type_weight
 from src.ragx.retrieval.rerankers.reranker import Reranker
 from src.ragx.utils.settings import settings
 
@@ -57,6 +58,7 @@ class MultihopRerankerEnhancer(Enhancer):
             original_query: str,
             results_by_subquery: Dict[str, List[ResultT]],
             override_top_k: Optional[int] = None,
+            query_type: Optional[str] = None,
     ) -> List[ResultT]:
         """
          Process multihop results with three-stage reranking.
@@ -65,6 +67,7 @@ class MultihopRerankerEnhancer(Enhancer):
              original_query: Original complex query
              results_by_subquery: Dict mapping sub-query -> retrieval results
              override_top_k: Override final top-k
+             query_type: Query type example: "simple" or "complex" etc
 
          Returns:
              Final reranked and merged results
@@ -87,7 +90,8 @@ class MultihopRerankerEnhancer(Enhancer):
         final = self._global_rerank(
             original_query=original_query,
             fused_results=fused,
-            override_top_k=override_top_k
+            override_top_k=override_top_k,
+            query_type=query_type
         )
 
         return final
@@ -188,10 +192,21 @@ class MultihopRerankerEnhancer(Enhancer):
             original_query: str,
             fused_results: List[ResultT],
             override_top_k: Optional[int] = None,
+            query_type: Optional[str] = None,
     ) -> List[ResultT]:
         """Stage 3: Global rerank against original query."""
         if not fused_results:
             return []
+
+        # based on query type
+        if query_type:
+            effective_weight = get_query_type_weight(query_type, default_weight=self.global_rerank_weight)
+            if query_type in QUERY_TYPE_WEIGHTS:
+                logger.info(f"Using query-type-specific weight for '{query_type}': {effective_weight:.2f}")
+            else:
+                logger.warning(f"Unknown query_type '{query_type}', using default weight {effective_weight:.2f}")
+        else:
+            effective_weight = self.global_rerank_weight
 
         # Convert to documents format
         documents = []
@@ -217,12 +232,13 @@ class MultihopRerankerEnhancer(Enhancer):
             fused_score = doc.get("fused_score", 0.0)
 
             final_score = (
-                    self.global_rerank_weight * global_score +
-                    (1 - self.global_rerank_weight) * fused_score
+                    effective_weight * global_score +
+                    (1 - effective_weight) * fused_score
             )
 
             p["global_rerank_score"] = float(global_score)
             p["final_score"] = float(final_score)
+            p["query_type"] = query_type
 
             final.append((str(doc["id"]), p, float(final_score)))
 
@@ -235,8 +251,8 @@ class MultihopRerankerEnhancer(Enhancer):
 
         logger.info(
             f"Global rerank complete: {len(fused_results)} → {len(final)} docs "
-            f"(weight: {self.global_rerank_weight:.2f} global, "
-            f"{1 - self.global_rerank_weight:.2f} local)"
+            f"(weight: {effective_weight:.2f} global, "
+            f"{1 - effective_weight:.2f} local{f', type={query_type}' if query_type else ''})"
         )
 
         return final

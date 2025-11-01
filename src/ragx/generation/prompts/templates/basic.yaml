@@ -18,4 +18,5 @@ template: |
   QUESTION:
   {query}
   
+  Based on the contexts above, provide a complete answer to:
   ANSWER:

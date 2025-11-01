@@ -108,6 +108,8 @@ class AdaptiveQueryRewriter:
         # Step 2: LLM Unified decision (decision + decompose/expand in one call)
         result = self._make_decision(query, features)
 
+        query_type = result.get("query_type", "general")
+
         if not result["is_multihop"]:
             if result["action"] == "expand" and result.get("expanded_query"):
                 logger.info(f"Expanded: '{query}' → '{result['expanded_query']}'")
@@ -116,6 +118,7 @@ class AdaptiveQueryRewriter:
                     "queries": [result["expanded_query"]],
                     "is_multihop": False,
                     "reasoning": result["reasoning"],
+                    "query_type": query_type,
                     "linguistic_features": features,
                 }
 
@@ -126,6 +129,7 @@ class AdaptiveQueryRewriter:
                 "queries": [query],
                 "is_multihop": False,
                 "reasoning": result["reasoning"],
+                "query_type": query_type,
                 "linguistic_features": features,
             }
 
@@ -157,6 +161,7 @@ class AdaptiveQueryRewriter:
             "queries": sub_queries,
             "is_multihop": True,
             "reasoning": result["reasoning"],
+            "query_type": query_type,
             "linguistic_features": features,
         }
 
