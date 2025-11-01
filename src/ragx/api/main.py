@@ -8,7 +8,7 @@ from fastapi import Request
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.ragx.api.routers import chat, search, health, llm
+from src.ragx.api.routers import chat, search, health, llm, analysis
 from src.ragx.api.dependencies import (
     get_baseline_pipeline,
     get_enhanced_pipeline,
@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="RAGx API",
     description="RAGx API service",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -98,18 +98,19 @@ async def log_requests(request: Request, call_next):
 
 
 # Routers
-app.include_router(llm.router)
 app.include_router(search.router)
+app.include_router(analysis.router)
+app.include_router(llm.router)
 app.include_router(chat.router)
 app.include_router(health.router)
 
 
 @app.get("/api")
 async def root():
-    """Root endpoint. -> stream wont be implemented till a UI is built."""
+    """Root endpoint. -> stream won't be implemented till a UI is built."""
     return {
         "name": "RAGx API",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "docs": "/docs",
         "endpoints": {
             "baseline": "/ask/baseline",

@@ -4,9 +4,8 @@ import logging
 from typing import Dict, Any
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
 
-from src.ragx.api.schemas import AskRequest, AskResponse
+from src.ragx.api.schemas.chat import AskRequest, AskResponse
 from src.ragx.api.dependencies import get_baseline_pipeline, get_enhanced_pipeline
 from src.ragx.pipelines.baseline import BaselinePipeline
 from src.ragx.pipelines.enhanced import EnhancedPipeline

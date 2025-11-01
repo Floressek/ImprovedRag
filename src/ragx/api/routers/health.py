@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 
-from src.ragx.api.schemas import HealthResponse
+from src.ragx.api.schemas.health import HealthResponse
 from src.ragx.api.dependencies import get_embedder, get_vector_store, get_reranker, get_llm, get_linguistic_analyzer, \
     get_adaptive_rewriter, get_prompt_builder, get_multihop_reranker
 
