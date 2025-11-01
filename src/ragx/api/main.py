@@ -121,8 +121,7 @@ async def root():
             "search": "/search",
             "rerank": "/rerank",
             "health": "/health",
-            # reminder add a new query rewrite + multihop
-            # add cove endpoint
+            "analysis": "/analysis",
         },
     }
 

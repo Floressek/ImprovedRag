@@ -16,9 +16,11 @@ template: |
   </decomposition>
   
   <retrieved_contexts>
-  Below are contexts retrieved for each sub-query. Contexts are grouped by sub-query. 
-  First look at the first query and contexts till then move on to the next.
-  IMPORTANT: Cite EVERY fact with [N] and synthesize across all sub-queries.
+  Below are contexts retrieved for each sub-query. 
+  IMPORTANT: 
+  + Each sub-query has "Relevance:" which indicates how relevant the contexts are to answering that sub-query. 
+  
+  Contexts grouped by sub-query:
   {grouped_contexts}
   </retrieved_contexts>
   
