@@ -9,7 +9,13 @@ from pathlib import Path
 
 from src.ragx.generation.inference import LLMInference
 from src.ragx.retrieval.analyzers.linguistic_analyzer import LinguisticAnalyzer, LinguisticFeatures
-from src.ragx.retrieval.rewriters.tools.parse import safe_parse
+from src.ragx.retrieval.rewriters.tools.parse import (
+    safe_parse,
+    JSONValidator,
+    RetryConfig,
+    validate_rewriter_response,
+    validate_verification_response,
+)
 from src.ragx.utils.settings import settings
 from src.ragx.utils.model_registry import model_registry
 
@@ -51,6 +57,7 @@ class AdaptiveQueryRewriter:
 
         self.prompts = self._load_prompts(prompts_path)
         self.analyzer = analyzer or LinguisticAnalyzer()
+        self.json_validator = JSONValidator(RetryConfig(max_retries=2, initial_delay=0.3))
 
         cache_key = "adaptive_rewriter_llm"
 
@@ -183,29 +190,40 @@ class AdaptiveQueryRewriter:
 
         logger.info(f"LLM decision prompt: {prompt}")
 
-
-        # TODO: Add fallback with retry - if LLM returns non-JSON, retry once before falling back to basic passthrough
-        try:
-            response = self.llm.generate(
+        # Generator function for retry logic
+        def generate_response() -> str:
+            return self.llm.generate(
                 prompt=prompt,
                 temperature=self.temperature,
                 max_new_tokens=self.max_tokens,
                 chain_of_thought_enabled=False,
             ).strip()
 
-            result = safe_parse(response)
-            if result:
-                return result
+        # Use validator with retry
+        success, result, metadata = self.json_validator.validate_with_retry(
+            generator_func=generate_response,
+            parse_func=safe_parse,
+            validator_func=validate_rewriter_response,
+        )
 
-        except Exception as e:
-            logger.error(f"Decision LLM error: {e}")
+        if success and result:
+            logger.info(
+                f"Decision parsed successfully after {metadata['attempts']} attempt(s) "
+                f"in {metadata['total_time']:.2f}s"
+            )
+            return result
 
+        # Fallback after all retries failed
+        logger.error(
+            f"All {metadata['attempts']} attempts failed. "
+            f"Errors: {metadata['errors']}"
+        )
         return {
             "is_multihop": False,
             "action": "passthrough",
             "sub_queries": None,
             "expanded_query": None,
-            "reasoning": "decision LLM error",
+            "reasoning": "LLM failed to produce valid JSON after retries",
             "confidence": 0.0,
         }
 
@@ -221,118 +239,33 @@ class AdaptiveQueryRewriter:
             sub_queries=json.dumps(sub_queries, ensure_ascii=False),
         )
 
-        try:
-            response = self.llm.generate(
+        # Generator function for retry logic
+        def generate_response() -> str:
+            return self.llm.generate(
                 prompt=prompt,
                 temperature=self.temperature,
                 max_new_tokens=self.max_tokens,
                 chain_of_thought_enabled=False,
             ).strip()
 
-            parsed = safe_parse(response)
-            if parsed:
-                return parsed
+        # Use validator with retry
+        success, result, metadata = self.json_validator.validate_with_retry(
+            generator_func=generate_response,
+            parse_func=safe_parse,
+            validator_func=validate_verification_response,
+        )
 
-        except Exception as e:
-            logger.error(f"Verification failed: {e}")
+        if success and result:
+            logger.info(
+                f"Verification parsed successfully after {metadata['attempts']} attempt(s) "
+                f"in {metadata['total_time']:.2f}s"
+            )
+            return result
 
-        # Fallback: assume valid
+        # Fallback: assume valid if parsing failed
+        logger.warning(
+            f"Verification parsing failed after {metadata['attempts']} attempts. "
+            f"Assuming sub-queries are valid."
+        )
         return {"valid": True, "issues": [], "corrected_queries": None}
 
-# old code for refactor -> save for if the current implementation is not enough
-
-# def _decompose(
-#         self,
-#         query: str,
-#         features: LinguisticFeatures
-# ) -> List[str]:
-#     """Decompose query into sub-queries based on linguistic context."""
-#     prompt_config = self.prompts["decompose"]
-#     system = prompt_config["system"]
-#     template = prompt_config["template"]
-#
-#     prompt = f"{system}\n\n{template}".format(
-#         query=query,
-#         linguistic_context=features.to_context_string(),
-#     )
-#
-#     logger.debug(f"Decompose prompt length: {len(prompt)} chars")
-#
-#     try:
-#         response = self.llm.generate(
-#             prompt=prompt,
-#             temperature=self.temperature,
-#             max_new_tokens=self.max_tokens,
-#             chain_of_thought_enabled=False,
-#         ).strip()
-#
-#         logger.debug(f"Decompose raw response: {response[:300]}")
-#
-#         parsed = safe_parse(response)
-#
-#         # Handle multiple possible keys: sub_queries, sub_questions, queries, questions
-#         if isinstance(parsed, dict):
-#             for key in ["sub_queries", "sub_questions", "queries", "questions"]:
-#                 if key in parsed:
-#                     sub_queries = parsed[key]
-#                     break
-#             else:
-#                 logger.warning(f"No valid sub-queries key found in: {list(parsed.keys())}")
-#                 return [query]
-#         elif isinstance(parsed, list):
-#             sub_queries = parsed
-#             logger.info("LLM returned list directly (not wrapped in object)")
-#         else:
-#             logger.warning(f"Unexpected parsed format: {type(parsed)}")
-#             return [query]
-#
-#         # Validate sub-queries
-#         if not isinstance(sub_queries, list) or len(sub_queries) == 0:
-#             logger.warning(f"Invalid sub_queries: {sub_queries}")
-#             return [query]
-#         valid_queries = [q for q in sub_queries if isinstance(q, str) and len(q.strip()) > 0]
-#
-#         if not valid_queries:
-#             logger.warning("No valid sub-queries after filtering")
-#             return [query]
-#
-#         logger.info(f"Successfully decomposed into {len(valid_queries)} sub-queries")
-#         return valid_queries
-#
-#     except Exception as e:
-#         logger.error(f"Decompose LLM error: {e}")
-#
-#     return [query]
-#
-#
-# def _expand_simple(
-#         self,
-#         query: str,
-#         features: LinguisticFeatures
-# ) -> str:
-#     """Expand simple query based on linguistic context."""
-#     prompt_config = self.prompts["expand"]
-#     system = prompt_config["system"]
-#     template = prompt_config["template"]
-#
-#     prompt = f"{system}\n\n{template}".format(
-#         query=query,
-#         linguistic_context=features.to_context_string(),
-#     )
-#
-#     try:
-#         response = self.llm.generate(
-#             prompt=prompt,
-#             temperature=self.temperature,
-#             max_new_tokens=self.max_tokens,
-#             chain_of_thought_enabled=False,
-#         ).strip()
-#
-#         parsed = self._safe_parse(response)
-#         if parsed and "expanded_query" in parsed:
-#             return parsed["expanded_query"]
-#
-#     except Exception as e:
-#         logger.error(f"Expand LLM error: {e}")
-#
-#     return query
