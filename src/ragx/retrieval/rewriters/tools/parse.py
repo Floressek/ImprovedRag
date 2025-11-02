@@ -4,6 +4,7 @@ import time
 from typing import Optional, Any, Callable
 from dataclasses import dataclass
 import logging
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,9 @@ class JSONValidator:
         self.config = config or RetryConfig()
 
     def validate_and_parse(
-        self,
-        text: str,
-        parse_func: Optional[Callable[[str], Optional[Any]]] = None,
+            self,
+            text: str,
+            parse_func: Optional[Callable[[str], Optional[Any]]] = None,
     ) -> tuple[bool, Optional[Any], Optional[str]]:
         """
         Validate and parse JSON text.
@@ -65,10 +66,10 @@ class JSONValidator:
             return False, None, error_msg
 
     def validate_with_retry(
-        self,
-        generator_func: Callable[[], str],
-        parse_func: Optional[Callable[[str], Optional[Any]]] = None,
-        validator_func: Optional[Callable[[Any], bool]] = None,
+            self,
+            generator_func: Callable[[], str],
+            parse_func: Optional[Callable[[str], Optional[Any]]] = None,
+            validator_func: Optional[Callable[[Any], bool]] = None,
     ) -> tuple[bool, Optional[Any], dict]:
         """
         Execute generator function with retry and exponential backoff.
@@ -99,8 +100,6 @@ class JSONValidator:
                 # Generate response
                 logger.debug(f"Attempt {attempt + 1}/{self.config.max_retries}")
                 response = generator_func()
-
-                # Validate and parse
                 is_valid, parsed, error = self.validate_and_parse(response, parse_func)
 
                 if is_valid and parsed is not None:
@@ -141,15 +140,12 @@ class JSONValidator:
 
             # Exponential backoff before retry (skip on last attempt)
             if attempt < self.config.max_retries - 1:
-                # Calculate delay with exponential backoff
                 delay = min(
                     self.config.initial_delay * (self.config.exponential_base ** attempt),
                     self.config.max_delay
                 )
 
-                # Add jitter if enabled
                 if self.config.jitter:
-                    import random
                     delay = delay * (0.5 + random.random())
 
                 metadata["last_delay"] = delay
