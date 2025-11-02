@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import List, Dict, Any
-
 from fastapi import APIRouter, Depends
 
 from src.ragx.api.dependencies import (
