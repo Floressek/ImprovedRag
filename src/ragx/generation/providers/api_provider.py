@@ -120,8 +120,9 @@ class APIProvider:
         """
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
         }
+        if self.api_key is not None:
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         payload = {
             "model": self.model_name,
