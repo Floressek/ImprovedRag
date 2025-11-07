@@ -36,7 +36,8 @@ async def lifespan(app: FastAPI):
         logger.info(f"✓ Collection: {settings.qdrant.collection_name}")
         logger.info(f"✓ Embedder: {settings.embedder.model_id}")
         logger.info(f"✓ Reranker: {settings.reranker.model_id}")
-        logger.info(f"✓ LLM: {settings.llm.model_id}")
+        # logger.info(f"✓ LLM: {settings.llm.model_id}")
+        logger.info(f"✓ LLM: {settings.llm.api_model_name}")
 
     except QdrantConnectionError as e:
         logger.error("=" * 80)
