@@ -300,9 +300,17 @@ class PromptBuilder:
         """Group contexts by source sub-query."""
         grouped = defaultdict(list)
         for ctx in contexts:
-            source_subquery = ctx.get("source_subquery", "")
-            # no additional grouping if source_subquery is missing
-            grouped[source_subquery].append(ctx)
+            # Check if context has fusion metadata with multiple source sub-queries
+            fusion_meta = ctx.get("fusion_metadata", {})
+            source_subqueries = fusion_meta.get("source_subqueries", [])
+
+            if source_subqueries:
+                # Assign context to ALL relevant queries
+                for subquery in source_subqueries:
+                    grouped[subquery].append(ctx)
+            else:
+                source_subquery = ctx.get("source_subquery", "")
+                grouped[source_subquery].append(ctx)
 
         return dict(grouped)
 
