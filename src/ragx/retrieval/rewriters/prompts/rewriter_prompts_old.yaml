@@ -1,0 +1,149 @@
+decision:
+  system: |
+    You are an expert in query analysis for information retrieval.
+    Your task is to decide whether a given query needs decomposition for better retrieval.
+    
+  template: |
+    QUESTION: {query}
+    
+    {linguistic_context}
+    
+    TASK: Analyze whether the question requires decomposition into simpler sub-questions.
+    
+    CRITICAL PATTERNS REQUIRING DECOMPOSITION (multihop):
+    1. COMPARISON queries (e.g., "X vs Y", "X or Y", "difference between X and Y")
+       → These ALWAYS need decomposition to retrieve information about EACH entity separately
+    2. SIMILARITY/COMMONALITY queries (e.g., "similarities between X and Y", "what do X and Y have in common")
+       → These need decomposition to retrieve characteristics of EACH entity separately
+    3. Questions connecting multiple facts/concepts (e.g., "Who directed the movie starring X?")
+    4. Questions with subordinate clauses connecting different entities
+    5. Questions with multiple clauses requiring separate lookups
+    
+    EXAMPLES OF MULTIHOP:
+    - "ziemniaki vs pomidory, co ma więcej błonnika?" → YES (comparison, needs info about BOTH)
+    - "What has more protein, chicken or beef?" → YES (comparison)
+    - "Jakie są podobieństwa między X a Y?" → YES (similarity, needs characteristics of BOTH)
+    - "What do dogs and cats have in common?" → YES (commonality)
+    - "Who directed the movie where Tom Hanks played a soldier?" → YES (multiple facts)
+    
+    EXAMPLES OF PASSTHROUGH:
+    - "What is the capital of Poland?" → NO (single fact)
+    - "How to make pizza?" → NO (single concept)
+    
+    Respond ONLY in JSON format:
+    {{
+      "is_multihop": true/false,
+      "confidence": 0.0-1.0,
+      "reasoning": "short reasoning in English",
+      "action": "decompose" | "expand" | "passthrough"
+    }}
+    
+    IMPORTANT: 
+    - Comparison queries (vs, or, difference) MUST be marked as multihop!
+    - Similarity/commonality queries MUST be marked as multihop!
+    - Response MUST be valid JSON with no additional text!
+
+decompose:
+  system: |
+    You are an expert in query decomposition for information retrieval.
+    You break down complex queries into independent sub-questions.
+    
+  template: |
+    ORIGINAL QUERY: {query}
+    
+    {linguistic_context}
+    
+    TASK: Break down this query into independent sub-questions that can be answered separately.
+    
+    DECOMPOSITION STRATEGIES:
+    
+    1. COMPARISON queries ("X vs Y", "X or Y"):
+       → Create one sub-question for EACH entity about the SPECIFIC attribute being compared
+       Example: "carrots vs tomatoes, how much fiber?" 
+       - "How much fiber in carrots?"
+       - "How much fiber in tomatoes?"
+    
+    2. SIMILARITY/COMMONALITY queries ("similarities between X and Y", "what do X and Y have in common"):
+       → Create sub-questions asking about CHARACTERISTICS/FEATURES of each entity
+       Example: "What are similarities between Slavic and Norse mythology?"
+       - "What are the main characteristics and features of Slavic mythology?"
+       - "What are the main characteristics and features of Norse mythology?"
+       
+       Example: "Co łączy jabłka i pomarańcze?"
+       - "Jakie są właściwości i cechy jabłek?"
+       - "Jakie są właściwości i cechy pomarańczy?"
+    
+    3. MULTI-ENTITY queries: Separate each entity into its own question about its properties
+    
+    4. MULTI-HOP queries: Break the chain of reasoning into steps
+    
+    REQUIREMENTS:
+    - Each sub-question must be independently answerable from a knowledge base
+    - For SIMILARITY queries: ask about CHARACTERISTICS, not similarities
+    - For COMPARISON queries: ask about the SPECIFIC ATTRIBUTE being compared
+    - Retain all entities and key attributes from the original
+    - Questions must be in the SAME language as the original
+    - Be specific and clear
+    - Sub-questions should be simpler than the original
+    - Do NOT include the word "similarities" or "commonalities" in sub-questions
+    
+    Response format (ONLY JSON):
+    {{
+      "sub_queries": ["question1", "question2", ...]
+    }}
+    
+    IMPORTANT: ONLY JSON, no additional text!
+
+verification:
+  system: |
+    You are an expert in query validation.
+    You verify whether sub-questions correctly represent the original intent.
+
+  template: |
+    ORIGINAL QUERY: {original}
+    PROPOSED SUB-QUESTIONS: {sub_queries}
+    
+    Validate each sub-question:
+    1. Can it be answered independently from a knowledge base?
+    2. Does the set of sub-questions cover the original query's intent?
+    3. For comparison queries: Is there one sub-question for EACH entity about the specific attribute?
+    4. For similarity queries: Do sub-questions ask about CHARACTERISTICS (not similarities)?
+    5. Are sub-questions clear and specific?
+    6. Are they neither too broad nor too narrow?
+    
+    Respond in JSON format:
+    {{
+      "valid": true/false,
+      "issues": ["issue1", "issue2"] or [],
+      "corrected_queries": ["corrected1", "corrected2"] or null
+    }}
+    
+    If "valid": false, provide "corrected_queries" with improved versions.
+    IMPORTANT: Response ONLY in JSON!
+
+expand_simple:
+  system: |
+    You are an expert in query expansion.
+    You add relevant keywords and synonyms to improve retrieval.
+
+  template: |
+    QUERY: {query}
+    
+    {linguistic_context}
+    
+    TASK: Expand this query with relevant keywords, synonyms, and related terms.
+    
+    RULES:
+    - Retain the original language
+    - Maximum of 20 words in the expanded query
+    - Add synonyms for key terms
+    - Add related concepts
+    - Remove filler words ("hmm", "well", "uh")
+    - Keep the core meaning intact
+    
+    Format (JSON):
+    {{
+      "expanded_query": "expanded query with keywords and synonyms"
+    }}
+    
+    IMPORTANT: ONLY JSON, no additional text!

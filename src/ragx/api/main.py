@@ -8,7 +8,7 @@ from fastapi import Request
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.ragx.api.routers import chat, search, health, llm
+from src.ragx.api.routers import chat, search, health, llm, analysis
 from src.ragx.api.dependencies import (
     get_baseline_pipeline,
     get_enhanced_pipeline,
@@ -36,7 +36,13 @@ async def lifespan(app: FastAPI):
         logger.info(f"✓ Collection: {settings.qdrant.collection_name}")
         logger.info(f"✓ Embedder: {settings.embedder.model_id}")
         logger.info(f"✓ Reranker: {settings.reranker.model_id}")
-        logger.info(f"✓ LLM: {settings.llm.model_id}")
+        # logger.info(f"✓ LLM: {settings.llm.model_id}")
+        if getattr(settings.llm, "provider", None) == "api":
+            logger.info(f"✓ LLM: {settings.llm.api_model_name}")
+        elif getattr(settings.llm, "provider", None) in ("huggingface", "ollama"):
+            logger.info(f"✓ LLM: {settings.llm.model_id}")
+        else:
+            logger.info(f"✓ LLM: Unknown provider ({getattr(settings.llm, 'provider', 'N/A')})")
 
     except QdrantConnectionError as e:
         logger.error("=" * 80)
@@ -66,7 +72,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="RAGx API",
     description="RAGx API service",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -98,18 +104,19 @@ async def log_requests(request: Request, call_next):
 
 
 # Routers
-app.include_router(llm.router)
 app.include_router(search.router)
+app.include_router(analysis.router)
+app.include_router(llm.router)
 app.include_router(chat.router)
 app.include_router(health.router)
 
 
 @app.get("/api")
 async def root():
-    """Root endpoint."""
+    """Root endpoint. -> stream won't be implemented till a UI is built."""
     return {
         "name": "RAGx API",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "docs": "/docs",
         "endpoints": {
             "baseline": "/ask/baseline",
@@ -120,6 +127,7 @@ async def root():
             "search": "/search",
             "rerank": "/rerank",
             "health": "/health",
+            "analysis": "/analysis",
         },
     }
 

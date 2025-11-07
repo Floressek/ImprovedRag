@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 from fastapi import APIRouter
 
-from src.ragx.api.schemas import LLMRequest, LLMResponse
+from src.ragx.api.schemas.llm import LLMRequest, LLMResponse
 from src.ragx.generation.inference import LLMInference
 
 logger = logging.getLogger(__name__)

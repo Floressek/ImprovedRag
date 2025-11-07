@@ -6,7 +6,10 @@ from typing import Dict, Any, Optional, List, Iterator
 
 from src.ragx.pipelines.base import BasePipeline
 from src.ragx.pipelines.enhancers.reranker import RerankerEnhancer
+from src.ragx.pipelines.enhancers.multihop_reranker import MultihopRerankerEnhancer
+from src.ragx.retrieval.analyzers.linguistic_analyzer import LinguisticAnalyzer
 from src.ragx.retrieval.embedder.embedder import Embedder
+from src.ragx.retrieval.rewriters.adaptive_rewriter import AdaptiveQueryRewriter
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
 from src.ragx.generation.inference import LLMInference
 from src.ragx.generation.prompts.builder import PromptBuilder, PromptConfig
@@ -22,23 +25,44 @@ class EnhancedPipeline(BasePipeline):
             self,
             embedder: Optional[Embedder] = None,
             vector_store: Optional[QdrantStore] = None,
+            linguistic_analyzer: Optional[LinguisticAnalyzer] = None,
+            adaptive_rewriter: Optional[AdaptiveQueryRewriter] = None,
             reranker_enhancer: Optional[RerankerEnhancer] = None,
+            multihop_reranker: Optional[MultihopRerankerEnhancer] = None,
             llm: Optional[LLMInference] = None,
             initial_top_k: Optional[int] = None,
     ):
+        # Embedder and vector store
         self.embedder = embedder or Embedder()
         self.vector_store = vector_store or QdrantStore(
             embedding_dim=self.embedder.get_dimension(),
             recreate_collection=False
         )
+
+        # Adaptive compt -> query rewrite
+        self.linguistic_analyzer = linguistic_analyzer or LinguisticAnalyzer()
+        self.adaptive_rewriter = adaptive_rewriter or AdaptiveQueryRewriter(
+            analyzer=self.linguistic_analyzer,
+        )
+
+        # retrival, reranking, context merge, multihop
         self.reranker_enhancer = reranker_enhancer or RerankerEnhancer()
+
+        # Multihop reranking (handles fusion internally)
+        self.multihop_reranker = multihop_reranker or MultihopRerankerEnhancer(
+            top_k_per_subquery=settings.retrieval.context_top_n,
+            final_top_k=settings.retrieval.context_top_n,
+            fusion_strategy="max",
+            global_rerank_weight=0.6,
+        )
+
+        # generation, llm
         self.llm = llm or LLMInference()
-
         self.initial_top_k = initial_top_k or settings.retrieval.top_k_retrieve
-
-        self.prompt_builder = PromptBuilder()
-
         model_name = settings.llm.model_id.lower()
+
+        # prompt
+        self.prompt_builder = PromptBuilder()
         think_style = "qwen" if "qwen" in model_name else "none"
 
         self.prompt_config = PromptConfig(
@@ -61,44 +85,123 @@ class EnhancedPipeline(BasePipeline):
             query: str,
             chat_history: Optional[List[Dict[str, str]]] = None,
             max_history: Optional[int] = None,
+            top_k: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Generate answer for a query."""
         max_history = max_history or settings.chat.max_history
         start = time.time()
 
-        # Step 1: Retrieval
-        query_vector = self.embedder.embed_query(query)
+        # Step 1: Query Rewriting
+        rewrite_start = time.time()
+        rewrite_result = self.adaptive_rewriter.rewrite(query)
+        rewrite_time = (time.time() - rewrite_start) * 1000
 
-        retrival_start = time.time()
-        results = self.vector_store.search(
-            vector=query_vector,
-            top_k=self.initial_top_k,
-            hnsw_ef=settings.hnsw.search_ef
+        original_query = rewrite_result["original"]
+        queries = rewrite_result["queries"]
+        is_multihop = rewrite_result["is_multihop"]
+        query_type = rewrite_result.get("query_type", "general")
+
+        logger.info(
+            f"Query analysis: multihop={is_multihop}, "
+            f"queries={len(queries)}, reason={rewrite_result['reasoning']}"
         )
-        retrieval_time = (time.time() - retrival_start) * 1000
-        logger.info(f"Retrieved {len(results)} candidates")
 
-        # Step 2: Reranking
-        rerank_start = time.time()
-        results = self.reranker_enhancer.process(query, results)
-        rerank_time = (time.time() - rerank_start) * 1000
-        logger.info(f"Reranked {len(results)} candidates")
+        # Step 2: Retrieval (parallel for multihop)
+        retrival_start = time.time()
 
-        # Step 3: Format Contexts
+        if is_multihop and len(queries) > 1:
+            # Multihop: retrieve for each sub-query
+            results_by_subquery = {}
+            for sub_query in queries:
+                qvec = self.embedder.embed_query(sub_query)
+                results = self.vector_store.search(
+                    vector=qvec,
+                    top_k=self.initial_top_k,
+                    hnsw_ef=settings.hnsw.search_ef
+                )
+                results_by_subquery[sub_query] = results
+                logger.debug(f"Retrieved {len(results)} for sub-query: {sub_query[:50]}...")
+
+            retrieval_time = (time.time() - retrival_start) * 1000
+
+            total_retrieved = sum(len(v) for v in results_by_subquery.values())
+            logger.info(f"Retrieved {total_retrieved} total candidates from {len(queries)} sub-queries")
+
+            # Step 3: Multihop reranking (local → fusion → global)
+            # NOTE: Fusion is handled INSIDE multihop_reranker
+            rerank_start = time.time()
+
+            results = self.multihop_reranker.process(
+                original_query=original_query,
+                results_by_subquery=results_by_subquery,
+                override_top_k=top_k,
+                query_type=query_type
+            )
+
+            rerank_time = (time.time() - rerank_start) * 1000
+            logger.info(f"Retrieved {len(results)} candidates - multihop.")
+            num_retrieved_candidates = total_retrieved
+
+        else:
+            query_singular = queries[0] if queries else original_query
+            qvec = self.embedder.embed_query(query_singular)
+            results = self.vector_store.search(
+                vector=qvec,
+                top_k=self.initial_top_k,
+                hnsw_ef=settings.hnsw.search_ef
+            )
+            retrieval_time = (time.time() - retrival_start) * 1000
+            logger.info(f"Retrieved {len(results)} candidates - single query.")
+            num_retrieved_candidates = len(results)
+
+            # Step 3: Standard reranking
+            rerank_start = time.time()
+            final_top_k = top_k if top_k is not None else self.reranker_enhancer.top_k
+
+            original_reranker_top_k = self.reranker_enhancer.top_k
+
+            if top_k is not None:
+                self.reranker_enhancer.top_k = final_top_k
+                logger.info(f"Using custom top_k = {final_top_k}")
+
+            results = self.reranker_enhancer.process(original_query, results)  # ?
+
+            self.reranker_enhancer.top_k = original_reranker_top_k
+            rerank_time = (time.time() - rerank_start) * 1000
+            logger.info(f"Reranked {len(results)} candidates")
+
+        # Step 4: Format Contexts
         contexts = []
         for idx, payload, score in results:
             metadata = payload.get("metadata", {})
-            contexts.append({
+            context_dict = {
                 "id": idx,
                 "text": payload.get("text", ""),
                 "doc_title": payload.get("doc_title", "Unknown"),
                 "position": payload.get("position", 0),
+                "total_chunks": payload.get("total_chunks", 1),
                 "retrieval_score": payload.get("retrieval_score"),
                 "url": metadata.get("url"),
-                "rerank_score": payload.get("rerank_score"),
-            })
+            }
 
-        # Step 4: Generation
+            if is_multihop:
+                context_dict["local_rerank_score"] = payload.get("local_rerank_score")
+                context_dict["fused_score"] = payload.get("fused_score")
+                context_dict["global_rerank_score"] = payload.get("global_rerank_score")
+                context_dict["final_score"] = payload.get("final_score")
+                context_dict["fusion_metadata"] = payload.get("fusion_metadata")
+
+                # For prompt grouping
+                fusion_meta = payload.get("fusion_metadata", {})
+                source_subqueries = fusion_meta.get("source_subqueries", [])
+                if source_subqueries:
+                    context_dict["source_subquery"] = source_subqueries[0]
+            else:
+                context_dict["rerank_score"] = payload.get("rerank_score")
+
+            contexts.append(context_dict)
+
+        # Step 5: Generation
         prompt = self.prompt_builder.build(
             query=query,
             contexts=contexts,
@@ -106,6 +209,8 @@ class EnhancedPipeline(BasePipeline):
             chat_history=chat_history,
             max_history=max_history,
             config=self.prompt_config,
+            is_multihop=is_multihop,
+            sub_queries=queries if is_multihop else None,
         )
 
         llm_start = time.time()
@@ -119,12 +224,22 @@ class EnhancedPipeline(BasePipeline):
             "sources": contexts,
             "metadata": {
                 "pipeline": "enhanced",
-                "phases": ["retrieval", "reranking", "generation"],
+                "is_multihop": is_multihop,
+                "sub_queries": queries if is_multihop else None,
+                "reasoning": rewrite_result["reasoning"],
+                "phases": [
+                    "linguistic_analysis",
+                    "adaptive_rewriting",
+                    "retrieval",
+                    "multihop_reranking (local→fusion→global)" if is_multihop else "reranking",
+                    "generation"
+                ],
+                "rewrite_time_ms": round(rewrite_time, 2),
                 "retrieval_time_ms": round(retrieval_time, 2),
                 "rerank_time_ms": round(rerank_time, 2),
                 "llm_time_ms": round(llm_time, 2),
                 "total_time_ms": round(total_time, 2),
-                "num_candidates": self.initial_top_k,
+                "num_candidates": num_retrieved_candidates,
                 "num_sources": len(contexts),
             },
         }
@@ -171,7 +286,7 @@ class EnhancedPipeline(BasePipeline):
             })
 
         # Step 4: Generation
-        prompt = build_rag_prompt(
+        prompt = self.prompt_builder.build(
             query=query,
             contexts=contexts,
             chat_history=chat_history,

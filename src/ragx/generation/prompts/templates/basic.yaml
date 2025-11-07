@@ -10,7 +10,7 @@ template: |
   {contexts_formatted}
   
   RULES:
-  - Every factual claim MUST have [N] citation where N is the source number
+  - Every factual claim MUST have [N] citation where N is the source number. You cannot provide an answer without citations.
   - If information is not in sources, say "I cannot find this information in the provided sources"
   - Answer in the SAME language as the question
   - Be concise and accurate
@@ -18,4 +18,5 @@ template: |
   QUESTION:
   {query}
   
+  Based on the contexts above, provide a complete answer to:
   ANSWER:
