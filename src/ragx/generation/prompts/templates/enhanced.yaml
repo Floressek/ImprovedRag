@@ -24,6 +24,17 @@ template: |
   6. Answer in the SAME language as the question - detect and match it
   </grounding_rules>
   
+  <query_typing>
+  Identify the intent of the question:
+  - compare → differences/similarities between entities
+  - define/explain → meaning or characteristics
+  - list → enumeration
+  - procedure → steps or processes
+  - fact-check → verification of a claim
+  - etc.
+  Adapt structure accordingly.
+  </query_typing>
+  
   <citation_format>
   CITATION EXAMPLES:
   - Single source: "Warsaw is capital of Poland [1]. "
@@ -41,6 +52,12 @@ template: |
   ❌ Mix languages in your response
   ❌ Paraphrase if the source has exact important data - quote with citation
   </negative_constraints>
+  
+  <anti_hallucination>
+  - Do not invent categories, measurements, or claims.
+  - Avoid vague adjectives or evaluative language.
+  - Do not infer causality unless explicitly stated.
+  </anti_hallucination>
   
   <question>
   USER QUESTION: {query}
