@@ -36,7 +36,13 @@ async def lifespan(app: FastAPI):
         logger.info(f"✓ Collection: {settings.qdrant.collection_name}")
         logger.info(f"✓ Embedder: {settings.embedder.model_id}")
         logger.info(f"✓ Reranker: {settings.reranker.model_id}")
-        logger.info(f"✓ LLM: {settings.llm.model_id}")
+        # logger.info(f"✓ LLM: {settings.llm.model_id}")
+        if getattr(settings.llm, "provider", None) == "api":
+            logger.info(f"✓ LLM: {settings.llm.api_model_name}")
+        elif getattr(settings.llm, "provider", None) in ("huggingface", "ollama"):
+            logger.info(f"✓ LLM: {settings.llm.model_id}")
+        else:
+            logger.info(f"✓ LLM: Unknown provider ({getattr(settings.llm, 'provider', 'N/A')})")
 
     except QdrantConnectionError as e:
         logger.error("=" * 80)

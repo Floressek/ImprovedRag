@@ -5,7 +5,10 @@ unified_decision:
     Your goal is to maximize retrieval precision and minimize latency.
 
   template: |
-    QUERY (preserve language): {query}
+    !!ABSOLUTE RULE: Copy entity names EXACTLY from the query, even if they seem wrong or misspelled.
+    DO NOT "fix" entity names based on your knowledge. USE THEM AS-IS!!
+    
+    QUERY (preserve language, names and entities as they are specified): {query}
 
     {linguistic_context}
 
