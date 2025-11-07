@@ -103,7 +103,7 @@ class LLMConfig:
     ollama_models_path: str = os.getenv("OLLAMA_MODELS_PATH", r"E:\Models\Ollama\.ollama\models")
 
     api_base_url: str = os.getenv("LLM_API_BASE_URL", "http://localhost:1234/v1")
-    api_key: Optional[str] = os.getenv("LLM_API_KEY", None)
+    api_key: Optional[str] = os.getenv("LLM_API_KEY")
     api_model_name: str = os.getenv("LLM_API_MODEL_NAME", "local-model")
 
     tensor_parallel_size: int = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))
