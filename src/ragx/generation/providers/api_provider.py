@@ -19,7 +19,7 @@ class APIProvider:
             model_name: Optional[str] = None,
             timeout: int = 120,
     ):
-        self.base_url = base_url.rstrip('/') or settings.llm.base_url.rstrip('/')
+        self.base_url = base_url.rstrip('/') if base_url else settings.llm.api_base_url.rstrip('/')
         self.api_key = api_key or settings.llm.api_key
         self.model_name = model_name or settings.llm.api_model_name
         self.timeout = timeout
