@@ -113,6 +113,7 @@ class APIProvider:
             prompt: str,
             temperature: Optional[float] = None,
             max_new_tokens: Optional[int] = None,
+            chain_of_thought_enabled: Optional[bool] = None,
     ) -> Iterator[str]:
         """
         Generate text from the API provider - streaming.
@@ -127,12 +128,19 @@ class APIProvider:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature or settings.llm.temperature,
             "max_tokens": max_new_tokens or settings.llm.max_new_tokens,
+            "enable_thinking": chain_of_thought_enabled or False,
             "stream": True,
         }
 
+        url = f"{self.base_url}/chat/completions"
+        logger.info(f"🔍 Making request to: {url}")
+        logger.info(f"🔍 Model: {self.model_name}")
+        if chain_of_thought_enabled is not None:
+            logger.info(f"🔍 enable_thinking: {chain_of_thought_enabled}")
+
         try:
             response = requests.post(
-                f"{self.base_url}/v1/chat/completions",
+                url,
                 headers=headers,
                 json=payload,
                 timeout=self.timeout,
