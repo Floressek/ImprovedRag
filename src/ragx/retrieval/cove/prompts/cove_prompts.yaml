@@ -1,0 +1,113 @@
+extract_claims:
+  system: |
+    Extract independent factual claims from the answer.
+    Each claim must be verifiable against a knowledge base.
+
+  template: |
+    Answer:
+    {answer}
+
+    Requirements:
+    - Extract ONLY factual statements (no opinions, meta-statements, citations)
+    - Each claim independent and verifiable
+    - Max 15 words per claim
+    - Skip anaphoric pronouns (he, she, it, this, that) - rephrase with explicit entities
+    - Max {max_claims} claims
+
+    Response (JSON only):
+    {{
+      "claims": ["claim1", "claim2"]
+    }}
+
+nli_verdict:
+  system: |
+    You are a natural language inference classifier.
+    Determine if evidence supports, refutes, or is insufficient for the claim.
+
+  template: |
+    Claim:
+    {claim}
+
+    Evidence:
+    {evidence}
+
+    Task: Does the evidence support or refute the claim?
+
+    Response (JSON only):
+    {{
+      "label": "supports" | "refutes" | "insufficient",
+      "confidence": 0.0-1.0,
+      "reasoning": "brief explanation (max 20 words)"
+    }}
+
+batch_nli_verdict:
+  system: |
+    You are a natural language inference classifier.
+    Evaluate multiple claims against their evidence.
+
+  template: |
+    Evaluate each claim-evidence pair:
+
+    {claims_evidence_pairs}
+
+    For each pair, determine: supports, refutes, or insufficient
+
+    Response (JSON only):
+    {{
+      "results": [
+        {{"claim_id": 0, "label": "supports|refutes|insufficient", "confidence": 0.0-1.0, "reasoning": "brief"}},
+        {{"claim_id": 1, "label": "...", "confidence": 0.0, "reasoning": "..."}}
+      ]
+    }}
+
+correct_answer:
+  system: |
+    Correct the answer by removing/fixing unverified claims using provided evidence.
+
+  template: |
+    Original Question:
+    {query}
+
+    Original Answer:
+    {answer}
+
+    Failed Verifications (with evidence):
+    {failed_verifications_with_evidence}
+
+    Additional Retrieved Evidence:
+    {additional_evidence}
+
+    Original Sources:
+    {original_contexts}
+
+    Instructions:
+    - Remove or correct claims marked as "refutes" or "insufficient"
+    - Use evidence from failed verifications, additional evidence, OR original sources
+    - Generate citation mapping [1], [2], ... from ALL evidence sources
+    - Keep verified claims unchanged
+    - Maintain language and structure
+
+    Corrected Answer (with citations):
+
+targeted_queries:
+  system: |
+    Generate specific search queries to find missing evidence.
+
+  template: |
+    Original Question: {original_query}
+
+    Claims Missing Evidence:
+    {missing_claims}
+
+    Task: Generate 1-5 specific search queries to find evidence for these claims.
+
+    Requirements:
+    - Each query targets ONE specific claim
+    - Max 15 words per query
+    - Focus on factual aspects
+    - Same language as original query
+
+    Response (JSON only):
+    {{
+      "queries": ["query1", "query2"]
+    }}
