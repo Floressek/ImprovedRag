@@ -40,7 +40,7 @@ class APIProvider:
             prompt (str): The input prompt to generate text from.
             temperature (Optional[float]): Sampling temperature.
             max_new_tokens (Optional[int]): Maximum number of new tokens to generate.
-            chain_of_thought_enabled (Optional[float]): If enabled, attempts to extract and log chain-of-thought reasoning (such as "thinking", "reasoning", or "thoughts") from the API response.
+            chain_of_thought_enabled (Optional[bool]): If enabled, attempts to extract and log chain-of-thought reasoning (such as "thinking", "reasoning", or "thoughts") from the API response.
         """
         headers = {
             "Content-Type": "application/json",
