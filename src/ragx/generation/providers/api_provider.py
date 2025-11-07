@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 from typing import Optional, Iterator
 import requests
+import json
 
 from src.ragx.utils.settings import settings
 
@@ -24,7 +25,6 @@ class APIProvider:
         self.timeout = timeout
 
         logger.info(f"APIProvider: {base_url}, model: {model_name}")
-
 
     def generate(
             self,
@@ -155,7 +155,7 @@ class APIProvider:
                         if line.strip() == 'data: [DONE]':
                             break
                         try:
-                            import json
+
                             data = json.loads(line[6:])
                             if 'choices' in data and len(data['choices']) > 0:
                                 delta = data['choices'][0].get('delta', {})
