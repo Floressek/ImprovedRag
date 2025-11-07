@@ -31,7 +31,7 @@ class APIProvider:
             prompt: str,
             temperature: Optional[float] = None,
             max_new_tokens: Optional[int] = None,
-            chain_of_thought_enabled: Optional[float] = None,
+            chain_of_thought_enabled: Optional[bool] = None,
     ) -> str:
         """
         Generate text from the API provider.
