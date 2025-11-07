@@ -101,8 +101,11 @@ class APIProvider:
 
         except requests.exceptions.HTTPError as e:
             logger.error(f"❌ APIProvider HTTP error: {e}")
-            logger.error(f"❌ Response status: {response.status_code}")
-            logger.error(f"❌ Response body: {response.text}")
+            if response is not None:
+                logger.error(f"❌ Response status: {response.status_code}")
+                logger.error(f"❌ Response body: {response.text}")
+            else:
+                logger.error("❌ No response received (response is None)")
             return ""
         except Exception as e:
             logger.error(f"❌ APIProvider generate error: {e}")
