@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
+
 import yaml
 import re
 from pathlib import Path
@@ -58,8 +60,13 @@ class PromptBuilder:
         for idx, ctx in enumerate(contexts, 1):
             text = ctx.get("text", "").strip()
             title = ctx.get("doc_title", "Unknown")
+            position = ctx.get("position", 0)
+            total = ctx.get("total_chunks", 1)
 
-            parts = [f"[{idx} SOURCE: {title}]"]
+            if total > 1:
+                parts = [f"[{idx}] SOURCE: {title} (Fragment {position + 1}/{total})"]
+            else:
+                parts = [f"[{idx}] SOURCE: {title}"]
 
             if include_metadata:
                 metadata_parts = []
@@ -135,6 +142,8 @@ class PromptBuilder:
             chat_history: Optional[List[Dict[str, str]]] = None,
             max_history: Optional[int] = None,
             config: Optional[PromptConfig] = None,
+            is_multihop: bool = False,
+            sub_queries: Optional[List[str]] = None,
             **kwargs
     ) -> str:
         """
@@ -147,9 +156,20 @@ class PromptBuilder:
             chat_history: Optional conversation history
             max_history: Maximum history entries
             config: Prompt configuration options
+            is_multihop: Whether this is a multihop query
+            sub_queries: Decomposed sub-queries (for multihop)
             **kwargs: Additional template variables
         """
         config = config or PromptConfig()
+
+        if is_multihop and sub_queries:
+            return self.build_multihop(
+                original_query=query,
+                sub_queries=sub_queries,
+                contexts=contexts,
+                config=config,
+                **kwargs
+            )
 
         template_data = self.load_template(template_name)
         template_str = template_data.get("template", "")
@@ -187,6 +207,7 @@ class PromptBuilder:
         prompt_vars = {
             "query": query,
             "contexts": contexts_formatted,
+            "contexts_formatted": contexts_formatted,
             "contexts_with_metadata": contexts_formatted,  # enhanced purposes
             "chat_history": history_str,
             "detected_language": detected_language,
@@ -207,6 +228,163 @@ class PromptBuilder:
 
         logger.info(f"Prompt built: {prompt}")
         return prompt.strip()
+
+    def build_multihop(
+            self,
+            original_query: str,
+            sub_queries: List[str],
+            contexts: List[Dict[str, Any]],
+            config: Optional[PromptConfig] = None,
+            **kwargs
+    ) -> str:
+        """Build multihop prompt with grouped contexts.
+
+        Args:
+            original_query: Original complex query
+            sub_queries: Decomposed sub-queries
+            contexts: Retrieved contexts (may have 'source_subquery' field)
+            config: Prompt configuration
+            **kwargs: Additional template variables
+
+        Returns:
+            Formatted prompt
+        """
+        config = config or PromptConfig(
+            use_cot=True,
+            include_metadata=True,
+            strict_citations=True,
+            detect_language=True,
+        )
+
+        # Group contexts by source sub-query
+        grouped = self._group_context_by_subquery(contexts)
+        grouped_contexts_str = self._format_grouped_contexts_for_multihop(
+            grouped, sub_queries
+        )
+
+        # Format sub-queries list
+        sub_queries_list = "\n".join(
+            [f"{i + 1}. {sq}" for i, sq in enumerate(sub_queries)]
+        )
+
+        detected_language = self.detect_language(original_query)
+        think_tag_start = ""
+        think_tag_end = ""
+        if config.use_cot and config.think_tag_style == "qwen":
+            think_tag_start = "<think>"
+            think_tag_end = "</think>"
+        elif config.use_cot and config.think_tag_style == "llama":
+            think_tag_start = "<thinking>"
+            think_tag_end = "</thinking>"
+
+        template_data = self.load_template("multihop")
+        template_str = template_data.get("template", "")
+
+        prompt = template_str.format(
+            original_query=original_query,
+            sub_queries_list=sub_queries_list,
+            grouped_contexts=grouped_contexts_str,
+            detected_language=detected_language,
+            think_tag_start=think_tag_start,
+            think_tag_end=think_tag_end,
+            **kwargs
+        )
+
+        logger.info(f"Multihop prompt built for query: {prompt}")
+        return prompt.strip()
+
+    def _group_context_by_subquery(
+            self,
+            contexts: List[Dict[str, Any]]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Group contexts by source sub-query."""
+        grouped = defaultdict(list)
+        for ctx in contexts:
+            # Check if context has fusion metadata with multiple source sub-queries
+            fusion_meta = ctx.get("fusion_metadata", {})
+            source_subqueries = fusion_meta.get("source_subqueries", [])
+
+            if source_subqueries:
+                # Assign context to ALL relevant queries
+                for subquery in source_subqueries:
+                    grouped[subquery].append(ctx)
+            else:
+                source_subquery = ctx.get("source_subquery", "")
+                grouped[source_subquery].append(ctx)
+
+        return dict(grouped)
+
+    def _format_grouped_contexts_for_multihop(
+            self,
+            grouped: Dict[str, List[Dict[str, Any]]],
+            sub_queries: List[str],
+    ) -> str:
+        """Format grouped contexts for multihop prompt."""
+        if not grouped:
+            return "[No contexts available]"
+
+        formatted_sections = []
+        global_idx = 1
+
+        # Iterate in sub-query order
+        for sub_query in sub_queries:
+            contexts = grouped.get(sub_query, [])
+
+            if not contexts:
+                section = [
+                    f"\n{'=' * 60}",
+                    f"SUB-QUERY: {sub_query}",
+                    f"{'=' * 60}",
+                    "[No contexts found for this sub-query]",
+                    ""
+                ]
+                formatted_sections.append("\n".join(section))
+                continue
+
+            section = [
+                f"\n{'=' * 60}",
+                f"SUB-QUERY: {sub_query}",
+                f"{'=' * 60}\n"
+            ]
+
+            for ctx in contexts:
+                text = ctx.get("text", "").strip()
+                title = ctx.get("doc_title", "Unknown")
+                position = ctx.get("position", 0)
+                total = ctx.get("total_chunks", 1)
+
+                if total > 1:
+                    section.append(f"[{global_idx}] SOURCE: {title} (Fragment {position + 1}/{total})")
+                else:
+                    section.append(f"[{global_idx}] SOURCE: {title}")
+
+                # Scores
+                final_score = ctx.get("final_score")
+                if final_score is not None:
+                    confidence = get_confidence_level(final_score)
+                    section.append(f"    Relevance: {final_score:.3f} ({confidence})")
+
+                # rerank_score = ctx.get("rerank_score")
+                # retrieval_score = ctx.get("retrieval_score")
+                # if rerank_score is not None:
+                #     section.append(f"    Relevance: {rerank_score:.3f}")
+                # elif retrieval_score is not None:
+                #     section.append(f"    Similarity: {retrieval_score:.3f}")
+
+                fusion_meta = ctx.get("fusion_metadata", {})
+                if fusion_meta.get("num_occurrences", 1) > 1:
+                    source_sqs = fusion_meta.get("source_subqueries", [])
+                    section.append(
+                        f"    ℹ Also relevant to {len(source_sqs)} sub-queries"
+                    )
+
+                section.append(f"    CONTENT: {text}\n")
+
+                global_idx += 1
+
+            formatted_sections.append("\n".join(section))
+
+        return "\n".join(formatted_sections)
 
     def _format_chat_history(
             self,

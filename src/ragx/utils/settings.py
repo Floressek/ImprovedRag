@@ -102,6 +102,10 @@ class LLMConfig:
     ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     ollama_models_path: str = os.getenv("OLLAMA_MODELS_PATH", r"E:\Models\Ollama\.ollama\models")
 
+    api_base_url: str = os.getenv("LLM_API_BASE_URL", "http://localhost:1234/v1")
+    api_key: Optional[str] = os.getenv("LLM_API_KEY")
+    api_model_name: str = os.getenv("LLM_API_MODEL_NAME", "local-model")
+
     tensor_parallel_size: int = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))
     gpu_memory_utilization: float = float(os.getenv("GPU_MEMORY_UTILIZATION", "0.9"))
     trust_remote_code: bool = str_to_bool(os.getenv("TRUST_REMOTE_CODE", "true"))
@@ -110,12 +114,29 @@ class LLMConfig:
     max_model_len: int = int(os.getenv("MAX_MODEL_LEN", "8192"))
     repetition_penalty: float = float(os.getenv("REPETITION_PENALTY", "1.1"))
 
+
 @dataclass
 class RetrievalConfig:
     """Retrieval pipelines configuration."""
     top_k_retrieve: int = int(os.getenv("TOP_K_RETRIEVE", "100"))
     rerank_top_m: int = int(os.getenv("RERANK_TOP_M", "80"))
     context_top_n: int = int(os.getenv("CONTEXT_TOP_N", "8"))
+
+@dataclass
+class RewriteConfig:
+    """Rewrite configuration."""
+    max_tokens: int = int(os.getenv("REWRITE_MAX_TOKENS", "4096"))
+    temperature: float = float(os.getenv("REWRITE_TEMPERATURE", "0.2"))
+    enabled: bool = str_to_bool(os.getenv("REWRITE_ENABLED", "true"))
+    verify_before_retrieval: bool = str_to_bool(os.getenv("REWRITE_VERIFY_BEFORE_RETRIEVAL", "true"))
+
+@dataclass
+class MultihopConfig:
+    """Multihop configuration."""
+    fusion_strategy: str = os.getenv("MULTIHOP_FUSION_STRATEGY", "max")
+    global_rerank_weight: float = float(os.getenv("MULTIHOP_GLOBAL_RANKER_WEIGHT", "0.6"))
+    top_k_per_subquery: int = int(os.getenv("MULTIHOP_TOP_K_PER_SUBQUERY", "20"))
+    final_top_k: int = int(os.getenv("MULTIHOP_FINAL_TOP_K", "10"))
 
 
 @dataclass
@@ -166,6 +187,8 @@ class Settings:
     api: APIConfig
     huggingface: HuggingFaceConfig
     chat: ChatConfig
+    rewrite: RewriteConfig
+    multihop: MultihopConfig
 
     @classmethod
     def load(cls) -> Settings:
@@ -182,6 +205,8 @@ class Settings:
             api=APIConfig(),
             huggingface=HuggingFaceConfig(),
             chat=ChatConfig(),
+            rewrite=RewriteConfig(),
+            multihop=MultihopConfig()
         )
 
     def setup_huggingface_cache(self) -> None:

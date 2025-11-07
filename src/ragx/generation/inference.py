@@ -12,6 +12,7 @@ from src.ragx.generation.types.model_types import MODEL_MAPPING
 from src.ragx.utils.model_registry import model_registry
 from src.ragx.utils.settings import settings
 from src.ragx.generation.providers.ollama_provider import OllamaProvider
+from src.ragx.generation.providers.api_provider import APIProvider
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,14 @@ class LLMInference:
             self.tokenizer = None
             self.model = None
 
-        logger.info(f"✓ LLMInference ready: {self.model_id} (provider: {self.provider})")
+        display_model = self.model_id
+        if self.provider == 'api':
+            display_model = f"{settings.llm.api_model_name} (config model_id: {self.model_id})"
+        elif self.provider == 'ollama':
+            ollama_model = MODEL_MAPPING.get(self.model_id, self.model_id)
+            display_model = f"{ollama_model} (config model_id: {self.model_id})"
+
+        logger.info(f"✓ LLMInference ready: {display_model} (provider: {self.provider})")
 
     def _initialize_provider(self):
         """Initialize LLM provider instance"""
@@ -121,6 +129,25 @@ class LLMInference:
                 logger.info("⚠️  Falling back to HuggingFace Transformers")
                 self.provider = 'huggingface'
                 return LLMModel()
+
+        # Remote API provider - OpenAI, Azure, etc.
+        elif self.provider == 'api':
+            try:
+                base_url = settings.llm.api_base_url
+
+
+                logger.info(f"⚡ Initializing API provider: {base_url}")
+                return APIProvider(
+                    model_name=settings.llm.api_model_name,
+                    api_key=settings.llm.api_key,
+                    base_url=settings.llm.api_base_url,
+                    timeout=120,
+                )
+            except Exception as e:
+                logger.error(f"❌ API provider initialization error: {e}")
+                logger.info("⚠️  Falling back to HuggingFace Transformers")
+                self.provider = 'huggingface'
+                return LLMModel()
         else:
             logger.info(f"🤗 Initializing HuggingFace Transformers with model: {self.model_id}")
             return LLMModel()
@@ -159,6 +186,13 @@ class LLMInference:
                 prompt=prompt,
                 temperature=temperature,
                 max_new_tokens=max_new_tokens,
+            )
+        elif self.provider == 'api' and self._provider_instance:
+            return self._provider_instance.generate(
+                prompt=prompt,
+                temperature=temperature,
+                max_new_tokens=max_new_tokens,
+                chain_of_thought_enabled=chain_of_thought_enabled,
             )
 
         # for HuggingFace

@@ -5,7 +5,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from src.ragx.api.schemas import SearchRequest, SearchResult, RerankRequest
+from src.ragx.api.schemas.search import SearchRequest, SearchResult, RerankRequest
 from src.ragx.api.dependencies import get_embedder, get_vector_store, get_reranker
 from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
@@ -83,12 +83,17 @@ async def rerank(
 
     output = []
     for doc, score in reranked_documents:
+        payload = doc["payload"]
+        metadata = payload.get("metadata", {})
         output.append({
             "id": doc["id"],
             "doc_title": doc["doc_title"],
             "text": doc["text"],
             "retrieval_score": doc.get("retrieval_score"),
             "rerank_score": float(score),
+            "position": payload.get("position", 0),
+            "total_chunks": payload.get("total_chunks", 1),
+            "url": metadata.get("url"),
         })
 
     return output
