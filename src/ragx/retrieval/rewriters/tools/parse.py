@@ -91,7 +91,6 @@ class JSONValidator:
         }
 
         start_time = time.time()
-        delay = self.config.initial_delay
 
         for attempt in range(self.config.max_retries):
             metadata["attempts"] = attempt + 1
@@ -106,7 +105,6 @@ class JSONValidator:
                     # Additional structural validation if provided
                     if validator_func and not validator_func(parsed):
                         error = "Structural validation failed"
-                        is_valid = False
                         logger.warning(f"Attempt {attempt + 1}: {error}")
                         metadata["errors"].append({
                             "attempt": attempt + 1,
