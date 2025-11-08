@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 
+from src.ragx.retrieval.cove.constants.cove_status import CoVeStatus
+
+
 @dataclass
 class Claim:
     """Single factual extracted claim."""
@@ -36,6 +39,6 @@ class CoVeResult:
     original_answer: str
     corrected_answer: Optional[str]
     verifications: List[Verification]
-    status: str
+    status: CoVeStatus
     needs_correction: bool
     metadata: Dict[str, Any] = field(default_factory=dict)
