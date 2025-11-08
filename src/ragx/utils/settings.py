@@ -202,7 +202,7 @@ class Settings:
     chat: ChatConfig
     rewrite: RewriteConfig
     multihop: MultihopConfig
-    cover: CoVeConfig
+    cove: CoVeConfig
 
     @classmethod
     def load(cls) -> Settings:
@@ -221,7 +221,7 @@ class Settings:
             chat=ChatConfig(),
             rewrite=RewriteConfig(),
             multihop=MultihopConfig(),
-            cover=CoVeConfig()
+            cove=CoVeConfig()
         )
 
     def setup_huggingface_cache(self) -> None:
