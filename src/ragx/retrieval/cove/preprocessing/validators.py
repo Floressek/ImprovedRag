@@ -52,7 +52,38 @@ def validate_nli_response(parsed: Any) -> bool:
     return True
 
 
-# TODO add batch validation
+def validate_batch_nli_response(parsed: Any) -> bool:
+    """Validate the structure of a NLI response."""
+    if not isinstance(parsed, dict):
+        logger.warning(f"Expected dict, got {type(parsed)}")
+        return False
+
+    if "results" not in parsed:
+        logger.warning("Missing 'results' key in response")
+        return False
+
+    if not isinstance(parsed["results"], list):
+        logger.warning(f"results must be list, got {type(parsed['results'])}")
+        return False
+
+    # for each result
+    for result in parsed["results"]:
+        if not isinstance(result, dict):
+            logger.warning(f"Each result must be dict, got {type(result)}")
+            return False
+
+        required_fields = ["label", "claim_id", "confidence"]
+        for field in required_fields:
+            if field not in result:
+                logger.warning(f"Missing '{field}' key in NLI response")
+                return False
+
+        valid_labels = ["supports", "refutes", "insufficient"]
+        if result["label"] not in valid_labels:
+            logger.warning(f"Invalid label: {result['label']}, expected one of {valid_labels}")
+            return False
+
+    return True
 
 
 def validate_targeted_queries_response(parsed: Any) -> bool:
