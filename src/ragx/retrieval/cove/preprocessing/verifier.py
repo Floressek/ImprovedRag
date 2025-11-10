@@ -33,7 +33,16 @@ class ClaimVerifier:
             claims: List[Claim],
             contexts: List[Dict[str, Any]]
     ) -> List[Verification]:
-        """Verify claims against evidence using NLI."""
+        """
+        Verify claims against evidence using NLI.
+
+        Args:
+            claims: List of claims to verify
+            contexts: List of contexts to use as evidence
+
+        Returns:
+            List of verification results
+        """
         evidence_texts = [
             f"[{i + 1}] {ctx.get('doc_title', 'Unknown')}: {ctx.get('text', '')}"
             for i, ctx in enumerate(contexts)
