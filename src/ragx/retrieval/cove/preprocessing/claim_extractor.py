@@ -26,7 +26,14 @@ class ClaimExtractor:
         self.json_validator = json_validator
 
     def extract(self, answer: str) -> List[Claim]:
-        """Extract claims from a generated answer."""
+        """Extract claims from a generated answer.
+
+        Args:
+            answer: The generated text to extract claims from.
+
+        Returns:
+            List of extracted claims.
+        """
         prompt_config = self.prompts["extract_claims"]
         system = prompt_config["system"]
         template = prompt_config["template"]
