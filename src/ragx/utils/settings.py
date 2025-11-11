@@ -82,7 +82,7 @@ class RerankerConfig:
     """Reranker model configuration."""
     model_id: str = os.getenv("RERANKER_MODEL", "jinaai/jina-reranker-v2-base-multilingual")
     device: str = os.getenv("RERANKER_DEVICE", "auto")
-    batch_size: int = int(os.getenv("RERANKER_BATCH_SIZE", "16"))
+    batch_size: int = int(os.getenv("RERANKER_BATCH_SIZE", "10"))
     max_length: int = int(os.getenv("RERANKER_MAX_LENGTH", "512"))
     show_progress: bool = str_to_bool(os.getenv("RERANKER_SHOW_PROGRESS", "false"))
 

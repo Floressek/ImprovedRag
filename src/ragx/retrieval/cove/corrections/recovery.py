@@ -67,6 +67,8 @@ class RecoveryEngine:
             evidence = self._retrieve_for_query(query)
             all_evidence.extend(evidence)
 
+        # logger.info(f"All evidence before reranking is: {all_evidence}.")
+
         # evidence reranking TODO CHECK FOR POSSIBLE ISSUES WITH MULTIHOP RERANKER
         if all_evidence:
             reranked = self.reranker.rerank(
@@ -76,6 +78,8 @@ class RecoveryEngine:
                 text_field="text"
             )
             all_evidence = [doc for doc, score in reranked]
+
+        logger.info(f"All evidence is: {all_evidence}")
 
         return all_evidence
 

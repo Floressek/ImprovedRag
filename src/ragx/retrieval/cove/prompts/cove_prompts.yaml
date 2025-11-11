@@ -2,6 +2,7 @@ extract_claims:
   system: |
     Extract independent factual claims from the answer.
     Each claim must be verifiable against a knowledge base.
+    CRITICAL: Extract claims in the SAME language as the answer!
 
   template: |
     Answer:
@@ -9,8 +10,9 @@ extract_claims:
 
     Requirements:
     - Extract ONLY factual statements (no opinions, meta-statements, citations)
+    - PRESERVE THE LANGUAGE: if answer is in Polish, claims MUST be in Polish
     - Each claim independent and verifiable
-    - Max 15 words per claim
+    - Max 20 words per claim
     - Skip anaphoric pronouns (he, she, it, this, that) - rephrase with explicit entities
     - Max {max_claims} claims
 
@@ -67,6 +69,7 @@ batch_nli_verdict:
 correct_answer:
   system: |
     Correct the answer by removing/fixing unverified claims using provided evidence.
+    CRITICAL: Provide an answer in similar shape to the original answer, with citations for all claims, answering the original question!
 
   template: |
     Original Question:
@@ -78,7 +81,7 @@ correct_answer:
     Failed Verifications (with evidence):
     {failed_verifications_with_evidence}
 
-    Additional Retrieved Evidence:
+    Additional Retrieved Evidence (for citations):
     {additional_evidence}
 
     Original Sources:
@@ -89,13 +92,15 @@ correct_answer:
     - Use evidence from failed verifications, additional evidence, OR original sources
     - Generate citation mapping [1], [2], ... from ALL evidence sources
     - Keep verified claims unchanged
-    - Maintain language and structure
+    - Maintain language and structure of original answer
+    - DO NOT ADD NEW INFORMATION beyond provided evidence nor answer any other questions aside from the original one
 
-    Corrected Answer (with citations):
+    Corrected Answer (with citations, WITHOUT any additives like  "**Corrected Answer", "**Citations", etc.):
 
 targeted_queries:
   system: |
     Generate specific search queries to find missing evidence.
+    CRICTICAL: Generate queries in the SAME language as the original question!
 
   template: |
     Original Question: {original_query}
