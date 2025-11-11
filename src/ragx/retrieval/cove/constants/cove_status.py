@@ -6,3 +6,4 @@ class CoVeStatus(str, Enum):
     MISSING_EVIDENCE = "missing_evidence"
     LOW_CONFIDENCE = "low_confidence"
     CRITICAL_FAILURE = "critical_failure"
+    SKIPPED = "skipped"

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 
 from src.ragx.api.schemas.health import HealthResponse
 from src.ragx.api.dependencies import get_embedder, get_vector_store, get_reranker, get_llm, get_linguistic_analyzer, \
-    get_adaptive_rewriter, get_prompt_builder, get_multihop_reranker
+    get_adaptive_rewriter, get_prompt_builder, get_multihop_reranker, get_cove_enhancer
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,8 @@ async def health_check(
         ling_analyzer=Depends(get_linguistic_analyzer),
         adapt_rewriter=Depends(get_adaptive_rewriter),
         prompt_builder=Depends(get_prompt_builder),
-        multihop_reranker=Depends(get_multihop_reranker)
+        multihop_reranker=Depends(get_multihop_reranker),
+        cove_enhancer=Depends(get_cove_enhancer),
 ):
     """Health check endpoint."""
 
@@ -34,6 +35,7 @@ async def health_check(
         "adapt_rewriter": adapt_rewriter is not None,
         "prompt_builder": prompt_builder is not None,
         "multihop_reranker": multihop_reranker is not None,
+        "cove_enhancer": cove_enhancer is not None,
     }
 
     collection_info = vector_store.get_collection_info()

@@ -5,6 +5,7 @@ import time
 from typing import Dict, Any, Optional, List, Iterator
 
 from src.ragx.pipelines.base import BasePipeline
+from src.ragx.pipelines.enhancers.cove import CoVeEnhancer
 from src.ragx.pipelines.enhancers.reranker import RerankerEnhancer
 from src.ragx.pipelines.enhancers.multihop_reranker import MultihopRerankerEnhancer
 from src.ragx.retrieval.analyzers.linguistic_analyzer import LinguisticAnalyzer
@@ -30,6 +31,7 @@ class EnhancedPipeline(BasePipeline):
             reranker_enhancer: Optional[RerankerEnhancer] = None,
             multihop_reranker: Optional[MultihopRerankerEnhancer] = None,
             llm: Optional[LLMInference] = None,
+            cove_enhancer: Optional[CoVeEnhancer] = None,
             initial_top_k: Optional[int] = None,
     ):
         # Embedder and vector store
@@ -75,9 +77,16 @@ class EnhancedPipeline(BasePipeline):
             think_tag_style=think_style,
         )
 
+        self.cove_enhancer = cove_enhancer or CoVeEnhancer(
+            embedder=self.embedder,
+            vector_store=self.vector_store,
+            reranker=self.reranker_enhancer,
+        )
+
         logger.info(
             f"EnhancedPipeline initialized "
             f"(retrieve={self.initial_top_k}, rerank_to={self.reranker_enhancer.top_k})"
+            f"cove={settings.cove.enabled})"
         )
 
     def answer(
@@ -217,31 +226,60 @@ class EnhancedPipeline(BasePipeline):
         answer = self.llm.generate(prompt)
         llm_time = (time.time() - llm_start) * 1000
 
+        # Step 6: CoVe verification
+        cove_start = time.time()
+        cove_result = None
+        final_answer = answer
+
+        if settings.cove.enabled:
+            logger.info("Starting CoVe verification and correction...")
+            cove_result = self.cove_enhancer.verify(
+                query=query,
+                answer=answer,
+                contexts=contexts,
+            )
+
+            if cove_result.corrected_answer:
+                final_answer = cove_result.corrected_answer
+                logger.info(f"Using corrected answer (status: {cove_result.status})")
+
+        cove_time = (time.time() - cove_start) * 1000
         total_time = (time.time() - start) * 1000
 
+        metadata = {
+            "pipeline": "enhanced",
+            "is_multihop": is_multihop,
+            "sub_queries": queries if is_multihop else None,
+            "reasoning": rewrite_result["reasoning"],
+            "phases": [
+                "linguistic_analysis",
+                "adaptive_rewriting",
+                "retrieval",
+                "multihop_reranking (local→fusion→global)" if is_multihop else "reranking",
+                "generation",
+                "cove_verification" if settings.cover.enabled else None,
+            ],
+            "rewrite_time_ms": round(rewrite_time, 2),
+            "retrieval_time_ms": round(retrieval_time, 2),
+            "rerank_time_ms": round(rerank_time, 2),
+            "llm_time_ms": round(llm_time, 2),
+            "cove_time_ms": round(cove_time, 2) if settings.cover.enabled else 0,
+            "total_time_ms": round(total_time, 2),
+            "num_candidates": num_retrieved_candidates,
+            "num_sources": len(contexts),
+        }
+
+        if cove_result:
+            metadata["cove"] = {
+                "status": cove_result.status,
+                "needs_correction": cove_result.needs_correction,
+                **cove_result.metadata,
+            }
+
         return {
-            "answer": answer,
+            "answer": final_answer,
             "sources": contexts,
-            "metadata": {
-                "pipeline": "enhanced",
-                "is_multihop": is_multihop,
-                "sub_queries": queries if is_multihop else None,
-                "reasoning": rewrite_result["reasoning"],
-                "phases": [
-                    "linguistic_analysis",
-                    "adaptive_rewriting",
-                    "retrieval",
-                    "multihop_reranking (local→fusion→global)" if is_multihop else "reranking",
-                    "generation"
-                ],
-                "rewrite_time_ms": round(rewrite_time, 2),
-                "retrieval_time_ms": round(retrieval_time, 2),
-                "rerank_time_ms": round(rerank_time, 2),
-                "llm_time_ms": round(llm_time, 2),
-                "total_time_ms": round(total_time, 2),
-                "num_candidates": num_retrieved_candidates,
-                "num_sources": len(contexts),
-            },
+            "metadata": metadata,
         }
 
     def answer_stream(

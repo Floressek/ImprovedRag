@@ -49,7 +49,7 @@ class ClaimVerifier:
         ]
         evidence_str = "\n\n".join(evidence_texts)
 
-        if settings.cove.use_nli and len(claims) > 1:
+        if settings.cove.use_batch_nli and len(claims) > 1:
             return self._batch_verify(claims, evidence_str, contexts)
 
         verifications = []
