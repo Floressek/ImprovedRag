@@ -245,6 +245,7 @@ class MultihopRerankerEnhancer(Enhancer):
         final.sort(key=lambda x: x[2], reverse=True)
 
         effective_top_k = override_top_k if override_top_k is not None else self.final_top_k
+        # effective_top_k = override_top_k
 
         if effective_top_k and len(final) > effective_top_k:
             final = final[:effective_top_k]

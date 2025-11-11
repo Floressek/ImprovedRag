@@ -45,7 +45,7 @@ template: |
   </fusion_rules>
   
   <final_answer>
-  Based on the contexts above, provide a complete answer (min. of 2/3 sentences) to:
+  Based on the contexts above, provide a complete and detailed answer (min. of 4/6 sentences) to:
   "{original_query}"
   
   LANGUAGE: {detected_language} => THE ANSWER MUST BE IN THIS LANGUAGE!

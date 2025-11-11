@@ -84,6 +84,7 @@ class OllamaProvider:
                 "num_predict": max_new_tokens or settings.llm.max_new_tokens,
                 "top_p": top_p or settings.llm.top_p,
                 "think": chain_of_thought_enabled,
+                "repeat_penalty": 1.5,
             }
         )
         # logger.info(f"Response: {response}")

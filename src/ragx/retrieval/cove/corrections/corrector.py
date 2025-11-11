@@ -65,10 +65,12 @@ class AnswerCorrector:
             original_contexts=contexts_str
         )
 
+        logger.info(f"Correcting answer: {prompt}")
+
         corrected = self.llm.generate(
             prompt=prompt,
-            temperature=settings.cove.temperature,
-            max_new_tokens=settings.cove.max_tokens,
+            temperature=settings.cove.temperature + 0.2,
+            max_new_tokens=8192,
             chain_of_thought_enabled=False,
         ).strip()
 

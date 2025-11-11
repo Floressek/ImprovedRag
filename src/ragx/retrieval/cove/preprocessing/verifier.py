@@ -141,6 +141,8 @@ class ClaimVerifier:
             evidence=evidence_str,
         )
 
+        logger.info(f"Batch verification prompt: {prompt}")
+
         def generate_response() -> str:
             return self.llm.generate(
                 prompt=prompt,

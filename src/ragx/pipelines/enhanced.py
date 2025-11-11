@@ -143,7 +143,7 @@ class EnhancedPipeline(BasePipeline):
             results = self.multihop_reranker.process(
                 original_query=original_query,
                 results_by_subquery=results_by_subquery,
-                override_top_k=top_k,
+                override_top_k=None,
                 query_type=query_type
             )
 

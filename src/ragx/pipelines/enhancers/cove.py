@@ -174,17 +174,10 @@ class CoVeEnhancer:
                     idx = verifications.index(v)
                     verifications[idx] = reverified[i]
 
-        # Step 5: Citation injection
-        if missing_citations:
-            logger.info(f"Injecting citations for {len(missing_citations)} claims...")
-            for v in missing_citations:
-                injected = self.citation_injector.inject(v.claim, contexts)
-                if injected:
-                    v.claim.has_citations = True
-                    v.claim.citations = injected
-
-        # Step 6: Determine status
+        # Step 5-6: Determine status
         status = self._determine_status(verifications)
+        if missing_citations and status == CoVeStatus.ALL_VERIFIED:
+            status = CoVeStatus.MISSING_CITATIONS
 
         # Step 7: Correction (if needed)
         corrected_answer = None
@@ -202,6 +195,9 @@ class CoVeEnhancer:
                 verifications=verifications,
                 contexts=contexts,
             )
+
+        elif status == CoVeStatus.MISSING_CITATIONS:
+            corrected_answer = enriched_answer if enrichment_applied else answer
 
         return CoVeResult(
             original_answer=answer,
