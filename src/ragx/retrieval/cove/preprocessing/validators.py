@@ -83,6 +83,10 @@ def validate_batch_nli_response(parsed: Any) -> bool:
             logger.warning(f"Invalid label: {result['label']}, expected one of {valid_labels}")
             return False
 
+        if not isinstance(result["claim_id"], int) or result["claim_id"] < 0:
+            logger.warning(f"Invalid claim_id: {result['claim_id']}")
+            return False
+
     return True
 
 

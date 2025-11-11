@@ -197,7 +197,7 @@ class CoVeEnhancer:
         num_insufficient = sum(1 for v in verifications if v.label == "insufficient")
         num_low_conf = sum(
             1 for v in verifications
-            if v.confidence < settings.cover.verification_threshold
+            if v.confidence < settings.cove.verification_threshold
         )
 
         total = len(verifications)
@@ -205,11 +205,11 @@ class CoVeEnhancer:
         insufficient_ratio = num_insufficient / total if total > 0 else 0
 
         # Critical failure
-        if refuted_ratio > settings.cover.critical_failure_threshold:
+        if refuted_ratio > settings.cove.critical_failure_threshold:
             return CoVeStatus.CRITICAL_FAILURE
 
         # Missing evidence
-        if insufficient_ratio > settings.cover.missing_evidence_threshold:
+        if insufficient_ratio > settings.cove.missing_evidence_threshold:
             return CoVeStatus.MISSING_EVIDENCE
 
         # Low confidence

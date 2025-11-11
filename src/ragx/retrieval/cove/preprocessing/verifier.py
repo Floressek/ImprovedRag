@@ -129,14 +129,16 @@ class ClaimVerifier:
         system = prompt_config["system"]
         template = prompt_config["template"]
 
-        # claim-evidence pairs
-        pairs = "\n\n".join([
-            f"Pair {i}:\nClaim: {claim.text}\nEvidence:\n{evidence_str}"
+        # Format claims with IDs
+        claims_list = "\n".join([
+            f"{i}. {claim.text}"
             for i, claim in enumerate(claims)
         ])
 
         prompt = f"{system}\n\n{template}".format(
-            claims_evidence_pairs=pairs,
+            num_claims=len(claims),
+            claims_list=claims_list,
+            evidence=evidence_str,
         )
 
         def generate_response() -> str:
@@ -155,6 +157,10 @@ class ClaimVerifier:
 
         if not success or not result:
             logger.warning(f"Failed to batch verify claims after {metadata['attempts']} attempts")
+            return [self._verify_single(claim, evidence_str, contexts) for claim in claims]
+
+        if len(result["results"]) != len(claims):
+            logger.warning(f"Verification results count ({len(result['results'])}) does not match claims count ({len(claims)})")
             return [self._verify_single(claim, evidence_str, contexts) for claim in claims]
 
         verifications = []
