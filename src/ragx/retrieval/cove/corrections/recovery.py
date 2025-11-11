@@ -78,8 +78,10 @@ class RecoveryEngine:
                 text_field="text"
             )
             all_evidence = [doc for doc, score in reranked]
+        else:
+            logger.warning("Recovery found NO additional evidence for failed claims.")
 
-        logger.info(f"All evidence is: {all_evidence}")
+        # logger.info(f"All evidence is: {all_evidence}")
 
         return all_evidence
 

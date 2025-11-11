@@ -43,11 +43,31 @@ class ClaimVerifier:
         Returns:
             List of verification results
         """
+        logger.info(f"Original claims: {claims} and contexts: {contexts}")
+        max_evidence = 50
+        if len(contexts) > max_evidence:
+            logger.warning(
+                f"Too many contexts ({len(contexts)}) for verification. "
+                f"Truncating to top {max_evidence} by retrieval score."
+            )
+            # Sort by retrieval_score or rerank_score
+            sorted_contexts = sorted(
+                contexts,
+                key=lambda x: x.get("rerank_score") or x.get("retrieval_score") or 0.0,
+                reverse=True
+            )
+            contexts = sorted_contexts[:max_evidence]
         evidence_texts = [
             f"[{i + 1}] {ctx.get('doc_title', 'Unknown')}: {ctx.get('text', '')}"
             for i, ctx in enumerate(contexts)
         ]
         evidence_str = "\n\n".join(evidence_texts)
+
+        total_chars = sum(len(ctx.get('text', '')) for ctx in contexts)
+        logger.info(
+            f"Evidence for verification: {len(contexts)} docs, "
+            f"{total_chars} chars (~{total_chars//4} tokens)"
+    )
 
         if settings.cove.use_batch_nli and len(claims) > 1:
             return self._batch_verify(claims, evidence_str, contexts)

@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 import re
 
 from src.ragx.retrieval.cove.constants.cove_status import CoVeStatus
-from src.ragx.retrieval.cove.constants.types import CoVeResult
+from src.ragx.retrieval.cove.constants.types import CoVeResult, Verification
 from src.ragx.retrieval.cove.corrections.citation_injector import CitationInjector
 from src.ragx.retrieval.cove.corrections.corrector import AnswerCorrector
 from src.ragx.retrieval.cove.corrections.recovery import RecoveryEngine
@@ -163,16 +163,39 @@ class CoVeEnhancer:
                 failed_verifications=failed_verification,
             )
 
-            reverified = self.verifier.verify(
-                [v.claim for v in failed_verification],
-                additional_evidence
-            )
+            if additional_evidence:
+                # Re-verify ONLY if we found new evidence
+                reverified = self.verifier.verify(
+                    [v.claim for v in failed_verification],
+                    additional_evidence
+                )
 
-            # update verifications
-            for i, v in enumerate(failed_verification):
-                if reverified[i].label == "supports":
-                    idx = verifications.index(v)
-                    verifications[idx] = reverified[i]
+                # update verifications
+                for i, v in enumerate(failed_verification):
+                    if reverified[i].label == "supports":
+                        idx = verifications.index(v)
+                        verifications[idx] = reverified[i]
+                        logger.info(f"Recovery SUCCESS: claim '{v.claim.text[:50]}...' now supported")
+                    else:
+                        logger.warning(
+                            f"Recovery FAILED: claim '{v.claim.text[:50]}...' still {reverified[i].label} "
+                            f"(confidence: {reverified[i].confidence:.2f})"
+                        )
+            else:
+                logger.warning("Recovery found NO evidence - marking failed claims for removal")
+                for v in failed_verification:
+                    if v.label == "insufficient":
+                        # Optionally change to "refutes" if no evidence found after recovery
+                        idx = verifications.index(v)
+                        verifications[idx] = Verification(
+                            claim=v.claim,
+                            label="refutes",
+                            confidence=0.9,
+                            reasoning="No supporting evidence found after targeted recovery.",
+                            evidences=v.evidences,
+                        )
+                        logger.info(f"Marked claim as refutes: '{v.claim.text[:50]}...'")
+
 
         # Step 5-6: Determine status
         status = self._determine_status(verifications)
