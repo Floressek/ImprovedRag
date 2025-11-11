@@ -178,7 +178,7 @@ class ClaimVerifier:
                 claim=claims[claim_id],
                 label=r["label"],
                 confidence=r["confidence"],
-                reasoning=r["reasoning", ""],
+                reasoning=r.get("reasoning", ""),
                 evidences=evidence_objs,
             ))
 
