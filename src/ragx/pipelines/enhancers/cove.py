@@ -4,6 +4,7 @@ import logging
 import yaml
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+import re
 
 from src.ragx.retrieval.cove.constants.cove_status import CoVeStatus
 from src.ragx.retrieval.cove.constants.types import CoVeResult
@@ -108,7 +109,37 @@ class CoVeEnhancer:
         claims = self.claim_extractor.extract(answer)
         logger.info(f"Extracted {len(claims)} claims from answer")
 
-        # TODO citation injection here
+        enriched_answer = answer
+        enrichment_applied = False
+
+        if not claims:
+            logger.warning("No claims extracted - checking if citation enrichment needed")
+            has_citations = bool(re.search(r'\[\d+\]', answer))
+
+            if not has_citations:
+                logger.info("No citations found - applying sentence-level citation injection")
+                enriched_answer, enrichment_applied = self.citation_injector.enrich_with_citations(
+                    answer, contexts
+                )
+
+                if enrichment_applied:
+                    logger.info("Citations injected into answer - re-extracting claims")
+                    claims = self.claim_extractor.extract(enriched_answer)
+                    logger.info(f"Extracted {len(claims)} claims from enriched answer")
+
+        if not claims:
+            logger.warning("No claims extracted after enrichment - returning original answer")
+            return CoVeResult(
+                original_answer=answer,
+                corrected_answer=None,
+                verifications=[],
+                status=CoVeStatus.NO_CLAIMS,
+                needs_correction=False,
+                metadata={
+                    "cove_enabled": True,
+                    "enrichment_applied": enrichment_applied,
+                }
+            )
 
         # Step 2: Verify claims
         verifications = self.verifier.verify(claims, contexts)
@@ -127,7 +158,7 @@ class CoVeEnhancer:
         # Step 4: Recovery (if enabled)
         if failed_verification and settings.cove.enable_recovery:
             logger.info("Attempting recovery for failed verifications...")
-            additional_evidence  = self.recovery.recover(
+            additional_evidence = self.recovery.recover(
                 original_query=query,
                 failed_verifications=failed_verification,
             )
@@ -152,7 +183,6 @@ class CoVeEnhancer:
                     v.claim.has_citations = True
                     v.claim.citations = injected
 
-
         # Step 6: Determine status
         status = self._determine_status(verifications)
 
@@ -168,7 +198,7 @@ class CoVeEnhancer:
             logger.info(f"Correcting answer (status: {status})")
             corrected_answer = self.corrector.correct(
                 query=query,
-                original_answer=answer,
+                original_answer=enriched_answer if enrichment_applied else answer,
                 verifications=verifications,
                 contexts=contexts,
             )
@@ -185,6 +215,8 @@ class CoVeEnhancer:
                 "num_refuted": len([v for v in verifications if v.label == "refutes"]),
                 "num_insufficient": len([v for v in verifications if v.label == "insufficient"]),
                 "citations_injected": len(missing_citations),
+                "enrichment_applied": enrichment_applied,
+                "no_claims_extracted": len(claims) == 0,
             },
         )
 
@@ -217,7 +249,3 @@ class CoVeEnhancer:
             return CoVeStatus.LOW_CONFIDENCE
 
         return CoVeStatus.ALL_VERIFIED
-
-
-
-
