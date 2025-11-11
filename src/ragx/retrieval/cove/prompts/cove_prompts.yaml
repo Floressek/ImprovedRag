@@ -43,20 +43,24 @@ nli_verdict:
 batch_nli_verdict:
   system: |
     You are a natural language inference classifier.
-    Evaluate multiple claims against their evidence.
+    Evaluate multiple claims against provided evidence.
 
   template: |
-    Evaluate each claim-evidence pair:
+    Evidence:
+    {evidence}
 
-    {claims_evidence_pairs}
+    Claims to evaluate ({num_claims} total):
+    {claims_list}
 
-    For each pair, determine: supports, refutes, or insufficient
+    Task: For EACH claim (0 to {num_claims}), determine if the evidence above supports, refutes, or is insufficient.
+    You MUST provide exactly {num_claims} results.
 
     Response (JSON only):
     {{
       "results": [
-        {{"claim_id": 0, "label": "supports|refutes|insufficient", "confidence": 0.0-1.0, "reasoning": "brief"}},
-        {{"claim_id": 1, "label": "...", "confidence": 0.0, "reasoning": "..."}}
+        {{"claim_id": 0, "label": "supports|refutes|insufficient", "confidence": 0.0-1.0, "reasoning": "brief explanation"}},
+        {{"claim_id": 1, "label": "supports|refutes|insufficient", "confidence": 0.0-1.0, "reasoning": "brief explanation"}},
+        ... (continue for all {num_claims} claims)
       ]
     }}
 
