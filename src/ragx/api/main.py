@@ -43,6 +43,8 @@ async def lifespan(app: FastAPI):
             logger.info(f"✓ LLM: {settings.llm.model_id}")
         else:
             logger.info(f"✓ LLM: Unknown provider ({getattr(settings.llm, 'provider', 'N/A')})")
+        logger.info(f"✓ CoVe {settings.cove.enabled}")
+        logger.info("✓ RAGx API server is ready to accept requests!")
 
     except QdrantConnectionError as e:
         logger.error("=" * 80)
@@ -116,7 +118,7 @@ async def root():
     """Root endpoint. -> stream won't be implemented till a UI is built."""
     return {
         "name": "RAGx API",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "docs": "/docs",
         "endpoints": {
             "baseline": "/ask/baseline",
