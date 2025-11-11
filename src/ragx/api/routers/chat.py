@@ -51,5 +51,23 @@ async def ask_enhanced(
         max_history=request.max_history,
     )
 
-    return result
+    cove_info = None
+    if "cove" in result["metadata"]:
+        cove_data = result["metadata"]["cove"]
+        cove_info = {
+            "status": cove_data["status"],
+            "needs_correction": cove_data["needs_correction"],
+            "num_claims": cove_data.get("num_claims", 0),
+            "num_verified": cove_data.get("num_verified", 0),
+            "num_refuted": cove_data.get("num_refuted", 0),
+            "num_insufficient": cove_data.get("num_insufficient", 0),
+            "citations_injected": cove_data.get("citations_injected", 0),
+        }
+
+    return {
+        "answer": result["answer"],
+        "sources": result["sources"],
+        "metadata": result["metadata"],
+        "cove_info": cove_info,
+    }
 
