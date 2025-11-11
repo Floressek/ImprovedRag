@@ -51,7 +51,7 @@ class RecoveryEngine:
         """
         failed_claims = [v.claim.text for v in failed_verifications]
 
-        targeted_queries = self._generate_targeted_queries(
+        targeted_queries = self._generate_queries(
             original_query=original_query,
             failed_claims=failed_claims
         )
@@ -72,14 +72,14 @@ class RecoveryEngine:
             reranked = self.reranker.rerank(
                 query=original_query,
                 documents=all_evidence,
-                top_k=settings.cove.top_k_evidence,
+                top_k=settings.retrieval.top_k_retrieve,
                 text_field="text"
             )
             all_evidence = [doc for doc, score in reranked]
 
         return all_evidence
 
-    def generate_queries(
+    def _generate_queries(
             self,
             original_query: str,
             failed_claims: List[str],
@@ -94,9 +94,9 @@ class RecoveryEngine:
             for i, claim in enumerate(failed_claims)
         )
 
-        prompt = template.format(
+        prompt = f"{system}\n\n{template}".format(
             original_query=original_query,
-            failed_claims=missing_claims_str
+            missing_claims=missing_claims_str,
         )
 
         def generate_response() -> str:
@@ -126,7 +126,7 @@ class RecoveryEngine:
 
         results = self.vector_store.search(
             vector=qvec,
-            top_k=settings.cove.top_k_evidence,
+            top_k=settings.retrieval.top_k_retrieve,
             hnsw_ef=settings.hnsw.search_ef,
         )
 
