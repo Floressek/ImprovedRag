@@ -77,8 +77,11 @@ correct_answer:
 
     Original Answer:
     {answer}
+    
+    Verified Claims (keep in the answer, without any additives like "**Verified Claims" or "**Citations"):
+    {verified_claims}
 
-    Failed Verifications (with evidence):
+    Failed Verifications (with evidence, delete or mark as potentially incorrect):
     {failed_verifications_with_evidence}
 
     Additional Retrieved Evidence (for citations):

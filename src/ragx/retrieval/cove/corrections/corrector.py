@@ -52,6 +52,13 @@ class AnswerCorrector:
             for i, v in enumerate(failed)
         ])
 
+        verified = [v for v in verifications if v.label == "supports"]
+        verified_str = "\n\n".join([
+            f"Verified Claim {i + 1}: {v.claim.text}\n"
+            f"(confidence: {v.confidence:.2f})"
+            for i, v in enumerate(verified)
+        ])
+
         contexts_str = "\n\n".join([
             f"[{i + 1}] {ctx.get('doc_title', 'Unknown')}: {ctx.get('text', '')}"
             for i, ctx in enumerate(contexts)
@@ -61,6 +68,7 @@ class AnswerCorrector:
             query=query,
             answer=original_answer,
             failed_verifications_with_evidence=failed_str,
+            verified_claims=verified_str,
             additional_evidence="",
             original_contexts=contexts_str
         )
