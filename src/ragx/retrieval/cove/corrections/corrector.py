@@ -77,9 +77,9 @@ class AnswerCorrector:
 
         corrected = self.llm.generate(
             prompt=prompt,
-            temperature=settings.cove.temperature + 0.2,
-            max_new_tokens=8192,
-            chain_of_thought_enabled=False,
+            temperature=settings.cove.temperature + 0.3,
+            max_new_tokens=16192,
+            chain_of_thought_enabled=True,
         ).strip()
 
         logger.info(f"Corrected answer: {corrected}")
