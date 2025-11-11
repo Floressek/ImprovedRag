@@ -68,16 +68,16 @@ batch_nli_verdict:
 
 correct_answer:
   system: |
-    Correct the answer by removing/fixing unverified claims using provided evidence.
-    CRITICAL: Provide an answer in similar shape to the original answer, with citations for all claims, answering the original question!
-
+    Your goal is to correct the original answer by removing/fixing unverified claims using provided evidence so that the original question is answered correctly.
+    DO NOT CHANGE THE STRUCTURE OF THE ORIGINAL ANSWER! HELP ANSWER THE ORIGINAL QUESTION!
   template: |
-    Original Question:
+    ORIGINAL QUESTION!. THIS WE TRY TO ANSWER:
     {query}
 
-    Original Answer:
+    ORIGINAL ANSWER, THIS WE TRY TO CORRECT:
     {answer}
     
+    ============================== CLAIMS ============================================
     Verified Claims (keep in the answer, without any additives like "**Verified Claims" or "**Citations"):
     {verified_claims}
 
@@ -87,13 +87,13 @@ correct_answer:
     Additional Retrieved Evidence (for citations):
     {additional_evidence}
 
-    Original Sources:
+    ============================= SOURCES =============================================
+    Original Sources used for original answer:
     {original_contexts}
 
     Instructions:
     - Remove or correct claims marked as "refutes" or "insufficient"
     - Use evidence from failed verifications, additional evidence, OR original sources
-    - Generate citation mapping [1], [2], ... from ALL evidence sources
     - Keep verified claims unchanged
     - Maintain language and structure of original answer
     - DO NOT ADD NEW INFORMATION beyond provided evidence nor answer any other questions aside from the original one
