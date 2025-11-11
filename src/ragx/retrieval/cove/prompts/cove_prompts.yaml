@@ -68,37 +68,38 @@ batch_nli_verdict:
 
 correct_answer:
   system: |
-    Your goal is to correct the original answer by removing/fixing unverified claims using provided evidence so that the original question is answered correctly.
-    DO NOT CHANGE THE STRUCTURE OF THE ORIGINAL ANSWER! HELP ANSWER THE ORIGINAL QUESTION!
+    You are an answer corrector. Your task is to FIX incorrect information in the answer.
+    ANSWER IN THE SAME LANGUAGE AS THE QUESTION!
+
+    CRITICAL RULES:
+    1. ANSWER ONLY THE ORIGINAL QUESTION
+    2. Remove/correct ONLY false statements (marked as "refutes" or "insufficient")
+    3. Preserve the language and style of the original answer
+    4. DO NOT add new information unrelated to the question
+    5. Preserve citations [N]
+
   template: |
-    ORIGINAL QUESTION!. THIS WE TRY TO ANSWER:
+    ORIGINAL QUESTION (THIS IS WHAT WE'RE ANSWERING):
     {query}
 
-    ORIGINAL ANSWER, THIS WE TRY TO CORRECT:
+    ORIGINAL ANSWER (contains errors):
     {answer}
-    
-    ============================== CLAIMS ============================================
-    Verified Claims (keep in the answer, without any additives like "**Verified Claims" or "**Citations"):
-    {verified_claims}
 
-    Failed Verifications (with evidence, delete or mark as potentially incorrect):
+    FALSE STATEMENTS (remove or correct ONLY THESE):
     {failed_verifications_with_evidence}
 
-    Additional Retrieved Evidence (for citations):
-    {additional_evidence}
-
-    ============================= SOURCES =============================================
-    Original Sources used for original answer:
+    CORRECT SOURCES (use ONLY to correct errors):
     {original_contexts}
 
-    Instructions:
-    - Remove or correct claims marked as "refutes" or "insufficient"
-    - Use evidence from failed verifications, additional evidence, OR original sources
-    - Keep verified claims unchanged
-    - Maintain language and structure of original answer
-    - DO NOT ADD NEW INFORMATION beyond provided evidence nor answer any other questions aside from the original one
+    INSTRUCTION:
+    - Read the original question
+    - Find false statements in the answer
+    - Correct THEM using the sources
+    - Keep the rest of the answer unchanged
+    - DO NOT write about things unrelated to the question
 
-    Corrected Answer (with citations, WITHOUT any additives like  "**Corrected Answer", "**Citations", etc.):
+    CORRECTED ANSWER (no labels, just content. Dont write to me about what to correct, just correct it and show fixed ORIGINAL ANSWER):
+
 
 targeted_queries:
   system: |
