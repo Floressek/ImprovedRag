@@ -156,33 +156,40 @@ class CoVeEnhancer:
         ]
 
         # Step 4: Recovery (if enabled)
+        recovery_attempted = False
+        recovery_helped = False
+
         if failed_verification and settings.cove.enable_recovery:
-            logger.info("Attempting recovery for failed verifications...")
+            recovery_attempted = True
+            logger.info(f"Attempting recovery for {len(failed_verification)} failed verifications...")
+
             additional_evidence = self.recovery.recover(
                 original_query=query,
                 failed_verifications=failed_verification,
             )
 
             if additional_evidence:
-                # Re-verify ONLY if we found new evidence
+                logger.info(f"Recovery found {len(additional_evidence)} new evidence items")
+
                 reverified = self.verifier.verify(
                     [v.claim for v in failed_verification],
                     additional_evidence
                 )
 
-                # update verifications
+                # Update verifications
                 for i, v in enumerate(failed_verification):
                     if reverified[i].label == "supports":
                         idx = verifications.index(v)
                         verifications[idx] = reverified[i]
-                        logger.info(f"Recovery SUCCESS: claim '{v.claim.text[:50]}...' now supported")
+                        recovery_helped = True
+                        logger.info(f"✓ Recovery SUCCESS: '{v.claim.text[:60]}...'")
                     else:
                         logger.warning(
-                            f"Recovery FAILED: claim '{v.claim.text[:50]}...' still {reverified[i].label} "
-                            f"(confidence: {reverified[i].confidence:.2f})"
+                            f"✗ Recovery FAILED: '{v.claim.text[:60]}...' "
+                            f"still {reverified[i].label} (conf: {reverified[i].confidence:.2f})"
                         )
             else:
-                logger.warning("Recovery found NO evidence - marking failed claims for removal")
+                logger.warning("Recovery found NO evidence - marking failed claims as refuted")
                 for v in failed_verification:
                     if v.label == "insufficient":
                         # Optionally change to "refutes" if no evidence found after recovery
@@ -190,21 +197,47 @@ class CoVeEnhancer:
                         verifications[idx] = Verification(
                             claim=v.claim,
                             label="refutes",
-                            confidence=0.9,
-                            reasoning="No supporting evidence found after targeted recovery.",
+                            confidence=0.85,
+                            reasoning="No supporting evidence found after targeted recovery attempts.",
                             evidences=v.evidences,
                         )
-                        logger.info(f"Marked claim as refutes: '{v.claim.text[:50]}...'")
+                        logger.info(f"Marked as REFUTES: '{v.claim.text[:60]}...'")
 
+        # Re-count after recovery
+        failed_after_recovery = [
+            v for v in verifications
+            if v.label in ["refutes", "insufficient"]
+        ]
+
+        missing_citations = [
+            v for v in verifications
+            if v.label == "supports" and not v.claim.has_citations
+        ]
+
+        logger.info(
+            f"After recovery: {len(failed_after_recovery)} still failed, "
+            f"{len(missing_citations)} verified but missing citations"
+        )
 
         # Step 5-6: Determine status
         status = self._determine_status(verifications)
+
+        # IMPORTANT: If recovery tried but failed, FORCE correction
+        if recovery_attempted and not recovery_helped and failed_after_recovery:
+            logger.warning(
+                f"Recovery attempted but couldn't fix {len(failed_after_recovery)} claims. "
+                f"Overriding status from {status} → MISSING_EVIDENCE"
+            )
+            status = CoVeStatus.MISSING_EVIDENCE
+
+        # Only set MISSING_CITATIONS if NO OTHER ISSUES
         if missing_citations and status == CoVeStatus.ALL_VERIFIED:
+            logger.info(f"All claims verified, but {len(missing_citations)} missing citations (metadata only)")
             status = CoVeStatus.MISSING_CITATIONS
 
         # Step 7: Correction (if needed)
         corrected_answer = None
-        needs_correction = status in [
+        needs_correction = status.is_correction_needed() if hasattr(status, 'is_correction_needed') else status in [
             CoVeStatus.MISSING_EVIDENCE,
             CoVeStatus.LOW_CONFIDENCE,
             CoVeStatus.CRITICAL_FAILURE,
@@ -220,6 +253,7 @@ class CoVeEnhancer:
             )
 
         elif status == CoVeStatus.MISSING_CITATIONS:
+            logger.info("No correction needed - only citation formatting")
             corrected_answer = enriched_answer if enrichment_applied else answer
 
         return CoVeResult(
@@ -233,14 +267,16 @@ class CoVeEnhancer:
                 "num_verified": len([v for v in verifications if v.label == "supports"]),
                 "num_refuted": len([v for v in verifications if v.label == "refutes"]),
                 "num_insufficient": len([v for v in verifications if v.label == "insufficient"]),
-                "citations_injected": len(missing_citations),
+                "missing_citations": len(missing_citations),
                 "enrichment_applied": enrichment_applied,
-                "no_claims_extracted": len(claims) == 0,
+                "recovery_attempted": recovery_attempted,
+                "recovery_helped": recovery_helped,
+                "failed_after_recovery": len(failed_after_recovery),
             },
         )
 
     def _determine_status(self, verifications: List) -> CoVeStatus:
-        """Determine overall CoVe status."""
+        """Determine overall CoVe status (ignoring citation formatting issues)."""
         if not verifications:
             return CoVeStatus.SKIPPED
 
@@ -255,16 +291,31 @@ class CoVeEnhancer:
         refuted_ratio = num_refuted / total if total > 0 else 0
         insufficient_ratio = num_insufficient / total if total > 0 else 0
 
-        # Critical failure
+        logger.debug(
+            f"Status check: {total} claims → "
+            f"{num_refuted} refuted ({refuted_ratio:.1%}), "
+            f"{num_insufficient} insufficient ({insufficient_ratio:.1%}), "
+            f"{num_low_conf} low confidence"
+        )
+
+        # Priority 1: Critical failure (too many refuted)
         if refuted_ratio > settings.cove.critical_failure_threshold:
+            logger.warning(f"CRITICAL: {refuted_ratio:.1%} claims refuted (threshold: {settings.cove.critical_failure_threshold:.1%})")
             return CoVeStatus.CRITICAL_FAILURE
 
-        # Missing evidence
+        # Priority 2: Missing evidence (too many insufficient)
         if insufficient_ratio > settings.cove.missing_evidence_threshold:
+            logger.warning(f"MISSING EVIDENCE: {insufficient_ratio:.1%} claims insufficient (threshold: {settings.cove.missing_evidence_threshold:.1%})")
             return CoVeStatus.MISSING_EVIDENCE
 
-        # Low confidence
+        # Priority 3: ANY failed claims = at least low confidence
+        if num_refuted > 0 or num_insufficient > 0:
+            logger.warning(f"LOW CONFIDENCE: {num_refuted + num_insufficient} claims not verified")
+            return CoVeStatus.LOW_CONFIDENCE
+
+        # Priority 4: Low confidence scores (even if verified)
         if num_low_conf > total * 0.3:
+            logger.warning(f"LOW CONFIDENCE: {num_low_conf}/{total} claims have low confidence scores")
             return CoVeStatus.LOW_CONFIDENCE
 
         return CoVeStatus.ALL_VERIFIED

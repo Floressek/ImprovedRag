@@ -76,7 +76,7 @@ class MultihopRerankerEnhancer(Enhancer):
             return []
 
         # Stage 1: Local reranking per subquery
-        local_reranked = self._local_rerank(results_by_subquery)
+        local_reranked = self._local_rerank(results_by_subquery, override_top_k)
 
         # Stage 2: Fusion with score agg.
         fused = self._fuse_results(local_reranked)
@@ -99,6 +99,7 @@ class MultihopRerankerEnhancer(Enhancer):
     def _local_rerank(
             self,
             results_by_subquery: Dict[str, List[ResultT]],
+            override_top_k: Optional[int] = None,
     ) -> Dict[str, List[ResultT]]:
         """Stage 1: Rerank each sub-query independently."""
         reranked_by_subquery = {}  # maybe defaultdict?
@@ -120,7 +121,7 @@ class MultihopRerankerEnhancer(Enhancer):
             reranked = self.reranker.rerank(
                 query=sub_query,
                 documents=documents,
-                top_k=self.top_k_per_subquery,
+                top_k=override_top_k if override_top_k is not None else self.top_k_per_subquery,
                 text_field="text",
             )
 

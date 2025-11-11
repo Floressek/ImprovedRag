@@ -43,8 +43,10 @@ class ClaimVerifier:
         Returns:
             List of verification results
         """
-        logger.info(f"Original claims: {claims} and contexts: {contexts}")
-        max_evidence = 50
+        # logger.info(f"Original claims: {claims[:50]}")
+        # logger.info(f"Contexts: {contexts[:100]}")
+
+        max_evidence = 30
         if len(contexts) > max_evidence:
             logger.warning(
                 f"Too many contexts ({len(contexts)}) for verification. "
