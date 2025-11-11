@@ -243,6 +243,7 @@ class CoVeEnhancer:
             CoVeStatus.CRITICAL_FAILURE,
         ]
 
+        # Works wonderfully on API, and is shitty af on local idk why
         if needs_correction:
             logger.info(f"Correcting answer (status: {status})")
             corrected_answer = self.corrector.correct(
@@ -250,6 +251,7 @@ class CoVeEnhancer:
                 original_answer=enriched_answer if enrichment_applied else answer,
                 verifications=verifications,
                 contexts=contexts,
+                provider=None
             )
 
         elif status == CoVeStatus.MISSING_CITATIONS:
