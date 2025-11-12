@@ -62,7 +62,7 @@ class CoVeEnhancer:
             self.vector_store, prompts, json_validator
         )
         self.citation_injector = CitationInjector(self.reranker)
-        self.corrector = AnswerCorrector(self.llm, prompts)
+        self.corrector = AnswerCorrector(self.llm, prompts, json_validator)
 
         logger.info(f"CoVeEnhancer initialized (enabled={settings.cove.enabled})")
 
@@ -150,10 +150,10 @@ class CoVeEnhancer:
             if v.label in ["refutes", "insufficient"]
         ]
 
-        missing_citations = [
-            v for v in verifications
-            if v.label == "supports" and not v.claim.has_citations
-        ]
+        # missing_citations = [
+        #     v for v in verifications
+        #     if v.label == "supports" and not v.claim.has_citations
+        # ]
 
         # Step 4: Recovery (if enabled)
         recovery_attempted = False
@@ -244,19 +244,63 @@ class CoVeEnhancer:
         ]
 
         # Works wonderfully on API, and is shitty af on local idk why
+        correction_metadata = {}
         if needs_correction:
-            logger.info(f"Correcting answer (status: {status})")
-            corrected_answer = self.corrector.correct(
+            logger.info(f"Correcting answer (status: {status}), mode: {settings.cove.correction_mode}")
+            corrected_answer, correction_metadata = self.corrector.correct(
                 query=query,
                 original_answer=enriched_answer if enrichment_applied else answer,
                 verifications=verifications,
                 contexts=contexts,
-                provider="api"
+                provider=None
             )
 
         elif status == CoVeStatus.MISSING_CITATIONS:
-            logger.info("No correction needed - only citation formatting")
-            corrected_answer = enriched_answer if enrichment_applied else answer
+            logger.info("All claims verified but missing citations")
+
+            if settings.cove.inject_missing_citations:
+                logger.info("Auto injecting missing citations for verified claims (reranker used).")
+                injected_answer, injection_applied = self.citation_injector.enrich_with_citations(
+                    enriched_answer if enrichment_applied else answer,
+                    contexts
+                )
+
+                if injection_applied:
+                    logger.info("Citations successfully injected")
+                    corrected_answer = injected_answer
+                    correction_metadata["citations_injected"] = True
+                else:
+                    logger.warning("Citation injection found no matches (all scores < 0.6)")
+                    corrected_answer = enriched_answer if enrichment_applied else answer
+                    correction_metadata["citations_injected"] = False
+            else:
+                logger.info("Citation injection disabled - returning original answer")
+                corrected_answer = enriched_answer if enrichment_applied else answer
+                correction_metadata["citations_injected"] = False
+
+        # Step 7B: Post-correction citation check
+        # IMPORTANT: If corrected_answer exists but missing citations, inject them
+        if corrected_answer:
+            verified_claims = [v for v in verifications if v.label == "supports"]
+            has_citations_in_corrected = bool(re.search(r'\[\d+\]', corrected_answer))
+
+            if verified_claims and not has_citations_in_corrected and settings.cove.inject_missing_citations:
+                logger.warning(
+                    f"Post-correction check: corrected answer has {len(verified_claims)} verified claims "
+                    f"but NO citations - injecting now"
+                )
+                final_answer, injection_applied = self.citation_injector.enrich_with_citations(
+                    corrected_answer,
+                    contexts
+                )
+
+                if injection_applied:
+                    corrected_answer = final_answer
+                    correction_metadata["post_correction_citations_injected"] = True
+                    logger.info("✓ Post-correction citation injection successful")
+                else:
+                    logger.warning("✗ Post-correction citation injection failed (no matches > 0.6)")
+                    correction_metadata["post_correction_citations_injected"] = False
 
         return CoVeResult(
             original_answer=answer,
@@ -274,6 +318,8 @@ class CoVeEnhancer:
                 "recovery_attempted": recovery_attempted,
                 "recovery_helped": recovery_helped,
                 "failed_after_recovery": len(failed_after_recovery),
+                "correction_mode": settings.cove.correction_mode,
+                **correction_metadata,
             },
         )
 
