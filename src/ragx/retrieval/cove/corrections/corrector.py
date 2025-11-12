@@ -119,18 +119,33 @@ class AnswerCorrector:
             "suggestions": suggestions,
             "total_suggestions": len(suggestions),
             "high_confidence": len(high_confidence_suggestions),
+            "low_confidence": len(suggestions) - len(high_confidence_suggestions),
             "threshold": threshold,
         }
 
-        # Jeśli wszystkie sugestie mają wysoką pewność → zastosuj
-        if len(high_confidence_suggestions) == len(suggestions):
-            logger.info(f"All {len(suggestions)} suggestions have high confidence - applying corrections")
+        # Apply ONLY high-confidence suggestions (not all-or-nothing)
+        if high_confidence_suggestions:
+            logger.info(
+                f"Applying {len(high_confidence_suggestions)}/{len(suggestions)} high-confidence suggestions "
+                f"(threshold={threshold})"
+            )
             corrected = self._apply_suggestions(original_answer, high_confidence_suggestions)
             metadata["applied"] = True
+            metadata["applied_count"] = len(high_confidence_suggestions)
+            metadata["skipped_count"] = len(suggestions) - len(high_confidence_suggestions)
+
+            if len(high_confidence_suggestions) < len(suggestions):
+                logger.warning(
+                    f"Skipped {metadata['skipped_count']} low-confidence suggestions - "
+                    f"see metadata for details"
+                )
+
             return corrected, metadata
         else:
-            logger.info(f"Only {len(high_confidence_suggestions)}/{len(suggestions)} suggestions have high confidence - not applying")
+            logger.info(f"All {len(suggestions)} suggestions below threshold ({threshold}) - not applying")
             metadata["applied"] = False
+            metadata["applied_count"] = 0
+            metadata["skipped_count"] = len(suggestions)
             return None, metadata
 
     def _generate_suggestions(
