@@ -53,11 +53,29 @@ class CitationInjector:
         )
 
         if matches and matches[0][1] > 0.6:
-            best_match_id = matches[0][0]["id"]
+            best_match_idx = matches[0][0]["id"]  # INDEX in contexts
+            best_match_ctx = contexts[best_match_idx]
+
+            # Use citation_id if available (post-multihop), else use index+1
+            citation_id = best_match_ctx.get("citation_id")
+            if citation_id is None:
+                # No citation_id means this is uncited OR pre-remap
+                # Calculate next available citation_id
+                max_citation_id = max(
+                    (ctx.get("citation_id", 0) for ctx in contexts),
+                    default=0
+                )
+                citation_id = max_citation_id + 1
+                # Store it for future references
+                contexts[best_match_idx]["citation_id"] = citation_id
+                logger.info(
+                    f"Assigned NEW citation_id={citation_id} to contexts[{best_match_idx}]"
+                )
+
             logger.info(
-                f"Injected citation [{best_match_id+1}] for claim: {claim_clean[:50]}..."
+                f"Injected citation [{citation_id}] for claim: {claim_clean[:50]}..."
             )
-            return [best_match_id + 1]
+            return [citation_id]
 
         logger.debug(f"No good citation match for claim: {claim_clean[:50]}...")
         return None
