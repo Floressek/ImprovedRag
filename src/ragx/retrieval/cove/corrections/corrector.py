@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from tenacity import retry_unless_exception_type
 
@@ -28,7 +28,8 @@ class AnswerCorrector:
             query: str,
             original_answer: str,
             verifications: List[Verification],
-            contexts: List[Dict[str, Any]]
+            contexts: List[Dict[str, Any]],
+            provider: Optional[str] = None,
     ) -> str:
         """
         Generate corrected answer.
@@ -75,12 +76,23 @@ class AnswerCorrector:
 
         logger.info(f"Correcting answer: {prompt}")
 
-        corrected = self.llm.generate(
-            prompt=prompt,
-            temperature=settings.cove.temperature + 0.3,
-            max_new_tokens=16192,
-            chain_of_thought_enabled=True,
-        ).strip()
+        if provider:
+            api_llm = LLMInference(provider=provider)
+            corrected = api_llm.generate(
+                prompt=prompt,
+                temperature=settings.cove.temperature + 0.3,
+                max_new_tokens=16192,
+                chain_of_thought_enabled=True,
+            ).strip()
+        else:
+            corrected = self.llm.generate(
+                prompt=prompt,
+                temperature=settings.cove.temperature + 0.3,
+                max_new_tokens=16192,
+                chain_of_thought_enabled=True,
+            ).strip()
+
+
 
         logger.info(f"Corrected answer: {corrected}")
         return corrected

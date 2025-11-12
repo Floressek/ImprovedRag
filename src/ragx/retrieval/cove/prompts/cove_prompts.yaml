@@ -98,7 +98,8 @@ correct_answer:
     - Keep the rest of the answer unchanged
     - DO NOT write about things unrelated to the question
 
-    CORRECTED ANSWER (no labels, just content. Dont write to me about what to correct, just correct it and show fixed ORIGINAL ANSWER):
+    IF ORIGINAL ANSWER IS CORRECT, ONLY RETURN THE ORIGINAL ANSWER WITHOUT CHANGES.
+    CORRECTED ANSWER (no labels, just new ANSWER. Dont write to me about what to correct, just correct it and show fixed ORIGINAL ANSWER):
 
 
 targeted_queries:

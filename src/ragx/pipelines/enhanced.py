@@ -4,6 +4,7 @@ import logging
 import time
 from typing import Dict, Any, Optional, List, Iterator
 
+from src.ragx.generation.prompts.utils.citation_remapper import remap_citations
 from src.ragx.pipelines.base import BasePipeline
 from src.ragx.pipelines.enhancers.cove import CoVeEnhancer
 from src.ragx.pipelines.enhancers.reranker import RerankerEnhancer
@@ -211,20 +212,38 @@ class EnhancedPipeline(BasePipeline):
             contexts.append(context_dict)
 
         # Step 5: Generation
-        prompt = self.prompt_builder.build(
-            query=query,
-            contexts=contexts,
-            template_name="enhanced",
-            chat_history=chat_history,
-            max_history=max_history,
-            config=self.prompt_config,
-            is_multihop=is_multihop,
-            sub_queries=queries if is_multihop else None,
-        )
+        if is_multihop:
+            prompt, citation_mapping = self.prompt_builder.build(
+                query=query,
+                contexts=contexts,
+                template_name="enhanced",
+                chat_history=chat_history,
+                max_history=max_history,
+                config=self.prompt_config,
+                is_multihop=is_multihop,
+                sub_queries=queries if is_multihop else None,
+            )
+        else:
+            prompt = self.prompt_builder.build(
+                query=query,
+                contexts=contexts,
+                template_name="enhanced",
+                chat_history=chat_history,
+                max_history=max_history,
+                config=self.prompt_config,
+                is_multihop=is_multihop,
+                sub_queries=queries if is_multihop else None,
+            )
+            citation_mapping = None
+
 
         llm_start = time.time()
         answer = self.llm.generate(prompt)
         llm_time = (time.time() - llm_start) * 1000
+
+        if is_multihop and citation_mapping:
+            answer, contexts = remap_citations(answer, citation_mapping, contexts)
+            logger.info("Remapped citations")
 
         # Step 6: CoVe verification
         cove_start = time.time()
