@@ -62,7 +62,7 @@ class CoVeEnhancer:
             self.vector_store, prompts, json_validator
         )
         self.citation_injector = CitationInjector(self.reranker)
-        self.corrector = AnswerCorrector(self.llm, prompts)
+        self.corrector = AnswerCorrector(self.llm, prompts, json_validator)
 
         logger.info(f"CoVeEnhancer initialized (enabled={settings.cove.enabled})")
 
@@ -243,9 +243,10 @@ class CoVeEnhancer:
             CoVeStatus.CRITICAL_FAILURE,
         ]
 
+        correction_metadata = {}
         if needs_correction:
-            logger.info(f"Correcting answer (status: {status})")
-            corrected_answer = self.corrector.correct(
+            logger.info(f"Correcting answer (status: {status}), mode: {settings.cove.correction_mode}")
+            corrected_answer, correction_metadata = self.corrector.correct(
                 query=query,
                 original_answer=enriched_answer if enrichment_applied else answer,
                 verifications=verifications,
@@ -273,6 +274,8 @@ class CoVeEnhancer:
                 "recovery_attempted": recovery_attempted,
                 "recovery_helped": recovery_helped,
                 "failed_after_recovery": len(failed_after_recovery),
+                "correction_mode": settings.cove.correction_mode,
+                **correction_metadata,  # Include correction metadata (suggestions, uncertain_claims, etc.)
             },
         )
 

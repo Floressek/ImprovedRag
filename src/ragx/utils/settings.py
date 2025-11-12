@@ -143,6 +143,7 @@ class CoVeConfig:
     """CoVe configuration."""
     enabled: bool = str_to_bool(os.getenv("COVE_ENABLED", "false"))
     perform_correction: bool = str_to_bool(os.getenv("COVE_PERFORM_CORRECTION", "true"))
+    correction_mode: str = os.getenv("COVE_CORRECTION_MODE", "auto")  # auto, suggest, metadata
     max_verification: int = int(os.getenv("COVE_MAX_VERIFICATION", "5"))
     verification_threshold: float = float(os.getenv("COVE_VERIFICATION_THRESHOLD", "0.6"))
     temperature: float = float(os.getenv("COVE_TEMPERATURE", "0.2"))
@@ -152,6 +153,7 @@ class CoVeConfig:
     critical_failure_threshold: float = float(os.getenv("COVE_CRITICAL_FAILURE_THRESHOLD", "0.3"))
     missing_evidence_threshold: float = float(os.getenv("COVE_MISSING_EVIDENCE_THRESHOLD", "0.5"))
     use_batch_nli: bool = str_to_bool(os.getenv("COVE_USE_BATCH_NLI", "true"))
+    correction_confidence_threshold: float = float(os.getenv("COVE_CORRECTION_CONFIDENCE_THRESHOLD", "0.8"))
 
 @dataclass
 class HNSWConfig:
