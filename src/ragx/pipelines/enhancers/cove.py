@@ -244,6 +244,8 @@ class CoVeEnhancer:
         ]
 
         correction_metadata = {}
+
+        # Step 7A: Correction (if needed)
         if needs_correction:
             logger.info(f"Correcting answer (status: {status}), mode: {settings.cove.correction_mode}")
             corrected_answer, correction_metadata = self.corrector.correct(
@@ -277,6 +279,31 @@ class CoVeEnhancer:
                 logger.info("Citation injection disabled - returning answer as-is")
                 corrected_answer = enriched_answer if enrichment_applied else answer
                 correction_metadata["citations_injected"] = False
+
+        # Step 7B: Post-correction citation check
+        # IMPORTANT: If corrected_answer exists but missing citations, inject them
+        # This handles cases where corrector returned answer without citations
+        if corrected_answer:
+            verified_claims = [v for v in verifications if v.label == "supports"]
+            has_citations_in_corrected = bool(re.search(r'\[\d+\]', corrected_answer))
+
+            if verified_claims and not has_citations_in_corrected and settings.cove.inject_missing_citations:
+                logger.warning(
+                    f"Post-correction check: corrected answer has {len(verified_claims)} verified claims "
+                    f"but NO citations - injecting now"
+                )
+                final_answer, injection_applied = self.citation_injector.enrich_with_citations(
+                    corrected_answer,
+                    contexts
+                )
+
+                if injection_applied:
+                    corrected_answer = final_answer
+                    correction_metadata["post_correction_citations_injected"] = True
+                    logger.info("✓ Post-correction citation injection successful")
+                else:
+                    logger.warning("✗ Post-correction citation injection failed (no matches > 0.6)")
+                    correction_metadata["post_correction_citations_injected"] = False
 
         return CoVeResult(
             original_answer=answer,
