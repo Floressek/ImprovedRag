@@ -4,7 +4,7 @@ import logging
 from typing import List, Dict, Any, Optional
 
 from src.ragx.retrieval.cove.constants.types import Verification
-from src.ragx.retrieval.cove.preprocessing.validators import validate_claims_response
+from src.ragx.retrieval.cove.preprocessing.validators import validate_claims_response, validate_suggestions_response
 from src.ragx.retrieval.rewriters.tools.parse import safe_parse, JSONValidator
 from src.ragx.generation.inference import LLMInference
 from src.ragx.utils.settings import settings
@@ -191,7 +191,7 @@ class AnswerCorrector:
         success, result, metadata = self.json_validator.validate_with_retry(
             generator_func=generate_response,
             parse_func=safe_parse,
-            validator_func=lambda x: x.get("suggestions") is not None,
+            validator_func=validate_suggestions_response,
         )
 
         if not success or not result:
