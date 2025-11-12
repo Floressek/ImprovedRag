@@ -251,7 +251,7 @@ class CoVeEnhancer:
                 original_answer=enriched_answer if enrichment_applied else answer,
                 verifications=verifications,
                 contexts=contexts,
-                provider=None
+                provider="api"
             )
 
         elif status == CoVeStatus.MISSING_CITATIONS:
