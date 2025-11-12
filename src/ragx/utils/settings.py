@@ -144,6 +144,7 @@ class CoVeConfig:
     enabled: bool = str_to_bool(os.getenv("COVE_ENABLED", "false"))
     perform_correction: bool = str_to_bool(os.getenv("COVE_PERFORM_CORRECTION", "true"))
     correction_mode: str = os.getenv("COVE_CORRECTION_MODE", "auto")  # auto, suggest, metadata
+    inject_missing_citations: bool = str_to_bool(os.getenv("COVE_INJECT_MISSING_CITATIONS", "true"))
     max_verification: int = int(os.getenv("COVE_MAX_VERIFICATION", "5"))
     verification_threshold: float = float(os.getenv("COVE_VERIFICATION_THRESHOLD", "0.6"))
     temperature: float = float(os.getenv("COVE_TEMPERATURE", "0.2"))

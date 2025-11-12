@@ -255,8 +255,28 @@ class CoVeEnhancer:
             )
 
         elif status == CoVeStatus.MISSING_CITATIONS:
-            logger.info("No correction needed - only citation formatting")
-            corrected_answer = enriched_answer if enrichment_applied else answer
+            logger.info("All claims verified but missing citations")
+
+            if settings.cove.inject_missing_citations:
+                logger.info("Auto-injecting citations for verified claims (using reranker, no LLM)")
+                # Use citation injector (reranker only, no LLM call)
+                injected_answer, injection_applied = self.citation_injector.enrich_with_citations(
+                    enriched_answer if enrichment_applied else answer,
+                    contexts
+                )
+
+                if injection_applied:
+                    logger.info("Citations successfully injected")
+                    corrected_answer = injected_answer
+                    correction_metadata["citations_injected"] = True
+                else:
+                    logger.warning("Citation injection found no matches (all scores < 0.6)")
+                    corrected_answer = enriched_answer if enrichment_applied else answer
+                    correction_metadata["citations_injected"] = False
+            else:
+                logger.info("Citation injection disabled - returning answer as-is")
+                corrected_answer = enriched_answer if enrichment_applied else answer
+                correction_metadata["citations_injected"] = False
 
         return CoVeResult(
             original_answer=answer,
