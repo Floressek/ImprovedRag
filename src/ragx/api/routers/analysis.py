@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Dict
+
 from fastapi import APIRouter, Depends
 
 from src.ragx.api.dependencies import (
@@ -13,8 +15,10 @@ from src.ragx.api.dependencies import (
 )
 from src.ragx.api.schemas import LinguisticAnalysisResponse, LinguisticAnalysisRequest, MultihopSearchResponse, \
     MultihopSearchRequest, MultihopSearchResult
+from src.ragx.api.schemas.analysis import RewrittenQuery
 from src.ragx.pipelines.enhancers.reranker import RerankerEnhancer
 from src.ragx.retrieval.analyzers.linguistic_analyzer import LinguisticAnalyzer
+from src.ragx.retrieval.constants import QueryType
 from src.ragx.retrieval.rewriters.adaptive_rewriter import AdaptiveQueryRewriter
 from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
@@ -30,7 +34,7 @@ router = APIRouter(prefix="/analysis", tags=["Analysis"])
 async def analyze_query_linguistics(
         request: LinguisticAnalysisRequest,
         linguistic_analyzer: LinguisticAnalyzer = Depends(get_linguistic_analyzer),
-):
+) -> LinguisticAnalysisResponse:
     """
     Analyze linguistic features of a query.
 
@@ -67,6 +71,7 @@ async def analyze_query_linguistics(
         analysis_text=features.to_context_string(),
     )
 
+
 @router.post("/multihop", response_model=MultihopSearchResponse)
 async def search_multihop(
         request: MultihopSearchRequest,
@@ -75,8 +80,8 @@ async def search_multihop(
         linguistic_analyzer: LinguisticAnalyzer = Depends(get_linguistic_analyzer),
         adaptive_rewriter: AdaptiveQueryRewriter = Depends(get_adaptive_rewriter),
         multihop_reranker: MultihopRerankerEnhancer = Depends(get_multihop_reranker),
-        reranker_enhancer: RerankerEnhancer = Depends(get_reranker_enhancer),
-):
+        reranker_enhancer: RerankerEnhancer = Depends(get_reranker_enhancer)
+) -> MultihopSearchResponse:
     """
     Multihop search with optional reranking and linguistic analysis.
 
@@ -251,4 +256,48 @@ async def search_multihop(
             "total_time_ms": round(total_time, 2),
             "reasoning": rewrite_result["reasoning"],
         },
+    )
+
+
+@router.post("/rewrite", response_model=RewrittenQuery)
+async def query_rewrite(
+        request: LinguisticAnalysisRequest,
+        adaptive_rewriter: AdaptiveQueryRewriter = Depends(get_adaptive_rewriter),
+) -> RewrittenQuery:
+    """
+    Analyze and rewrite query using adaptive query rewriter.
+    Returns:
+    - Original query
+    - Queries (sub-queries if multihop, otherwise original)
+    - Query type classification
+    - Reasoning for decomposition
+    - Linguistic features
+    """
+    query = request.get("query", "")
+    logger.info(f"Rewriting query: {query}")
+
+    result = adaptive_rewriter.rewrite(query)
+
+    linguistic_features = result.get("linguistic_features")
+    if linguistic_features is not None and hasattr(linguistic_features, "__dict__"):
+        # Convert dataclass to dict
+        linguistic_features = {
+            "query": linguistic_features.query,
+            "pos_sequence": linguistic_features.pos_sequence,
+            "dep_tree": linguistic_features.dep_tree,
+            "entities": linguistic_features.entities,
+            "num_tokens": linguistic_features.num_tokens,
+            "num_clauses": linguistic_features.num_clauses,
+            "syntax_depth": linguistic_features.syntax_depth,
+            "has_relative_clauses": linguistic_features.has_relative_clauses,
+            "has_conjunctions": linguistic_features.has_conjunctions,
+        }
+
+    return RewrittenQuery(
+        original_query=result["original"],
+        sub_queries=result["queries"],
+        is_multihop=result["is_multihop"],
+        query_type=QueryType(result.get("query_type", "general")),
+        reasoning=result["reasoning"],
+        linguistic_features=linguistic_features,
     )

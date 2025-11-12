@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from fastapi import APIRouter
 
 from src.ragx.api.schemas.llm import LLMRequest, LLMResponse
 from src.ragx.generation.inference import LLMInference
+from src.ragx.generation.prompts.builder import PromptBuilder, PromptConfig
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,47 @@ async def generate_llm(
         Generated text response
     """
     logger.info(f"📝 LLM generate request: prompt_length={len(request.query)}")
-    final_prompt = request.query
-    if request.system_prompt:
-        final_prompt = f"{request.system_prompt}\n\n{final_prompt}"
+    if request.template:
+        logger.info(f"Using template: {request.template}")
+        prompt_builder = PromptBuilder()
+
+        contexts = request.contexts if request.contexts else []
+
+        config = PromptConfig(
+            use_cot=request.chain_of_thought_enabled if request.chain_of_thought_enabled is not None else False,
+            include_metadata=True,
+            strict_citations=True,
+            detect_language=True,
+        )
+
+        if request.template == "basic":
+            final_prompt = _final_prompt(
+                prompt_builder,
+                request.query,
+                contexts,
+                "basic",
+                config
+            )
+        elif request.template == "enhanced":
+            final_prompt = _final_prompt(
+                prompt_builder,
+                request.query,
+                contexts,
+                "enhanced",
+                config
+            )
+        else:
+            final_prompt = prompt_builder.build(
+                query=request.query,
+                contexts=contexts,
+                template_name="basic",
+                config=config,
+            )
+    else:
+        # Original behavior - direct prompt
+        final_prompt = request.query
+        if request.system_prompt:
+            final_prompt = f"{request.system_prompt}\n\n{final_prompt}"
 
     llm = LLMInference()
 
@@ -53,5 +92,23 @@ async def generate_llm(
             "temperature": used_temperature,
             "max_tokens": used_max_tokens,
             "provider": llm.provider,
+            "template": request.template if request.template else "none",
+            "num_contexts": len(request.contexts) if request.contexts else 0
         }
     }
+
+
+def _final_prompt(
+        prompt_builder: PromptBuilder,
+        query: str,
+        contexts: List[dict[str, Any]],
+        template_name: str,
+        config: PromptConfig
+):
+    """Helper :  Builds the final prompt based on the provided parameters."""
+    return prompt_builder.build(
+        query=query,
+        contexts=contexts,
+        template_name=template_name,
+        config=config,
+    )
