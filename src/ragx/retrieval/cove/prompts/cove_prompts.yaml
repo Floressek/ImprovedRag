@@ -1,0 +1,180 @@
+extract_claims:
+  system: |
+    Extract independent factual claims from the answer.
+    Each claim must be verifiable against a knowledge base.
+    CRITICAL: Extract claims in the SAME language as the answer!
+
+  template: |
+    Answer:
+    {answer}
+
+    Requirements:
+    - Extract ONLY factual statements (no opinions, meta-statements, citations)
+    - PRESERVE THE LANGUAGE: if answer is in Polish, claims MUST be in Polish
+    - Each claim independent and verifiable
+    - Max 20 words per claim
+    - Skip anaphoric pronouns (he, she, it, this, that) - rephrase with explicit entities
+    - Max {max_claims} claims
+
+    Response (JSON only):
+    {{
+      "claims": ["claim1", "claim2"]
+    }}
+
+nli_verdict:
+  system: |
+    You are a natural language inference classifier.
+    Determine if evidence supports, refutes, or is insufficient for the claim.
+
+  template: |
+    Claim:
+    {claim}
+
+    Evidence:
+    {evidence}
+
+    Task: Does the evidence support or refute the claim?
+
+    Response (JSON only):
+    {{
+      "label": "supports" | "refutes" | "insufficient",
+      "confidence": 0.0-1.0,
+      "reasoning": "brief explanation (max 20 words)"
+    }}
+
+batch_nli_verdict:
+  system: |
+    You are a natural language inference classifier.
+    Evaluate multiple claims against provided evidence.
+
+  template: |
+    Evidence:
+    {evidence}
+
+    Claims to evaluate ({num_claims} total):
+    {claims_list}
+
+    Task: For EACH claim (0 to {num_claims}), determine if the evidence above supports, refutes, or is insufficient.
+    You MUST provide exactly {num_claims} results.
+
+    Response (JSON only):
+    {{
+      "results": [
+        {{"claim_id": 0, "label": "supports|refutes|insufficient", "confidence": 0.0-1.0, "reasoning": "brief explanation"}},
+        {{"claim_id": 1, "label": "supports|refutes|insufficient", "confidence": 0.0-1.0, "reasoning": "brief explanation"}},
+        ... (continue for all {num_claims} claims)
+      ]
+    }}
+
+correct_answer:
+  system: |
+    You are an answer corrector. Your task is to FIX incorrect information in the answer.
+    ANSWER IN THE SAME LANGUAGE AS THE QUESTION!
+
+    CRITICAL RULES:
+    1. ANSWER ONLY THE ORIGINAL QUESTION
+    2. Remove/correct ONLY false statements (marked as "refutes" or "insufficient")
+    3. Preserve the language and style of the original answer
+    4. DO NOT add new information unrelated to the question
+    5. Preserve citations [N]
+
+  template: |
+    ORIGINAL QUESTION (THIS IS WHAT WE'RE ANSWERING):
+    {query}
+
+    ORIGINAL ANSWER (contains errors):
+    {answer}
+
+    FALSE STATEMENTS (remove or correct ONLY THESE):
+    {failed_verifications_with_evidence}
+
+    CORRECT SOURCES (use ONLY to correct errors):
+    {original_contexts}
+
+    INSTRUCTION:
+    - Read the original question
+    - Find false statements in the answer
+    - Correct THEM using the sources
+    - Keep the rest of the answer unchanged
+    - DO NOT write about things unrelated to the question
+
+    IF ORIGINAL ANSWER IS CORRECT, ONLY RETURN THE ORIGINAL ANSWER WITHOUT CHANGES.
+    CORRECTED ANSWER (no labels, just new ANSWER. Dont write to me about what to correct, just correct it and show fixed ORIGINAL ANSWER):
+
+correct_answer_simplified:
+  system: |
+    You are a fact checker. Remove false information from the answer.
+    CRITICAL: Answer in THE SAME LANGUAGE as the original answer!
+
+  template: |
+    QUESTION: {query}
+
+    ORIGINAL ANSWER (contains errors):
+    {answer}
+
+    FALSE STATEMENTS (remove these):
+    {false_claims}
+
+    SOURCES (use to fix errors):
+    {contexts}
+
+    TASK: Rewrite the answer removing false statements. Keep everything else. Use citations [N].
+
+    CORRECTED ANSWER:
+
+suggest_corrections:
+  system: |
+    You are a fact checker. Analyze false claims and suggest corrections.
+    CRITICAL: Respond in THE SAME LANGUAGE as the answer!
+
+  template: |
+    QUESTION: {query}
+
+    ANSWER TO ANALYZE:
+    {answer}
+
+    FALSE CLAIMS DETECTED:
+    {false_claims}
+
+    AVAILABLE EVIDENCE:
+    {contexts}
+
+    TASK: For each false claim, suggest a correction with reasoning.
+
+    Response (JSON only):
+    {{
+      "suggestions": [
+        {{
+          "original_claim": "claim text",
+          "suggested_correction": "corrected version or 'REMOVE'",
+          "reasoning": "why this correction",
+          "confidence": 0.0-1.0,
+          "sources_used": [1, 2]
+        }}
+      ]
+    }}
+
+
+targeted_queries:
+  system: |
+    Generate specific search queries to find missing evidence.
+    CRICTICAL: Generate queries in the SAME language as the original question!
+
+  template: |
+    Original Question: {original_query}
+
+    Claims Missing Evidence:
+    {missing_claims}
+
+    Task: Generate 1-5 specific search queries to find evidence for these claims.
+
+    Requirements:
+    - Each query targets ONE specific claim
+    - Max 15 words per query
+    - Focus on factual aspects
+    - Same language as original query
+
+    Response (JSON only):
+    {{
+      "queries": ["query1", "query2"]
+    }}
