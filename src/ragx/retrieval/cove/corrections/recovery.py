@@ -67,9 +67,7 @@ class RecoveryEngine:
             evidence = self._retrieve_for_query(query)
             all_evidence.extend(evidence)
 
-        # logger.info(f"All evidence before reranking is: {all_evidence}.")
-
-        # evidence reranking TODO CHECK FOR POSSIBLE ISSUES WITH MULTIHOP RERANKER
+        # Evidence reranking - works with both standard and multihop reranker
         if all_evidence:
             reranked = self.reranker.rerank(
                 query=original_query,
