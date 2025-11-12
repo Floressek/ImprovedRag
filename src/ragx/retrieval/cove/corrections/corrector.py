@@ -150,16 +150,12 @@ class AnswerCorrector:
             for i, v in enumerate(failed_verifications)
         ])
 
-        # Top 8 contexts with intelligent truncation
-        sorted_contexts = sorted(
-            contexts,
-            key=lambda x: x.get("rerank_score") or x.get("retrieval_score") or 0.0,
-            reverse=True
-        )[:8]
-
+        # Use contexts in ORIGINAL order to preserve citation mapping
+        # (contexts are already sorted by reranking in pipeline)
+        # Truncate each to 500 chars for suggest mode (more detail than simplified)
         contexts_str = "\n\n".join([
-            f"[{i+1}] {ctx.get('text', '')[:500]}"  # 500 chars per context
-            for i, ctx in enumerate(sorted_contexts)
+            f"[{i+1}] {ctx.get('text', '')[:500]}"
+            for i, ctx in enumerate(contexts)
         ])
 
         prompt = f"{system}\n\n{template}".format(
@@ -251,16 +247,12 @@ class AnswerCorrector:
             for i, v in enumerate(failed_verifications)
         ])
 
-        # Top 8 contexts with intelligent truncation
-        sorted_contexts = sorted(
-            contexts,
-            key=lambda x: x.get("rerank_score") or x.get("retrieval_score") or 0.0,
-            reverse=True
-        )[:8]
-
+        # Use contexts in ORIGINAL order to preserve citation mapping
+        # (contexts are already sorted by reranking in pipeline)
+        # Truncate each to 400 chars to fit in prompt
         contexts_str = "\n\n".join([
-            f"[{i+1}] {ctx.get('text', '')[:400]}"  # 400 chars each
-            for i, ctx in enumerate(sorted_contexts)
+            f"[{i+1}] {ctx.get('text', '')[:400]}"
+            for i, ctx in enumerate(contexts)
         ])
 
         prompt = f"{system}\n\n{template}".format(
