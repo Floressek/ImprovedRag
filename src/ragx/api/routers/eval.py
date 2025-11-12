@@ -146,36 +146,37 @@ async def pipeline_ablation(
 
     metadata["retrieval_time_ms"] = round((time.time() - retrieval_start) * 1000, 2)
 
-    # STEP 3: Reranking (optional)
+    # STEP 3: Reranking (optional, but FORCED for multihop)
     rerank_start = time.time()
 
-    if request.use_reranker:
-        if is_multihop and results_by_subquery:
-            # Multihop reranking
+    if is_multihop and results_by_subquery:
+        # Multihop ALWAYS needs at least local+fusion
+        if request.use_reranker:
+            # Full 3-stage reranking (local→fusion→global)
             final_results = multihop_reranker.process(
                 original_query=query,
                 results_by_subquery=results_by_subquery,
                 override_top_k=request.top_k,
                 query_type=query_type
             )
-            metadata["reranking"] = {"method": "multihop (local→fusion→global)"}
+            metadata["reranking"] = {"method": "multihop (local→fusion→global)", "forced": False}
         else:
-            # Standard reranking
-            original_top_k = reranker_enhancer.top_k
-            reranker_enhancer.top_k = request.top_k
-            final_results = reranker_enhancer.process(query, results)
-            reranker_enhancer.top_k = original_top_k
-            metadata["reranking"] = {"method": "standard"}
-    else:
-        # No reranking - use raw results
-        if results_by_subquery:
-            # Flatten multihop results (simple concatenation, no fusion)
-            final_results = []
-            for subq_results in results_by_subquery.values():
-                final_results.extend(subq_results)
+            # Minimal: only local+fusion (no global reranking)
+            local_reranked = multihop_reranker._local_rerank(results_by_subquery)
+            final_results = multihop_reranker._fuse_results(local_reranked)
             final_results = final_results[:request.top_k]
-        else:
-            final_results = results[:request.top_k]
+            metadata["reranking"] = {"method": "multihop (local→fusion only)", "forced": True, "note": "Multihop requires at least fusion"}
+            logger.info("Multihop detected: forcing local+fusion reranking (use_reranker=false, so skipping global)")
+    elif request.use_reranker:
+        # Standard single-query reranking
+        original_top_k = reranker_enhancer.top_k
+        reranker_enhancer.top_k = request.top_k
+        final_results = reranker_enhancer.process(query, results)
+        reranker_enhancer.top_k = original_top_k
+        metadata["reranking"] = {"method": "standard"}
+    else:
+        # No reranking - raw results
+        final_results = results[:request.top_k]
         metadata["reranking"] = {"skipped": True}
 
     metadata["rerank_time_ms"] = round((time.time() - rerank_start) * 1000, 2)
