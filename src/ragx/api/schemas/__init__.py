@@ -6,6 +6,8 @@ from src.ragx.api.schemas.chat import ChatMessage, AskRequest, AskResponse, Sour
 from src.ragx.api.schemas.health import HealthResponse
 from src.ragx.api.schemas.llm import LLMRequest, LLMResponse
 from src.ragx.api.schemas.search import SearchRequest, RerankRequest, SearchResult
+from src.ragx.api.schemas.cove import CoVeVerificationRequest, CoVeVerificationResponse, ClaimInfo
+from src.ragx.api.schemas.eval import PipelineAblationRequest, PipelineAblationResponse
 
 __all__ = [
     # Analysis
@@ -28,4 +30,11 @@ __all__ = [
     "SearchRequest",
     "SearchResult",
     "RerankRequest",
+    # CoVe
+    "CoVeVerificationRequest",
+    "CoVeVerificationResponse",
+    "ClaimInfo",
+    # Eval
+    "PipelineAblationRequest",
+    "PipelineAblationResponse",
 ]

@@ -27,6 +27,14 @@ class LLMRequest(BaseModel):
         None,
         description="Enable chain of thought"
     )
+    template: Optional[str] = Field(
+        None,
+        description="Prompt template: 'basic' or 'enhanced' (uses pre-built prompts with contexts=[])"
+    )
+    contexts: Optional[list[Dict[str, Any]]] = Field(
+        None,
+        description="Optional contexts for template-based prompts (only used if template is specified)"
+    )
 
 
 class LLMResponse(BaseModel):

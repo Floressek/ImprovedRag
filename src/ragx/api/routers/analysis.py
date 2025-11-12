@@ -252,3 +252,33 @@ async def search_multihop(
             "reasoning": rewrite_result["reasoning"],
         },
     )
+
+@router.post("/rewrite")
+async def query_rewrite(
+        request: Dict[str, str],
+        adaptive_rewriter: AdaptiveQueryRewriter = Depends(get_adaptive_rewriter),
+):
+    """
+    Analyze and rewrite query using adaptive query rewriter.
+
+    Returns:
+    - Original query
+    - Sub-queries (if multihop detected)
+    - Query type classification
+    - Reasoning for decomposition
+    """
+    query = request.get("query", "")
+    logger.info(f"Query rewrite request: {query[:50]}")
+
+    result = adaptive_rewriter.rewrite(query)
+
+    return {
+        "original_query": result["original"],
+        "sub_queries": result["queries"],
+        "is_multihop": result["is_multihop"],
+        "query_type": result.get("query_type", "general"),
+        "reasoning": result["reasoning"],
+        "metadata": {
+            "num_sub_queries": len(result["queries"]),
+        }
+    }
