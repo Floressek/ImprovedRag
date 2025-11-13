@@ -45,9 +45,10 @@ template: |
   </fusion_rules>
   
   <final_answer>
-  Based on the contexts above, provide a complete and detailed answer (min. of 4/6 sentences) to:
+  Based on the contexts above, provide a complete and detailed answer (min. of 5/7 sentences) to:
   "{original_query}"
   
   LANGUAGE: {detected_language} => THE ANSWER MUST BE IN THIS LANGUAGE!
   Remember: Cite EVERY fact with [N] and synthesize across all sub-queries.
+  DO NOT USE ANY INFORMATION NOT PRESENT IN THE CONTEXTS, JUST MENTION LACK OF INFORMATION IF NEEDED.
   </final_answer>
