@@ -13,6 +13,12 @@ unified_decision:
     {linguistic_context}
 
     DECISION RULES (high priority):
+    - MULTIPLE UNRELATED TOPICS: query contains questions about SEMANTICALLY UNRELATED domains
+      -> action = "passthrough" (reject decomposition)
+      -> reasoning = "Query contains multiple unrelated topics - should be asked separately"
+      -> Example: "Tell me about Python programming and Napoleon Bonaparte" -> passthrough (programming ≠ history)
+      -> Example: "Ziemniaki vs marchew? Co wiemy o Napoleonie?" -> passthrough (vegetables ≠ historical figure)
+      -> IMPORTANT: Use common sense - vegetables + historical figures are UNRELATED
     - VERIFICATION/CLAIM CHECKING: queries that check truth of a statement (e.g., "Is X the largest/best/first...?", "X is Y?")
       -> action = "decompose"
       -> break into factual sub-questions needed to verify the claim
@@ -58,6 +64,9 @@ unified_decision:
         * <0.6 when query is vague or ill-formed.
 
     EXAMPLES:
+    Q: "Ziemniaki vs marchew? Co wiemy o Napoleonie Bonaparte?"
+    → {{"is_multihop": false, "action": "passthrough", "query_type": "simple", "sub_queries": null, "expanded_query": null, "reasoning": "Multiple unrelated topics (vegetables and historical figure)", "confidence": 0.65}}
+
     Q: "Polska to największy kraj europejski?"
     → {{"is_multihop": true, "action": "decompose", "query_type": "verification", "sub_queries": ["Jaka jest powierzchnia Polski?", "Jaki jest największy kraj w Europie?"], "expanded_query": null, "reasoning": "verification of superlative claim", "confidence": 0.88}}
 
