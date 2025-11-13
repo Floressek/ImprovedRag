@@ -75,6 +75,15 @@ class MultihopRerankerEnhancer(Enhancer):
         if not results_by_subquery:
             return []
 
+        # Adaptive top_k: num_subqueries * 2 (minimum)
+        num_subqueries = len(results_by_subquery)
+        if settings.multihop.adaptive_top_k and override_top_k is None:
+            adaptive_k = max(self.final_top_k, num_subqueries * 2)
+            logger.info(f"Adaptive top_k: {adaptive_k} (num_subqueries={num_subqueries})")
+            effective_top_k = adaptive_k
+        else:
+            effective_top_k = override_top_k if override_top_k is not None else self.final_top_k
+
         # Stage 1: Local reranking per subquery
         local_reranked = self._local_rerank(results_by_subquery, override_top_k)
 
@@ -86,13 +95,23 @@ class MultihopRerankerEnhancer(Enhancer):
             f"{sum(len(v) for v in local_reranked.values())} total"
         )
 
-        # Stage 3: Global reranking against original query
-        final = self._global_rerank(
-            original_query=original_query,
-            fused_results=fused,
-            override_top_k=override_top_k,
-            query_type=query_type
-        )
+        # Stage 3: Global reranking with diversity (if enabled)
+        if settings.multihop.diversity_enabled:
+            final = self._global_rerank_with_diversity(
+                original_query=original_query,
+                fused_results=fused,
+                local_reranked=local_reranked,
+                effective_top_k=effective_top_k,
+                query_type=query_type
+            )
+        else:
+            # Fallback to standard global rerank
+            final = self._global_rerank(
+                original_query=original_query,
+                fused_results=fused,
+                override_top_k=effective_top_k,
+                query_type=query_type
+            )
 
         return final
 
@@ -257,6 +276,123 @@ class MultihopRerankerEnhancer(Enhancer):
         )
 
         return final
+
+    def _global_rerank_with_diversity(
+            self,
+            original_query: str,
+            fused_results: List[ResultT],
+            local_reranked: Dict[str, List[ResultT]],
+            effective_top_k: int,
+            query_type: Optional[str] = None,
+    ) -> List[ResultT]:
+        """
+        Stage 3: Global rerank with per-sub-query diversity guarantee.
+
+        Phase 1 MVP:
+        - Enforce min_per_subquery (at least N docs per sub-query)
+        - Enforce max_per_subquery (prevent monopoly)
+        - Adaptive top_k based on num_subqueries
+        """
+        if not fused_results:
+            return []
+
+        min_per_sq = settings.multihop.min_per_subquery
+        max_per_sq = settings.multihop.max_per_subquery
+
+        # Get query-type-specific weight
+        if query_type:
+            effective_weight = get_query_type_weight(query_type, default_weight=self.global_rerank_weight)
+        else:
+            effective_weight = self.global_rerank_weight
+
+        # Build doc_id → sub_queries mapping from fusion_metadata
+        doc_to_subqueries = {}
+        for doc_id, payload, _ in fused_results:
+            subqueries = payload.get("fusion_metadata", {}).get("source_subqueries", [])
+            doc_to_subqueries[doc_id] = subqueries
+
+        # Global reranking
+        documents = []
+        for doc_id, payload, fused_score in fused_results:
+            documents.append({
+                "id": doc_id,
+                "text": payload.get("text", ""),
+                "payload": payload,
+                "fused_score": float(fused_score)
+            })
+
+        reranked = self.reranker.rerank(
+            query=original_query,
+            documents=documents,
+            top_k=None,
+            text_field="text",
+        )
+
+        # Compute final scores (weighted)
+        scored_docs = []
+        for doc, global_score in reranked:
+            p = doc["payload"]
+            fused_score = doc.get("fused_score", 0.0)
+            final_score = effective_weight * global_score + (1 - effective_weight) * fused_score
+
+            p["global_rerank_score"] = float(global_score)
+            p["final_score"] = float(final_score)
+            p["query_type"] = query_type
+
+            scored_docs.append((str(doc["id"]), p, float(final_score)))
+
+        # Track counts per sub-query
+        from collections import defaultdict
+        subquery_counts = defaultdict(int)
+
+        selected = []
+
+        # Pass 1: Enforce minimum (prioritize sub-queries that need docs)
+        for doc_id, payload, score in scored_docs:
+            if len(selected) >= effective_top_k:
+                break
+
+            doc_sqs = doc_to_subqueries.get(doc_id, [])
+            needs_min = any(subquery_counts[sq] < min_per_sq for sq in doc_sqs)
+
+            if needs_min:
+                selected.append((doc_id, payload, score))
+                for sq in doc_sqs:
+                    subquery_counts[sq] += 1
+
+        # Pass 2: Fill remaining slots (respect max_per_subquery)
+        for doc_id, payload, score in scored_docs:
+            if len(selected) >= effective_top_k:
+                break
+
+            # Skip if already selected
+            if any(d_id == doc_id for d_id, _, _ in selected):
+                continue
+
+            doc_sqs = doc_to_subqueries.get(doc_id, [])
+            violates_max = any(subquery_counts[sq] >= max_per_sq for sq in doc_sqs)
+
+            if not violates_max:
+                selected.append((doc_id, payload, score))
+                for sq in doc_sqs:
+                    subquery_counts[sq] += 1
+
+        # Sort by final score
+        selected.sort(key=lambda x: x[2], reverse=True)
+
+        # Log coverage per sub-query
+        logger.info(
+            f"Diversity rerank: {len(fused_results)} → {len(selected)} docs "
+            f"(weight: {effective_weight:.2f} global, {1 - effective_weight:.2f} local)"
+        )
+        logger.info(f"Coverage per sub-query (min={min_per_sq}, max={max_per_sq}):")
+        for sq in sorted(local_reranked.keys()):
+            count = subquery_counts[sq]
+            sq_short = sq[:60] + "..." if len(sq) > 60 else sq
+            status = "✓" if count >= min_per_sq else "⚠"
+            logger.info(f"  {status} '{sq_short}': {count} docs")
+
+        return selected
 
     @property
     def name(self) -> str:
