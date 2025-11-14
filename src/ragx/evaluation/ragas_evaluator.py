@@ -1,0 +1,353 @@
+"""
+RAGAS-based evaluation with custom metrics for RAG pipeline.
+
+Combines:
+- Official RAGAS metrics (faithfulness, answer_relevancy, context_precision, context_recall)
+- Custom metrics (latency, sources_count, multihop_coverage)
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass, field
+
+from ragas import evaluate
+from ragas.metrics import (
+    faithfulness,
+    answer_relevancy,
+    context_precision,
+    context_recall,
+)
+from datasets import Dataset
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+
+from src.ragx.utils.settings import settings
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class EvaluationResult:
+    """Results from RAGAS evaluation with custom metrics."""
+
+    # RAGAS metrics
+    faithfulness: float
+    answer_relevancy: float
+    context_precision: float
+    context_recall: float
+
+    # Custom metrics
+    latency_ms: float
+    sources_count: int
+    multihop_coverage: float  # Ratio of sub-queries with at least 1 retrieved doc
+
+    # Additional stats
+    num_contexts: int
+    query_type: Optional[str] = None
+    is_multihop: bool = False
+    num_sub_queries: int = 1
+
+    # Per-question details (optional)
+    details: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "ragas_faithfulness": self.faithfulness,
+            "ragas_answer_relevancy": self.answer_relevancy,
+            "ragas_context_precision": self.context_precision,
+            "ragas_context_recall": self.context_recall,
+            "custom_latency_ms": self.latency_ms,
+            "custom_sources_count": self.sources_count,
+            "custom_multihop_coverage": self.multihop_coverage,
+            "num_contexts": self.num_contexts,
+            "query_type": self.query_type,
+            "is_multihop": self.is_multihop,
+            "num_sub_queries": self.num_sub_queries,
+        }
+
+
+@dataclass
+class BatchEvaluationResult:
+    """Aggregated results from evaluating multiple questions."""
+
+    # Aggregated RAGAS metrics (mean)
+    mean_faithfulness: float
+    mean_answer_relevancy: float
+    mean_context_precision: float
+    mean_context_recall: float
+
+    # Aggregated custom metrics (mean)
+    mean_latency_ms: float
+    mean_sources_count: float
+    mean_multihop_coverage: float
+
+    # Per-question results
+    results: List[EvaluationResult]
+
+    # Statistics
+    num_questions: int
+    num_multihop: int
+    num_simple: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "mean_faithfulness": self.mean_faithfulness,
+            "mean_answer_relevancy": self.mean_answer_relevancy,
+            "mean_context_precision": self.mean_context_precision,
+            "mean_context_recall": self.mean_context_recall,
+            "mean_latency_ms": self.mean_latency_ms,
+            "mean_sources_count": self.mean_sources_count,
+            "mean_multihop_coverage": self.mean_multihop_coverage,
+            "num_questions": self.num_questions,
+            "num_multihop": self.num_multihop,
+            "num_simple": self.num_simple,
+        }
+
+
+class RAGASEvaluator:
+    """
+    Evaluate RAG pipeline using RAGAS framework + custom metrics.
+
+    Official RAGAS Metrics:
+    - faithfulness: Factual accuracy of answer vs contexts
+    - answer_relevancy: How relevant answer is to question
+    - context_precision: Precision of retrieved contexts
+    - context_recall: Recall of retrieved contexts vs ground truth
+
+    Custom Metrics:
+    - latency_ms: Total pipeline latency
+    - sources_count: Number of unique sources retrieved
+    - multihop_coverage: For multihop queries, % of sub-queries with ≥1 doc
+    """
+
+    def __init__(
+        self,
+        llm_model: str = "gpt-4o-mini",
+        embeddings_model: str = "text-embedding-3-small",
+        openai_api_key: Optional[str] = None,
+    ):
+        """
+        Initialize RAGAS evaluator.
+
+        Args:
+            llm_model: OpenAI model for LLM-based metrics
+            embeddings_model: OpenAI embeddings model
+            openai_api_key: OpenAI API key (uses settings if not provided)
+        """
+        api_key = openai_api_key or settings.openai.api_key
+
+        # Initialize LangChain LLM and embeddings for RAGAS
+        self.llm = ChatOpenAI(model=llm_model, api_key=api_key)
+        self.embeddings = OpenAIEmbeddings(model=embeddings_model, api_key=api_key)
+
+        logger.info(f"Initialized RAGAS evaluator with LLM: {llm_model}")
+
+    def evaluate_single(
+        self,
+        question: str,
+        answer: str,
+        contexts: List[str],
+        ground_truth: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> EvaluationResult:
+        """
+        Evaluate a single question-answer pair.
+
+        Args:
+            question: User question
+            answer: RAG system's answer
+            contexts: Retrieved context chunks
+            ground_truth: Expected correct answer
+            metadata: Optional metadata (latency_ms, is_multihop, sub_queries, etc.)
+
+        Returns:
+            EvaluationResult with all metrics
+        """
+        metadata = metadata or {}
+
+        # Prepare dataset for RAGAS
+        dataset = Dataset.from_dict({
+            "question": [question],
+            "answer": [answer],
+            "contexts": [contexts],
+            "ground_truth": [ground_truth],
+        })
+
+        # Run RAGAS evaluation
+        logger.debug(f"Evaluating question: {question[:50]}...")
+        ragas_result = evaluate(
+            dataset,
+            metrics=[
+                faithfulness,
+                answer_relevancy,
+                context_precision,
+                context_recall,
+            ],
+            llm=self.llm,
+            embeddings=self.embeddings,
+        )
+
+        # Extract RAGAS scores
+        ragas_scores = ragas_result.to_pandas().iloc[0]
+
+        # Calculate custom metrics
+        latency_ms = metadata.get("latency_ms", 0.0)
+        sources_count = self._count_sources(metadata.get("sources", []))
+        multihop_coverage = self._calculate_multihop_coverage(
+            metadata.get("sub_queries", []),
+            metadata.get("results_by_subquery", {}),
+        )
+
+        return EvaluationResult(
+            faithfulness=float(ragas_scores["faithfulness"]),
+            answer_relevancy=float(ragas_scores["answer_relevancy"]),
+            context_precision=float(ragas_scores["context_precision"]),
+            context_recall=float(ragas_scores["context_recall"]),
+            latency_ms=latency_ms,
+            sources_count=sources_count,
+            multihop_coverage=multihop_coverage,
+            num_contexts=len(contexts),
+            query_type=metadata.get("query_type"),
+            is_multihop=metadata.get("is_multihop", False),
+            num_sub_queries=len(metadata.get("sub_queries", [])),
+            details=metadata,
+        )
+
+    def evaluate_batch(
+        self,
+        questions: List[str],
+        answers: List[str],
+        contexts_list: List[List[str]],
+        ground_truths: List[str],
+        metadata_list: Optional[List[Dict[str, Any]]] = None,
+    ) -> BatchEvaluationResult:
+        """
+        Evaluate multiple question-answer pairs.
+
+        Args:
+            questions: List of user questions
+            answers: List of RAG system's answers
+            contexts_list: List of retrieved contexts (per question)
+            ground_truths: List of expected correct answers
+            metadata_list: Optional metadata per question
+
+        Returns:
+            BatchEvaluationResult with aggregated metrics
+        """
+        if metadata_list is None:
+            metadata_list = [{}] * len(questions)
+
+        if not (len(questions) == len(answers) == len(contexts_list) == len(ground_truths)):
+            raise ValueError("All input lists must have the same length")
+
+        logger.info(f"Evaluating batch of {len(questions)} questions...")
+
+        # Prepare dataset for RAGAS
+        dataset = Dataset.from_dict({
+            "question": questions,
+            "answer": answers,
+            "contexts": contexts_list,
+            "ground_truth": ground_truths,
+        })
+
+        # Run RAGAS evaluation (batch)
+        start_time = time.time()
+        ragas_result = evaluate(
+            dataset,
+            metrics=[
+                faithfulness,
+                answer_relevancy,
+                context_precision,
+                context_recall,
+            ],
+            llm=self.llm,
+            embeddings=self.embeddings,
+        )
+        eval_time = (time.time() - start_time) * 1000
+        logger.info(f"RAGAS evaluation completed in {eval_time:.0f}ms")
+
+        # Convert to pandas for easier access
+        ragas_df = ragas_result.to_pandas()
+
+        # Calculate custom metrics per question
+        results = []
+        for i in range(len(questions)):
+            latency_ms = metadata_list[i].get("latency_ms", 0.0)
+            sources_count = self._count_sources(metadata_list[i].get("sources", []))
+            multihop_coverage = self._calculate_multihop_coverage(
+                metadata_list[i].get("sub_queries", []),
+                metadata_list[i].get("results_by_subquery", {}),
+            )
+
+            result = EvaluationResult(
+                faithfulness=float(ragas_df.iloc[i]["faithfulness"]),
+                answer_relevancy=float(ragas_df.iloc[i]["answer_relevancy"]),
+                context_precision=float(ragas_df.iloc[i]["context_precision"]),
+                context_recall=float(ragas_df.iloc[i]["context_recall"]),
+                latency_ms=latency_ms,
+                sources_count=sources_count,
+                multihop_coverage=multihop_coverage,
+                num_contexts=len(contexts_list[i]),
+                query_type=metadata_list[i].get("query_type"),
+                is_multihop=metadata_list[i].get("is_multihop", False),
+                num_sub_queries=len(metadata_list[i].get("sub_queries", [])),
+                details=metadata_list[i],
+            )
+            results.append(result)
+
+        # Aggregate metrics
+        num_multihop = sum(1 for r in results if r.is_multihop)
+        num_simple = len(results) - num_multihop
+
+        return BatchEvaluationResult(
+            mean_faithfulness=float(ragas_df["faithfulness"].mean()),
+            mean_answer_relevancy=float(ragas_df["answer_relevancy"].mean()),
+            mean_context_precision=float(ragas_df["context_precision"].mean()),
+            mean_context_recall=float(ragas_df["context_recall"].mean()),
+            mean_latency_ms=sum(r.latency_ms for r in results) / len(results),
+            mean_sources_count=sum(r.sources_count for r in results) / len(results),
+            mean_multihop_coverage=sum(r.multihop_coverage for r in results) / len(results),
+            results=results,
+            num_questions=len(results),
+            num_multihop=num_multihop,
+            num_simple=num_simple,
+        )
+
+    def _count_sources(self, sources: List[str]) -> int:
+        """Count unique sources (URLs, doc IDs, etc.)."""
+        return len(set(sources)) if sources else 0
+
+    def _calculate_multihop_coverage(
+        self,
+        sub_queries: List[str],
+        results_by_subquery: Dict[str, List[Any]],
+    ) -> float:
+        """
+        Calculate multihop coverage: ratio of sub-queries with ≥1 retrieved doc.
+
+        For multihop queries, this shows how well the retrieval covers all sub-queries.
+        A score of 1.0 means every sub-query got at least one document.
+        A score of 0.5 means only half the sub-queries got documents.
+
+        Args:
+            sub_queries: List of sub-queries from decomposition
+            results_by_subquery: Dict mapping sub-query → retrieved results
+
+        Returns:
+            Coverage ratio (0.0 to 1.0)
+        """
+        if not sub_queries or len(sub_queries) <= 1:
+            # Single query or no decomposition → N/A
+            return 1.0
+
+        covered = 0
+        for sq in sub_queries:
+            results = results_by_subquery.get(sq, [])
+            if results and len(results) > 0:
+                covered += 1
+
+        return covered / len(sub_queries)
