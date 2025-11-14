@@ -8,22 +8,30 @@ class PipelineAblationRequest(BaseModel):
     """Request for pipeline ablation study."""
     query: str = Field(..., description="Query to process")
 
-    # Toggles
-    use_query_analysis: bool = Field(
+    # Toggles (aligned with ablation_study.py)
+    query_analysis_enabled: bool = Field(
         True,
+        alias="use_query_analysis",
         description="Enable query analysis and multihop decomposition"
     )
-    use_reranker: bool = Field(
+    reranker_enabled: bool = Field(
         True,
+        alias="use_reranker",
         description="Enable reranking (multihop or standard)"
     )
-    use_cove: bool = Field(
+    cove_enabled: bool = Field(
         False,
+        alias="use_cove",
         description="Enable CoVe verification"
+    )
+    multihop_enabled: bool = Field(
+        True,
+        alias="use_multihop",
+        description="Enable multihop decomposition"
     )
     use_cot: bool = Field(
         True,
-        description="Enable Chain-of-Thought for Ollama models"
+        description="Enable Chain-of-Thought for generation"
     )
 
     # Prompt engineering
@@ -46,12 +54,30 @@ class PipelineAblationRequest(BaseModel):
         le=50
     )
 
+    class Config:
+        populate_by_name = True  # Allow both field name and alias
+
 
 class PipelineAblationResponse(BaseModel):
     """Response from pipeline ablation."""
     answer: str
-    sources: list[Dict[str, Any]]
+    contexts: list[str] = Field(
+        ...,
+        description="Retrieved context chunks (text only)"
+    )
+    context_details: list[Dict[str, Any]] = Field(
+        ...,
+        description="Full context details with URLs, scores, etc."
+    )
+    sub_queries: list[str] = Field(
+        default_factory=list,
+        description="Sub-queries from multihop decomposition"
+    )
+    sources: list[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Unique sources with citations"
+    )
     metadata: Dict[str, Any] = Field(
         ...,
-        description="Detailed metadata about each stage and what was enabled/disabled"
+        description="Metrics and config details (total_time_ms, is_multihop, query_type, etc.)"
     )

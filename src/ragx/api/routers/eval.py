@@ -56,24 +56,265 @@ async def pipeline_ablation(
     Returns:
         Answer with detailed metadata about what was enabled/disabled
     """
-    start = time.time()
+    start_total = time.time()
     query = request.query
 
     logger.info(
-        f"Ablation request: query_analysis={request.use_query_analysis}, "
-        f"reranker={request.use_reranker}, cove={request.use_cove}, "
-        f"template={request.prompt_template}, cot={request.use_cot}"
+        f"Ablation: query_analysis={request.query_analysis_enabled}, "
+        f"multihop={request.multihop_enabled}, reranker={request.reranker_enabled}, "
+        f"cove={request.cove_enabled}, template={request.prompt_template}"
     )
 
-    # metadata = {
-    #     "ablation_config": {
-    #         "use_query_analysis": request.use_query_analysis,
-    #         "use_reranker": request.use_reranker,
-    #         "use_cove": request.use_cove,
-    #         "use_cot": request.use_cot,
-    #         "prompt_template": request.prompt_template,
-    #         "provider": request.provider if request.provider else settings.llm.provider,
-    #     }
-    # }
+    # Initialize metadata tracking
+    metadata = {
+        "ablation_config": {
+            "query_analysis_enabled": request.query_analysis_enabled,
+            "multihop_enabled": request.multihop_enabled,
+            "reranker_enabled": request.reranker_enabled,
+            "cove_enabled": request.cove_enabled,
+            "use_cot": request.use_cot,
+            "prompt_template": request.prompt_template,
+            "provider": request.provider or settings.llm.provider,
+            "top_k": request.top_k,
+        },
+        "timings": {},
+    }
 
+    sub_queries = []
+    query_type = "simple"
+    is_multihop = False
 
+    # STAGE 1: Query Analysis (optional)
+    if request.query_analysis_enabled:
+        start_analysis = time.time()
+        features = linguistic_analyzer.analyze(query)
+        metadata["linguistic_features"] = features.model_dump()
+        metadata["timings"]["query_analysis_ms"] = (time.time() - start_analysis) * 1000
+
+        # Optional: Query rewriting
+        rewritten_query = adaptive_rewriter.rewrite(query, features)
+        query_type = features.query_type or "simple"
+        metadata["query_type"] = query_type
+        metadata["rewritten_query"] = rewritten_query
+    else:
+        features = None
+        rewritten_query = query
+        metadata["query_type"] = "simple"
+
+    # STAGE 2: Multihop Decomposition (optional)
+    if request.multihop_enabled and request.query_analysis_enabled and features:
+        # Check if query should be decomposed
+        should_decompose = (
+            features.query_type in ["comparison", "multihop"] or
+            features.has_multiple_entities or
+            features.has_conjunction
+        )
+
+        if should_decompose:
+            start_decomp = time.time()
+            from src.ragx.retrieval.rewriters.multihop_decomposer import MultihopDecomposer
+            decomposer = MultihopDecomposer()
+            decomposition = decomposer.decompose(rewritten_query, features)
+
+            if decomposition and len(decomposition.sub_queries) > 1:
+                sub_queries = decomposition.sub_queries
+                is_multihop = True
+                metadata["sub_queries"] = sub_queries
+                metadata["is_multihop"] = True
+                metadata["timings"]["decomposition_ms"] = (time.time() - start_decomp) * 1000
+            else:
+                sub_queries = [rewritten_query]
+                metadata["is_multihop"] = False
+        else:
+            sub_queries = [rewritten_query]
+            metadata["is_multihop"] = False
+    else:
+        sub_queries = [rewritten_query]
+        metadata["is_multihop"] = False
+
+    # STAGE 3: Retrieval
+    start_retrieval = time.time()
+
+    if is_multihop and len(sub_queries) > 1:
+        # Multihop retrieval: retrieve for each sub-query
+        results_by_subquery = {}
+        all_results = []
+
+        for sq in sub_queries:
+            sq_embedding = embedder.embed_query(sq)
+            sq_results = vector_store.search(
+                query_vector=sq_embedding,
+                top_k=request.top_k * 2,  # Over-retrieve for reranking
+            )
+            results_by_subquery[sq] = sq_results
+            all_results.extend(sq_results)
+
+        # Deduplicate
+        seen = set()
+        unique_results = []
+        for r in all_results:
+            if r.id not in seen:
+                seen.add(r.id)
+                unique_results.append(r)
+
+        initial_results = unique_results
+        metadata["results_by_subquery_count"] = {sq: len(results_by_subquery[sq]) for sq in sub_queries}
+    else:
+        # Simple retrieval
+        query_embedding = embedder.embed_query(rewritten_query)
+        initial_results = vector_store.search(
+            query_vector=query_embedding,
+            top_k=request.top_k * 2,  # Over-retrieve for reranking
+        )
+        results_by_subquery = {rewritten_query: initial_results}
+
+    metadata["timings"]["retrieval_ms"] = (time.time() - start_retrieval) * 1000
+    metadata["initial_results_count"] = len(initial_results)
+
+    # STAGE 4: Reranking (optional)
+    if request.reranker_enabled:
+        start_rerank = time.time()
+
+        if is_multihop and request.multihop_enabled:
+            # Multihop reranking with diversity
+            reranked_results = multihop_reranker.rerank(
+                original_query=query,
+                results=initial_results,
+                top_k=request.top_k,
+                query_type=query_type,
+                local_reranked=results_by_subquery,  # Pass per-subquery results
+            )
+        else:
+            # Standard reranking
+            reranked_results = reranker_enhancer.rerank(
+                query=rewritten_query,
+                results=initial_results,
+                top_k=request.top_k,
+            )
+
+        final_results = reranked_results
+        metadata["timings"]["reranking_ms"] = (time.time() - start_rerank) * 1000
+    else:
+        # No reranking: just take top_k
+        final_results = initial_results[:request.top_k]
+
+    metadata["final_results_count"] = len(final_results)
+
+    # STAGE 5: Generation
+    start_generation = time.time()
+
+    # Build contexts
+    contexts = [r.payload.get("text", "") for r in final_results]
+
+    # Build prompt
+    provider = request.provider or settings.llm.provider
+    llm = LLMInference(provider=provider)
+
+    # Select template
+    if request.prompt_template == "auto":
+        if is_multihop:
+            template = "multihop"
+        elif query_type == "comparison":
+            template = "enhanced"
+        else:
+            template = "basic"
+    else:
+        template = request.prompt_template
+
+    prompt_config = PromptConfig(
+        template=template,
+        include_context_citations=True,
+        include_instructions=True,
+    )
+
+    builder = PromptBuilder(config=prompt_config)
+    prompt = builder.build(
+        query=query,
+        contexts=contexts,
+    )
+
+    # Generate answer
+    answer = llm.generate(
+        prompt=prompt,
+        temperature=0.1,
+        max_new_tokens=500,
+        chain_of_thought_enabled=request.use_cot,
+    )
+
+    metadata["timings"]["generation_ms"] = (time.time() - start_generation) * 1000
+    metadata["prompt_template_used"] = template
+
+    # STAGE 6: CoVe Verification (optional)
+    if request.cove_enabled:
+        start_cove = time.time()
+
+        # Run CoVe enhancement
+        cove_result = cove_enhancer.enhance(
+            query=query,
+            answer=answer,
+            contexts=final_results,
+        )
+
+        # Update answer if corrections were made
+        if cove_result.corrected_answer:
+            answer = cove_result.corrected_answer
+            metadata["cove_corrections_made"] = True
+            metadata["cove_num_corrections"] = len(cove_result.corrections)
+        else:
+            metadata["cove_corrections_made"] = False
+
+        metadata["timings"]["cove_ms"] = (time.time() - start_cove) * 1000
+    else:
+        metadata["cove_corrections_made"] = False
+
+    # STAGE 7: Remap citations (if needed)
+    # Extract citations from contexts for answer
+    final_answer = remap_citations(answer, contexts)
+
+    # Calculate total time
+    total_time_ms = (time.time() - start_total) * 1000
+    metadata["total_time_ms"] = total_time_ms
+
+    # Build context details for response
+    context_details = []
+    for i, r in enumerate(final_results):
+        context_details.append({
+            "citation_id": i + 1,
+            "text": r.payload.get("text", ""),
+            "url": r.payload.get("url", ""),
+            "title": r.payload.get("title", ""),
+            "score": r.score,
+        })
+
+    # Extract unique sources
+    sources = []
+    seen_urls = set()
+    for ctx in context_details:
+        url = ctx.get("url")
+        if url and url not in seen_urls:
+            seen_urls.add(url)
+            sources.append({
+                "url": url,
+                "title": ctx.get("title", ""),
+                "citation_id": ctx.get("citation_id"),
+            })
+
+    # Add custom metrics
+    metadata["sources_count"] = len(sources)
+    metadata["num_contexts"] = len(contexts)
+
+    # Calculate multihop coverage
+    if is_multihop and len(sub_queries) > 1:
+        covered = sum(1 for sq in sub_queries if results_by_subquery.get(sq, []))
+        metadata["multihop_coverage"] = covered / len(sub_queries)
+    else:
+        metadata["multihop_coverage"] = 1.0
+
+    return {
+        "answer": final_answer,
+        "contexts": contexts,
+        "context_details": context_details,
+        "sub_queries": sub_queries,
+        "sources": sources,
+        "metadata": metadata,
+    }

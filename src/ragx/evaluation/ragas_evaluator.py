@@ -202,11 +202,19 @@ class RAGASEvaluator:
             metadata.get("results_by_subquery", {}),
         )
 
+        # Handle NaN values from RAGAS (replace with 0.0)
+        def safe_float(value, default=0.0):
+            try:
+                f = float(value)
+                return default if (f != f) else f  # NaN check
+            except (ValueError, TypeError):
+                return default
+
         return EvaluationResult(
-            faithfulness=float(ragas_scores["faithfulness"]),
-            answer_relevancy=float(ragas_scores["answer_relevancy"]),
-            context_precision=float(ragas_scores["context_precision"]),
-            context_recall=float(ragas_scores["context_recall"]),
+            faithfulness=safe_float(ragas_scores["faithfulness"]),
+            answer_relevancy=safe_float(ragas_scores["answer_relevancy"]),
+            context_precision=safe_float(ragas_scores["context_precision"]),
+            context_recall=safe_float(ragas_scores["context_recall"]),
             latency_ms=latency_ms,
             sources_count=sources_count,
             multihop_coverage=multihop_coverage,
@@ -273,6 +281,14 @@ class RAGASEvaluator:
         # Convert to pandas for easier access
         ragas_df = ragas_result.to_pandas()
 
+        # Helper to handle NaN
+        def safe_float(value, default=0.0):
+            try:
+                f = float(value)
+                return default if (f != f) else f  # NaN check
+            except (ValueError, TypeError):
+                return default
+
         # Calculate custom metrics per question
         results = []
         for i in range(len(questions)):
@@ -284,10 +300,10 @@ class RAGASEvaluator:
             )
 
             result = EvaluationResult(
-                faithfulness=float(ragas_df.iloc[i]["faithfulness"]),
-                answer_relevancy=float(ragas_df.iloc[i]["answer_relevancy"]),
-                context_precision=float(ragas_df.iloc[i]["context_precision"]),
-                context_recall=float(ragas_df.iloc[i]["context_recall"]),
+                faithfulness=safe_float(ragas_df.iloc[i]["faithfulness"]),
+                answer_relevancy=safe_float(ragas_df.iloc[i]["answer_relevancy"]),
+                context_precision=safe_float(ragas_df.iloc[i]["context_precision"]),
+                context_recall=safe_float(ragas_df.iloc[i]["context_recall"]),
                 latency_ms=latency_ms,
                 sources_count=sources_count,
                 multihop_coverage=multihop_coverage,

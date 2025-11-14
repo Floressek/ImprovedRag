@@ -85,6 +85,8 @@ class AblationStudyResult:
         Statistical comparison between two configurations.
 
         Returns t-test results and effect size.
+
+        Note: Only compares questions that were successfully evaluated in BOTH configs.
         """
         # Find configs
         result_a = next((cr for cr in self.config_results if cr.config.name == config_a), None)
@@ -93,16 +95,44 @@ class AblationStudyResult:
         if not result_a or not result_b:
             raise ValueError(f"Configuration not found: {config_a} or {config_b}")
 
-        # Extract per-question scores
-        scores_a = [getattr(r, metric.replace("mean_", "")) for r in result_a.evaluation.results]
-        scores_b = [getattr(r, metric.replace("mean_", "")) for r in result_b.evaluation.results]
+        # Extract per-question scores, filtering out failed questions (score=0 indicates failure)
+        metric_name = metric.replace("mean_", "")
+        paired_scores_a = []
+        paired_scores_b = []
 
-        # T-test
-        t_stat, p_value = stats.ttest_rel(scores_a, scores_b)
+        for r_a, r_b in zip(result_a.evaluation.results, result_b.evaluation.results):
+            score_a = getattr(r_a, metric_name)
+            score_b = getattr(r_b, metric_name)
+
+            # Only include if both configs have valid scores (non-zero)
+            # This ensures paired t-test alignment
+            if score_a > 0 and score_b > 0:
+                paired_scores_a.append(score_a)
+                paired_scores_b.append(score_b)
+
+        if len(paired_scores_a) < 2:
+            # Not enough data for t-test
+            return {
+                "config_a": config_a,
+                "config_b": config_b,
+                "metric": metric,
+                "mean_a": getattr(result_a.evaluation, metric),
+                "mean_b": getattr(result_b.evaluation, metric),
+                "mean_diff": 0.0,
+                "t_statistic": 0.0,
+                "p_value": 1.0,
+                "significant": False,
+                "cohens_d": 0.0,
+                "effect_size": "insufficient_data",
+                "num_paired_samples": len(paired_scores_a),
+            }
+
+        # T-test on paired samples
+        t_stat, p_value = stats.ttest_rel(paired_scores_a, paired_scores_b)
 
         # Effect size (Cohen's d)
-        mean_diff = statistics.mean(scores_a) - statistics.mean(scores_b)
-        pooled_std = statistics.stdev(scores_a + scores_b)
+        mean_diff = statistics.mean(paired_scores_a) - statistics.mean(paired_scores_b)
+        pooled_std = statistics.stdev(paired_scores_a + paired_scores_b)
         cohens_d = mean_diff / pooled_std if pooled_std > 0 else 0.0
 
         return {
@@ -117,6 +147,7 @@ class AblationStudyResult:
             "significant": p_value < 0.05,
             "cohens_d": cohens_d,
             "effect_size": self._interpret_cohens_d(cohens_d),
+            "num_paired_samples": len(paired_scores_a),
         }
 
     @staticmethod
@@ -374,9 +405,15 @@ class AblationStudy:
         """
         url = f"{self.api_base_url}/eval/ablation"
 
+        # Flatten config into request (no nested "config" object)
         payload = {
             "query": query,
-            "config": config.to_dict(),
+            "query_analysis_enabled": config.query_analysis_enabled,
+            "reranker_enabled": config.reranker_enabled,
+            "cove_enabled": config.cove_enabled,
+            "multihop_enabled": config.multihop_enabled,
+            "use_cot": True,  # Default
+            "prompt_template": "auto",  # Auto-select based on query
             "top_k": 5,  # Standard top-k
         }
 
