@@ -188,6 +188,9 @@ make setup-qdrant
 docker-compose up -d qdrant
 ```
 
+> Dataset used for qdrant:
+https://huggingface.co/datasets/Floressek/wiki-1m-qdrant-snapshot
+
 ### 3. Configure
 
 ```bash
