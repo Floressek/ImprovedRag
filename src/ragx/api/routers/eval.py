@@ -288,11 +288,14 @@ async def pipeline_ablation(
     if request.cove_enabled:
         start_cove = time.time()
 
-        # Run CoVe verification (reuse contexts built earlier)
+        # Prepare contexts for CoVe (full payloads with all metadata)
+        cove_contexts = [payload for _, payload, _ in final_results]
+
+        # Run CoVe verification
         cove_result = cove_enhancer.verify(
             query=query,
             answer=answer,
-            contexts=contexts,  # Already built as List[Dict] from final_results
+            contexts=cove_contexts,
         )
 
         # Update answer if corrections were made
