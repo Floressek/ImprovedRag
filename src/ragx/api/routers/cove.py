@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/cove", tags=["CoVe"])
 
 
-@router.get("/verify", response_model=CoVeVerificationResponse)
+@router.post("/verify", response_model=CoVeVerificationResponse)
 async def verify_answer(
         request: CoVeVerificationRequest,
         cove_enhancer: CoVeEnhancer = Depends(get_cove_enhancer),
