@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any, Coroutine
-
 from fastapi import APIRouter, Depends
 
 from src.ragx.api.schemas.cove import CoVeVerificationRequest, CoVeVerificationResponse, ClaimInfo
