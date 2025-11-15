@@ -152,10 +152,10 @@ async def pipeline_ablation(
         # Deduplicate
         seen = set()
         unique_results = []
-        for r in all_results:
-            if r.id not in seen:
-                seen.add(r.id)
-                unique_results.append(r)
+        for doc_id, payload, score in all_results:
+            if doc_id not in seen:
+                seen.add(doc_id)
+                unique_results.append((doc_id, payload, score))
 
         initial_results = unique_results
         metadata["results_by_subquery_count"] = {sq: len(results_by_subquery[sq]) for sq in sub_queries}
@@ -177,19 +177,17 @@ async def pipeline_ablation(
 
         if is_multihop and request.multihop_enabled:
             # Multihop reranking with diversity
-            reranked_results = multihop_reranker.rerank(
+            reranked_results = multihop_reranker.process(
                 original_query=query,
-                results=initial_results,
-                top_k=request.top_k,
+                results_by_subquery=results_by_subquery,
+                override_top_k=request.top_k,
                 query_type=query_type,
-                local_reranked=results_by_subquery,  # Pass per-subquery results
             )
         else:
             # Standard reranking
-            reranked_results = reranker_enhancer.rerank(
+            reranked_results = reranker_enhancer.process(
                 query=rewritten_query,
                 results=initial_results,
-                top_k=request.top_k,
             )
 
         final_results = reranked_results
@@ -204,7 +202,7 @@ async def pipeline_ablation(
     start_generation = time.time()
 
     # Build contexts
-    contexts = [r.payload.get("text", "") for r in final_results]
+    contexts = [payload.get("text", "") for _, payload, _ in final_results]
 
     # Build prompt
     provider = request.provider or settings.llm.provider
@@ -277,13 +275,13 @@ async def pipeline_ablation(
 
     # Build context details for response
     context_details = []
-    for i, r in enumerate(final_results):
+    for i, (doc_id, payload, score) in enumerate(final_results):
         context_details.append({
             "citation_id": i + 1,
-            "text": r.payload.get("text", ""),
-            "url": r.payload.get("url", ""),
-            "title": r.payload.get("title", ""),
-            "score": r.score,
+            "text": payload.get("text", ""),
+            "url": payload.get("url", ""),
+            "title": payload.get("title", ""),
+            "score": score,
         })
 
     # Extract unique sources
