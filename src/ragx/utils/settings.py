@@ -138,6 +138,11 @@ class MultihopConfig:
     top_k_per_subquery: int = int(os.getenv("MULTIHOP_TOP_K_PER_SUBQUERY", "20"))
     final_top_k: int = int(os.getenv("MULTIHOP_FINAL_TOP_K", "10"))
 
+    diversity_enabled: bool = str_to_bool(os.getenv("MULTIHOP_DIVERSITY_ENABLED", "true"))
+    min_per_subquery: int = int(os.getenv("MULTIHOP_MIN_PER_SUBQUERY", "1"))
+    max_per_subquery: int = int(os.getenv("MULTIHOP_MAX_PER_SUBQUERY", "5"))
+    adaptive_top_k: bool = str_to_bool(os.getenv("MULTIHOP_ADAPTIVE_TOP_K", "true"))
+
 @dataclass
 class CoVeConfig:
     """CoVe configuration."""

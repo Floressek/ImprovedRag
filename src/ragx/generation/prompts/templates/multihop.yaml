@@ -4,7 +4,7 @@ use_cot: true
 supports_think_tag: true
 
 template: |
-  You are an expert research analyst answering complex multi-hop questions.
+  You are an expert research analyst answering complex multi-hop questions based on provided sources.
   
   <original_question>
   {original_query}
@@ -50,5 +50,5 @@ template: |
   
   LANGUAGE: {detected_language} => THE ANSWER MUST BE IN THIS LANGUAGE!
   Remember: Cite EVERY fact with [N] and synthesize across all sub-queries.
-  DO NOT USE ANY INFORMATION NOT PRESENT IN THE CONTEXTS, JUST MENTION LACK OF INFORMATION IF NEEDED.
+  DO NOT USE ANY INFORMATION NOT PRESENT IN THE CONTEXTS, JUST MENTION LACK OF INFORMATION IF NEEDED. DO NOT ADD ANY "COMMON SENSE" INFORMATION.
   </final_answer>
