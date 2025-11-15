@@ -109,3 +109,42 @@ def validate_targeted_queries_response(parsed: Any) -> bool:
         return False
 
     return True
+
+
+def validate_suggestions_response(parsed: Any) -> bool:
+    """Validate the structure of a suggestions response."""
+    if not isinstance(parsed, dict):
+        logger.warning(f"Expected dict, got {type(parsed)}")
+        return False
+
+    if "suggestions" not in parsed:
+        logger.warning("Missing 'suggestions' key in response")
+        return False
+
+    if not isinstance(parsed["suggestions"], list):
+        logger.warning(f"suggestions must be list, got {type(parsed['suggestions'])}")
+        return False
+
+    if not parsed["suggestions"]:
+        logger.warning("Empty suggestions list")
+        return False
+
+    # Validate each suggestion
+    for i, suggestion in enumerate(parsed["suggestions"]):
+        if not isinstance(suggestion, dict):
+            logger.warning(f"Suggestion {i} must be dict, got {type(suggestion)}")
+            return False
+
+        required_fields = ["original_claim", "suggested_correction", "confidence"]
+        for field in required_fields:
+            if field not in suggestion:
+                logger.warning(f"Suggestion {i} missing '{field}' key")
+                return False
+
+        # Validate confidence
+        confidence = suggestion["confidence"]
+        if not isinstance(confidence, (int, float)) or not (0.0 <= confidence <= 1.0):
+            logger.warning(f"Suggestion {i} has invalid confidence: {confidence}")
+            return False
+
+    return True

@@ -18,9 +18,9 @@ unified_decision:
       -> break into factual sub-questions needed to verify the claim
       -> Example: "Is Poland the largest European country?" -> "What is the area of Poland?", "What is the largest country in Europe?"
       -> Example: "Polska to największy kraj europejski?" -> "Jaka jest powierzchnia Polski?", "Jaki jest największy kraj w Europie?"
-    - COMPARISON: "X vs Y", "X or Y", "difference between X and Y", "who had more impact X or Y"
+    - COMPARISON: "X vs Y vs Z", "X or Y or D or A", "difference between X and Y", "who had more impact X or Y. And what about Z?"
       -> action = "decompose"
-      -> one sub-question per entity about the SPECIFIC attribute being compared.
+      -> At least two sub-question per entity about the SPECIFIC attribute being compared. UNLESS THE QUERY IS VERY COMPLEX, IN WHICH CASE BREAK INTO MULTIPLE STEPS. We try to get some more information to perform a proper comparison.
       -> Example: "King A or King B had greater impact?" -> "What was King A's impact?", "What was King B's impact?"
     - SIMILARITY/COMMONALITY: "what do X and Y have in common", "similarities between X and Y"
       -> action = "decompose"
@@ -42,8 +42,9 @@ unified_decision:
 
     HARD REQUIREMENTS:
     - Keep language of sub-questions identical to QUERY language.
+    - If the question is comprised of multiple clauses, break it into separate sub-questions. Dont miss any event irrelevant clauses.
     - When "decompose":
-        * 1 ≤ number of sub_queries ≤ 20
+        * 1 ≤ number of sub_queries ≤ 15
         * Each sub-question must be independently answerable from a KB.
         * Retain all entities and the compared attribute (if any).
         * For comparisons: Ask "What/How [attribute] [entity]?" NOT "How much influence did [entity] have?"
