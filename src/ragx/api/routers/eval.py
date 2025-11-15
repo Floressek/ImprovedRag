@@ -171,6 +171,25 @@ async def pipeline_ablation(
     metadata["timings"]["retrieval_ms"] = (time.time() - start_retrieval) * 1000
     metadata["initial_results_count"] = len(initial_results)
 
+    # Edge case: No results found
+    if not initial_results:
+        logger.warning("No results found from vector store - returning empty answer")
+        total_time_ms = (time.time() - start_total) * 1000
+        metadata["total_time_ms"] = total_time_ms
+        metadata["final_results_count"] = 0
+        metadata["sources_count"] = 0
+        metadata["num_contexts"] = 0
+        metadata["multihop_coverage"] = 0.0
+
+        return {
+            "answer": "I couldn't find any relevant information to answer your question.",
+            "contexts": [],
+            "context_details": [],
+            "sub_queries": sub_queries,
+            "sources": [],
+            "metadata": metadata,
+        }
+
     # STAGE 4: Reranking (optional)
     if request.reranker_enabled:
         start_rerank = time.time()
@@ -345,28 +364,32 @@ async def pipeline_ablation(
     total_time_ms = (time.time() - start_total) * 1000
     metadata["total_time_ms"] = total_time_ms
 
-    # Build context details for response
+    # Build context details from contexts (AFTER remap_citations)
+    # This ensures citation_id alignment with remapped citations
     context_details = []
-    for i, (doc_id, payload, score) in enumerate(final_results):
-        context_details.append({
-            "citation_id": i + 1,
-            "text": payload.get("text", ""),
-            "url": payload.get("url", ""),
-            "title": payload.get("title", ""),
-            "score": score,
-        })
+    for ctx in contexts:
+        detail = {
+            "text": ctx.get("text", ""),
+            "url": ctx.get("url", ""),
+            "title": ctx.get("doc_title", ctx.get("title", "")),
+            "score": ctx.get("retrieval_score", 0.0),
+        }
+        # Add citation_id only if present (cited contexts)
+        if "citation_id" in ctx:
+            detail["citation_id"] = ctx["citation_id"]
+        context_details.append(detail)
 
-    # Extract unique sources
+    # Extract unique sources from contexts (not context_details)
     sources = []
     seen_urls = set()
-    for ctx in context_details:
+    for ctx in contexts:
         url = ctx.get("url")
         if url and url not in seen_urls:
             seen_urls.add(url)
             sources.append({
                 "url": url,
-                "title": ctx.get("title", ""),
-                "citation_id": ctx.get("citation_id"),
+                "title": ctx.get("doc_title", ctx.get("title", "")),
+                "citation_id": ctx.get("citation_id"),  # May be None for uncited
             })
 
     # Add custom metrics
