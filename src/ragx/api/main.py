@@ -8,7 +8,7 @@ from fastapi import Request
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.ragx.api.routers import chat, search, health, llm, analysis
+from src.ragx.api.routers import chat, search, health, llm, analysis, cove, eval
 from src.ragx.api.dependencies import (
     get_baseline_pipeline,
     get_enhanced_pipeline,
@@ -110,6 +110,8 @@ app.include_router(search.router)
 app.include_router(analysis.router)
 app.include_router(llm.router)
 app.include_router(chat.router)
+app.include_router(cove.router)
+app.include_router(eval.router)
 app.include_router(health.router)
 
 
@@ -118,18 +120,21 @@ async def root():
     """Root endpoint. -> stream won't be implemented till a UI is built."""
     return {
         "name": "RAGx API",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "docs": "/docs",
         "endpoints": {
             "baseline": "/ask/baseline",
             # "baseline_stream": "/ask/baseline/stream",
             "enhanced": "/ask/enhanced",
             # "enhanced_stream": "/ask/enhanced/stream",
-            "llm": "/llm",
+            "llm": "/llm/generate",
             "search": "/search",
             "rerank": "/rerank",
             "health": "/health",
             "analysis": "/analysis",
+            "query_rewrite": "/analysis/rewrite",
+            "cove_verify": "/cove/verify",
+            "ablation": "/eval/ablation",
         },
     }
 

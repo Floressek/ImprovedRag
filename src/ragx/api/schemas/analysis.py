@@ -3,10 +3,25 @@ from __future__ import annotations
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
+from src.ragx.retrieval.analyzers.linguistic_features import LinguisticFeatures
+
+from src.ragx.retrieval.constants import QueryType
+
 
 class LinguisticAnalysisRequest(BaseModel):
-    """Request model for linguistic analysis."""
+    """Request model for linguistic analysis. + normal query rewrite"""
     query: str = Field(..., min_length=1, description="Query to analyze")
+
+
+class MultihopSearchRequest(BaseModel):
+    """Request model for multihop search."""
+    query: str = Field(..., min_length=1, description="Query to search")
+    top_k: int = Field(10, ge=1, le=100, description="Number of results to return")
+    use_reranker: bool = Field(True, description="Use reranker for multihop search")
+    include_linguistic_analysis: bool = Field(
+        False,
+        description="Include linguistic analysis in results"
+    )
 
 
 class LinguisticAnalysisResponse(BaseModel):
@@ -22,16 +37,6 @@ class LinguisticAnalysisResponse(BaseModel):
     has_conjunctions: bool
     analysis_text: str
 
-
-class MultihopSearchRequest(BaseModel):
-    """Request model for multihop search."""
-    query: str = Field(..., min_length=1, description="Query to search")
-    top_k: int = Field(10, ge=1, le=100, description="Number of results to return")
-    use_reranker: bool = Field(True, description="Use reranker for multihop search")
-    include_linguistic_analysis: bool = Field(
-        False,
-        description="Include linguistic analysis in results"
-    )
 
 class MultihopSearchResult(BaseModel):
     """Single multihop search result."""
@@ -55,3 +60,13 @@ class MultihopSearchResponse(BaseModel):
     results: List[MultihopSearchResult]
     linguistic_analysis: Optional[LinguisticAnalysisResponse] = None
     metadata: Dict[str, Any]
+
+
+class RewrittenQuery(BaseModel):
+    """Rewritten query."""
+    original_query: str
+    sub_queries: List[str]
+    is_multihop: bool
+    query_type: QueryType
+    reasoning: Optional[str] = None
+    linguistic_features: Optional[LinguisticFeatures] = None
