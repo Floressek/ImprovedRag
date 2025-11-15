@@ -79,7 +79,7 @@ class MultihopRerankerEnhancer(Enhancer):
         num_subqueries = len(results_by_subquery)
         if settings.multihop.adaptive_top_k and override_top_k is None:
             adaptive_k = max(self.final_top_k, num_subqueries * 2)
-            logger.info(f"Adaptive top_k: {override_top_k} -> {adaptive_k}")
+            logger.info(f"Adaptive top_k: {self.final_top_k} -> {adaptive_k}")
             effective_top_k = adaptive_k
         else:
             effective_top_k = override_top_k if override_top_k is not None else self.final_top_k

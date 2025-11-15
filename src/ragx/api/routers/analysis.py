@@ -273,7 +273,7 @@ async def query_rewrite(
     - Reasoning for decomposition
     - Linguistic features
     """
-    query = request.get("query", "")
+    query = request.query
     logger.info(f"Rewriting query: {query}")
 
     result = adaptive_rewriter.rewrite(query)
