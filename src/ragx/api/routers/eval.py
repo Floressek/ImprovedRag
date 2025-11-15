@@ -246,11 +246,14 @@ async def pipeline_ablation(
     if request.cove_enabled:
         start_cove = time.time()
 
-        # Run CoVe enhancement
-        cove_result = cove_enhancer.enhance(
+        # Prepare contexts for CoVe (expects List[Dict[str, Any]])
+        cove_contexts = [payload for _, payload, _ in final_results]
+
+        # Run CoVe verification
+        cove_result = cove_enhancer.verify(
             query=query,
             answer=answer,
-            contexts=final_results,
+            contexts=cove_contexts,
         )
 
         # Update answer if corrections were made
