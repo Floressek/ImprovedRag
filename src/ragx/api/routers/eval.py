@@ -264,9 +264,44 @@ async def pipeline_ablation(
         else:
             metadata["cove_corrections_made"] = False
 
+        # Merge CoVe evidences into contexts (recovery sources)
+        all_evidences = cove_result.metadata.get("all_evidences", [])
+        if all_evidences:
+            logger.info(f"Merging {len(all_evidences)} CoVe evidences into contexts")
+
+            # Track existing doc IDs to avoid duplicates
+            existing_ids = {doc_id for doc_id, _, _ in final_results}
+
+            # Add new evidences that aren't already in contexts
+            new_evidences_added = 0
+            for ev in all_evidences:
+                if ev["id"] not in existing_ids:
+                    # Add to final_results as tuple (id, payload, score)
+                    payload = {
+                        "text": ev["text"],
+                        "title": ev.get("doc_title", "Unknown"),
+                        "url": ev.get("url", ""),
+                    }
+                    final_results.append((ev["id"], payload, ev["score"]))
+                    existing_ids.add(ev["id"])
+                    new_evidences_added += 1
+
+            if new_evidences_added > 0:
+                logger.info(f"✓ Added {new_evidences_added} new evidences from CoVe recovery")
+                metadata["cove_evidences_added"] = new_evidences_added
+
+                # Rebuild contexts list to include new evidences
+                contexts = [payload.get("text", "") for _, payload, _ in final_results]
+            else:
+                logger.debug("No new evidences added (all were already in contexts)")
+                metadata["cove_evidences_added"] = 0
+        else:
+            metadata["cove_evidences_added"] = 0
+
         metadata["timings"]["cove_ms"] = (time.time() - start_cove) * 1000
     else:
         metadata["cove_corrections_made"] = False
+        metadata["cove_evidences_added"] = 0
 
     # STAGE 7: Remap citations (if needed)
     # Extract citations from contexts for answer

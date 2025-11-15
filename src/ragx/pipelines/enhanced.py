@@ -262,6 +262,35 @@ class EnhancedPipeline(BasePipeline):
                 final_answer = cove_result.corrected_answer
                 logger.info(f"Using corrected answer (status: {cove_result.status})")
 
+            # Merge CoVe evidences into contexts (recovery sources)
+            all_evidences = cove_result.metadata.get("all_evidences", [])
+            if all_evidences:
+                logger.info(f"Merging {len(all_evidences)} CoVe evidences into contexts")
+
+                # Track existing doc IDs to avoid duplicates
+                existing_ids = {ctx["id"] for ctx in contexts}
+
+                # Add new evidences that aren't already in contexts
+                new_evidences_added = 0
+                for ev in all_evidences:
+                    if ev["id"] not in existing_ids:
+                        # Add to contexts in the same format
+                        contexts.append({
+                            "id": ev["id"],
+                            "text": ev["text"],
+                            "doc_title": ev.get("doc_title", "Unknown"),
+                            "url": ev.get("url", ""),
+                            "retrieval_score": ev["score"],
+                            "source": "cove_recovery",
+                        })
+                        existing_ids.add(ev["id"])
+                        new_evidences_added += 1
+
+                if new_evidences_added > 0:
+                    logger.info(f"✓ Added {new_evidences_added} new evidences from CoVe recovery")
+                else:
+                    logger.debug("No new evidences added (all were already in contexts)")
+
         cove_time = (time.time() - cove_start) * 1000
         total_time = (time.time() - start) * 1000
 

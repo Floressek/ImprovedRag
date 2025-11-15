@@ -302,6 +302,9 @@ class CoVeEnhancer:
                     logger.warning("✗ Post-correction citation injection failed (no matches > 0.6)")
                     correction_metadata["post_correction_citations_injected"] = False
 
+        # Collect all evidences from verifications (including recovery)
+        all_evidences = self._collect_all_evidences(verifications)
+
         return CoVeResult(
             original_answer=answer,
             corrected_answer=corrected_answer,
@@ -319,9 +322,46 @@ class CoVeEnhancer:
                 "recovery_helped": recovery_helped,
                 "failed_after_recovery": len(failed_after_recovery),
                 "correction_mode": settings.cove.correction_mode,
+                "all_evidences": all_evidences,  # NEW: All unique evidences for merging
                 **correction_metadata,
             },
         )
+
+    def _collect_all_evidences(self, verifications: List[Verification]) -> List[Dict[str, Any]]:
+        """
+        Collect all unique evidences from verifications.
+
+        This includes evidences from both original verification and recovery.
+        Useful for merging CoVe-discovered sources into final contexts.
+
+        Args:
+            verifications: List of Verification objects
+
+        Returns:
+            List of evidence dicts with id, text, doc_title, url, score, source
+        """
+        evidences = []
+        seen_ids = set()
+
+        for v in verifications:
+            for ev in v.evidences:
+                # Skip duplicates
+                if ev.doc_id in seen_ids:
+                    continue
+
+                seen_ids.add(ev.doc_id)
+                evidences.append({
+                    "id": ev.doc_id,
+                    "text": ev.text,
+                    "doc_title": ev.doc_title or "Unknown",
+                    "url": ev.metadata.get("url", "") if hasattr(ev, 'metadata') and ev.metadata else "",
+                    "score": ev.score,
+                    "source": "cove_verification",
+                    "verification_label": v.label,
+                })
+
+        logger.debug(f"Collected {len(evidences)} unique evidences from {len(verifications)} verifications")
+        return evidences
 
     def _determine_status(self, verifications: List) -> CoVeStatus:
         """Determine overall CoVe status (ignoring citation formatting issues)."""
