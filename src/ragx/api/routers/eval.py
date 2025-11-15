@@ -201,8 +201,16 @@ async def pipeline_ablation(
     # STAGE 5: Generation
     start_generation = time.time()
 
-    # Build contexts
-    contexts = [payload.get("text", "") for _, payload, _ in final_results]
+    # Build contexts as List[Dict[str, Any]] (NOT List[str])
+    contexts = []
+    for doc_id, payload, score in final_results:
+        contexts.append({
+            "id": doc_id,
+            "text": payload.get("text", ""),
+            "doc_title": payload.get("doc_title", "Unknown"),
+            "url": payload.get("url", ""),
+            "retrieval_score": score,
+        })
 
     # Build prompt
     provider = request.provider or settings.llm.provider
@@ -226,10 +234,23 @@ async def pipeline_ablation(
     )
 
     builder = PromptBuilder(config=prompt_config)
-    prompt = builder.build(
-        query=query,
-        contexts=contexts,
-    )
+
+    # Build prompt with proper signature and handle citation_mapping
+    citation_mapping = None
+    if is_multihop and len(sub_queries) > 1:
+        prompt, citation_mapping = builder.build(
+            query=query,
+            contexts=contexts,
+            is_multihop=True,
+            sub_queries=sub_queries,
+        )
+    else:
+        prompt = builder.build(
+            query=query,
+            contexts=contexts,
+            is_multihop=False,
+            sub_queries=None,
+        )
 
     # Generate answer
     answer = llm.generate(
@@ -290,8 +311,16 @@ async def pipeline_ablation(
                 logger.info(f"✓ Added {new_evidences_added} new evidences from CoVe recovery")
                 metadata["cove_evidences_added"] = new_evidences_added
 
-                # Rebuild contexts list to include new evidences
-                contexts = [payload.get("text", "") for _, payload, _ in final_results]
+                # Rebuild contexts list to include new evidences (as List[Dict])
+                contexts = []
+                for doc_id, payload, score in final_results:
+                    contexts.append({
+                        "id": doc_id,
+                        "text": payload.get("text", ""),
+                        "doc_title": payload.get("doc_title", "Unknown"),
+                        "url": payload.get("url", ""),
+                        "retrieval_score": score,
+                    })
             else:
                 logger.debug("No new evidences added (all were already in contexts)")
                 metadata["cove_evidences_added"] = 0
@@ -304,8 +333,13 @@ async def pipeline_ablation(
         metadata["cove_evidences_added"] = 0
 
     # STAGE 7: Remap citations (if needed)
-    # Extract citations from contexts for answer
-    final_answer = remap_citations(answer, contexts)
+    if citation_mapping:
+        # Multihop: remap citations and reorganize contexts
+        final_answer, contexts = remap_citations(answer, citation_mapping, contexts)
+        logger.info("Remapped citations for multihop query")
+    else:
+        # Non-multihop: use answer as-is
+        final_answer = answer
 
     # Calculate total time
     total_time_ms = (time.time() - start_total) * 1000

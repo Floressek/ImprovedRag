@@ -345,6 +345,11 @@ class CoVeEnhancer:
 
         for v in verifications:
             for ev in v.evidences:
+                # Skip invalid evidences (missing required fields)
+                if not ev.doc_id or not ev.text:
+                    logger.warning(f"Skipping invalid evidence (missing doc_id or text)")
+                    continue
+
                 # Skip duplicates
                 if ev.doc_id in seen_ids:
                     continue
@@ -355,7 +360,7 @@ class CoVeEnhancer:
                     "text": ev.text,
                     "doc_title": ev.doc_title or "Unknown",
                     "url": ev.metadata.get("url", "") if hasattr(ev, 'metadata') and ev.metadata else "",
-                    "score": ev.score,
+                    "score": ev.score if ev.score is not None else 0.0,
                     "source": "cove_verification",
                     "verification_label": v.label,
                 })

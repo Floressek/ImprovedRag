@@ -267,13 +267,13 @@ class EnhancedPipeline(BasePipeline):
             if all_evidences:
                 logger.info(f"Merging {len(all_evidences)} CoVe evidences into contexts")
 
-                # Track existing doc IDs to avoid duplicates
-                existing_ids = {ctx["id"] for ctx in contexts}
+                # Track existing doc IDs to avoid duplicates (safe get for "id")
+                existing_ids = {ctx.get("id") for ctx in contexts if ctx.get("id") is not None}
 
                 # Add new evidences that aren't already in contexts
                 new_evidences_added = 0
                 for ev in all_evidences:
-                    if ev["id"] not in existing_ids:
+                    if ev.get("id") and ev["id"] not in existing_ids:
                         # Add to contexts in the same format
                         contexts.append({
                             "id": ev["id"],

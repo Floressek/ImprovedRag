@@ -65,7 +65,8 @@ class CitationInjector:
                     default=0
                 )
                 citation_id = max_citation_id + 1
-                contexts[best_match_idx]["citation_id"] = citation_id
+                # Safe update - works with both mutable dicts and Pydantic models
+                contexts[best_match_idx].update({"citation_id": citation_id})
                 logger.info(
                     f"Assigned NEW citation_id={citation_id} to contexts[{best_match_idx}]"
                 )
