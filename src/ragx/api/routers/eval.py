@@ -403,10 +403,13 @@ async def pipeline_ablation(
     else:
         metadata["multihop_coverage"] = 1.0
 
+    # Convert contexts to list[str] for schema compliance (RAGAS expects List[str])
+    contexts_text = [ctx.get("text", "") for ctx in contexts]
+
     return {
         "answer": final_answer,
-        "contexts": contexts,
-        "context_details": context_details,
+        "contexts": contexts_text,  # list[str] as per schema
+        "context_details": context_details,  # Full details with citation_id, url, etc.
         "sub_queries": sub_queries,
         "sources": sources,
         "metadata": metadata,
