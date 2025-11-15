@@ -351,8 +351,10 @@ async def pipeline_ablation(
 
         metadata["timings"]["cove_ms"] = (time.time() - start_cove) * 1000
     else:
+        # CoVe disabled - set all metrics to default/false
         metadata["cove_corrections_made"] = False
         metadata["cove_evidences_added"] = 0
+        metadata["cove_num_claims"] = 0
 
     # STAGE 7: Remap citations (if needed)
     if citation_mapping:
