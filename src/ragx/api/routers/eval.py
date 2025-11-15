@@ -260,6 +260,7 @@ async def pipeline_ablation(
         prompt, citation_mapping = builder.build(
             query=query,
             contexts=contexts,
+            template_name=template,  # Use selected template
             is_multihop=True,
             sub_queries=sub_queries,
         )
@@ -267,6 +268,7 @@ async def pipeline_ablation(
         prompt = builder.build(
             query=query,
             contexts=contexts,
+            template_name=template,  # Use selected template
             is_multihop=False,
             sub_queries=None,
         )
@@ -286,23 +288,23 @@ async def pipeline_ablation(
     if request.cove_enabled:
         start_cove = time.time()
 
-        # Prepare contexts for CoVe (expects List[Dict[str, Any]])
-        cove_contexts = [payload for _, payload, _ in final_results]
-
-        # Run CoVe verification
+        # Run CoVe verification (reuse contexts built earlier)
         cove_result = cove_enhancer.verify(
             query=query,
             answer=answer,
-            contexts=cove_contexts,
+            contexts=contexts,  # Already built as List[Dict] from final_results
         )
 
         # Update answer if corrections were made
         if cove_result.corrected_answer:
             answer = cove_result.corrected_answer
             metadata["cove_corrections_made"] = True
-            metadata["cove_num_corrections"] = len(cove_result.corrections)
+            metadata["cove_num_claims"] = cove_result.metadata.get("num_claims", 0)
+            metadata["cove_num_refuted"] = cove_result.metadata.get("num_refuted", 0)
+            metadata["cove_status"] = str(cove_result.status)
         else:
             metadata["cove_corrections_made"] = False
+            metadata["cove_num_claims"] = cove_result.metadata.get("num_claims", 0)
 
         # Merge CoVe evidences into contexts (recovery sources)
         all_evidences = cove_result.metadata.get("all_evidences", [])
@@ -317,9 +319,10 @@ async def pipeline_ablation(
             for ev in all_evidences:
                 if ev["id"] not in existing_ids:
                     # Add to final_results as tuple (id, payload, score)
+                    # Use "doc_title" key to match vector store payload structure
                     payload = {
                         "text": ev["text"],
-                        "title": ev.get("doc_title", "Unknown"),
+                        "doc_title": ev.get("doc_title", "Unknown"),
                         "url": ev.get("url", ""),
                     }
                     final_results.append((ev["id"], payload, ev["score"]))
