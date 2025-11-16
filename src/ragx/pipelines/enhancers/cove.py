@@ -386,6 +386,10 @@ class CoVeEnhancer:
         seen_ids = set()
 
         for v in verifications:
+            # evidence from the support claims to the final answer, TODO, maybe add separate window for refuted etc?
+            if v.label not in ["supports", "refutes"]:
+                continue
+
             for ev in v.evidences:
                 if not ev.text or not ev.doc_id:
                     logger.debug(f"Skipping empty evidence: {ev}")

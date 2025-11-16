@@ -123,9 +123,9 @@ class ClaimVerifier:
 
         evidence = [
             Evidence(
-                doc_id=str(i),
+                doc_id=str(ctx.get("id", f"unknown_{i}")),
                 text=ctx.get("text", ""),
-                score=ctx.get("score", 0.0),
+                score=ctx.get("retrieval_score") or ctx.get("rerank_score") or ctx.get("score", 0.0),
                 doc_title=ctx.get("doc_title"),
                 metadata=ctx.get("metadata", {}),
             )
@@ -190,9 +190,9 @@ class ClaimVerifier:
         verifications = []
         evidence_objs = [
             Evidence(
-                doc_id=str(i),
+                doc_id=str(ctx.get("id", f"unknown_{i}")),
                 text=ctx.get("text", ""),
-                score=ctx.get("score", 0.0),
+                score=ctx.get("retrieval_score") or ctx.get("rerank_score") or ctx.get("score", 0.0),
                 doc_title=ctx.get("doc_title"),
                 metadata=ctx.get("metadata", {}),
             )
