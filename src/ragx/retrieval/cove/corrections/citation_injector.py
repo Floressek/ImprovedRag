@@ -33,6 +33,10 @@ class CitationInjector:
         Returns:
             List of citation IDs injected into the claim.
         """
+        if not contexts:
+            logger.debug("No contexts found for claim")
+            return None
+
         # Optional fix for correcting citation injection FIXME delete this comment or code if buggy
         # Remove existing citations from claim text for matching
         claim_clean = re.sub(r'\[\d+\]', '', claim.text).strip()
