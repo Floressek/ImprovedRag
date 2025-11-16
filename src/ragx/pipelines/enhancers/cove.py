@@ -398,16 +398,21 @@ class CoVeEnhancer:
                     logger.debug(f"Skipping duplicate evidence: {ev}")
                     continue
 
+                url = ""
+                if isinstance(ev.metadata, dict):
+                    url = ev.metadata.get("url", "")
+
                 seen_ids.add(ev.doc_id)
                 evidences.append({
                     "id": ev.doc_id,
                     "text": ev.text,
                     "doc_title": ev.doc_title or "Unknown",
-                    "url": ev.metadata.get("url") if hasattr(ev.metadata, "url") and ev.metadata else "",
+                    "url": url,
                     "score": ev.score if ev.score else 0.0,
                     "source": "cove_verification",
                     "verification_label": v.label,
+                    "position": ev.metadata.get("position", 0) if isinstance(ev.metadata, dict) else 0,
                 })
 
-        logger.debug(f"Collected {len(evidences)} unique evidences from verifications")
+        logger.debug(f"Collected {len(evidences)} unique evidences from {sum(1 for v in verifications if v.label not in ["supports", "refutes"])} verified claims")
         return evidences

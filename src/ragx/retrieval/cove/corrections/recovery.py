@@ -142,8 +142,10 @@ class RecoveryEngine:
                 "id": doc_id,
                 "text": payload.get("text", ""),
                 "doc_title": payload.get("doc_title"),
+                "position": payload.get("position", 0),
                 "retrieval_score": float(score),
-                "metadata": payload.get("metadata", {})
+                "metadata": payload.get("metadata", {}),
+                "url": payload.get("metadata", {}).get("url", "") if isinstance(payload.get("metadata"), dict) else "",
             })
 
         return evidence
