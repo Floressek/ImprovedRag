@@ -302,6 +302,9 @@ class CoVeEnhancer:
                     logger.warning("✗ Post-correction citation injection failed (no matches > 0.6)")
                     correction_metadata["post_correction_citations_injected"] = False
 
+        # Step 8: Collect all evidences from recovered claims
+        all_evidences = self._collect_all_evidences(verifications)
+
         return CoVeResult(
             original_answer=answer,
             corrected_answer=corrected_answer,
@@ -319,6 +322,7 @@ class CoVeEnhancer:
                 "recovery_helped": recovery_helped,
                 "failed_after_recovery": len(failed_after_recovery),
                 "correction_mode": settings.cove.correction_mode,
+                "all_evidences": all_evidences,
                 **correction_metadata,
             },
         )
@@ -367,3 +371,39 @@ class CoVeEnhancer:
             return CoVeStatus.LOW_CONFIDENCE
 
         return CoVeStatus.ALL_VERIFIED
+
+    def _collect_all_evidences(
+            self,
+            verifications: List[Verification]
+    ) -> List[Dict]:
+        """
+        Collect all unique evid. from verfications.
+
+        This will include all evidences = context + evidences from cove recovery module.
+        Purpose: Adding additional context for user to see the additionally pulled evidences.
+        """
+        evidences = []
+        seen_ids = set()
+
+        for v in verifications:
+            for ev in v.evidences:
+                if not ev.text or not ev.doc_id:
+                    logger.debug(f"Skipping empty evidence: {ev}")
+                    continue
+                if ev.doc_id in seen_ids:
+                    logger.debug(f"Skipping duplicate evidence: {ev}")
+                    continue
+
+                seen_ids.add(ev.doc_id)
+                evidences.append({
+                    "id": ev.doc_id,
+                    "text": ev.text,
+                    "doc_title": ev.doc_title or "Unknown",
+                    "url": ev.metadata.get("url") if hasattr(ev.metadata, "url") and ev.metadata else "",
+                    "score": ev.score if ev.score else 0.0,
+                    "source": "cove_verification",
+                    "verification_label": v.label,
+                })
+
+        logger.debug(f"Collected {len(evidences)} unique evidences from verifications")
+        return evidences

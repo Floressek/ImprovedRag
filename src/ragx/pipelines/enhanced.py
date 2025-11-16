@@ -180,7 +180,7 @@ class EnhancedPipeline(BasePipeline):
             rerank_time = (time.time() - rerank_start) * 1000
             logger.info(f"Reranked {len(results)} candidates")
 
-        # Step 4: Format Contexts
+        # Step 4: Format Contexts, TODO function for it
         contexts = []
         for idx, payload, score in results:
             metadata = payload.get("metadata", {})
@@ -236,7 +236,6 @@ class EnhancedPipeline(BasePipeline):
             )
             citation_mapping = None
 
-
         llm_start = time.time()
         answer = self.llm.generate(prompt)
         llm_time = (time.time() - llm_start) * 1000
@@ -261,6 +260,34 @@ class EnhancedPipeline(BasePipeline):
             if cove_result.corrected_answer:
                 final_answer = cove_result.corrected_answer
                 logger.info(f"Using corrected answer (status: {cove_result.status})")
+
+        # Step 6a: Check for evidences, TODO function for it
+        all_evidences = cove_result.metadata.get("all_evidences", [])
+        if all_evidences:
+            logger.info(f"Found {len(all_evidences)} evidences")
+
+            existing_ids = {ctx.get("id") for ctx in contexts
+                            if ctx.get("id") is not None}
+
+            new_evidences_added = 0
+            for ev in all_evidences:
+                if ev.get("id") and ev["id"] not in existing_ids:
+                    contexts.append({
+                        "id": ev["id"],
+                        "text": ev["text"],
+                        "doc_title": ev.get("doc_title", "Unknown"),
+                        "url": ev.get("url", ""),
+                        "retrieval_score": ev["score"],
+                        "source": "cove_recovery",
+                        "position": ev.get("position", 0)
+                    })
+                    existing_ids.add(ev["id"])
+                    new_evidences_added += 1
+
+                if new_evidences_added > 0:
+                    logger.info(f"Added {new_evidences_added} evidences to the context")
+                else:
+                    logger.info("No new evidences added")
 
         cove_time = (time.time() - cove_start) * 1000
         total_time = (time.time() - start) * 1000

@@ -348,6 +348,7 @@ class MultihopRerankerEnhancer(Enhancer):
 
         subquery_counts = defaultdict(int)
         selected = []
+        selected_ids = set()
 
         # Pass 1: Min enforced
         for doc_id, payload, score in final:
@@ -359,6 +360,7 @@ class MultihopRerankerEnhancer(Enhancer):
 
             if needs_min:
                 selected.append((doc_id, payload, score))
+                selected_ids.add(doc_id)
                 for sq in doc_sqs:
                     subquery_counts[sq] += 1
 
@@ -368,7 +370,7 @@ class MultihopRerankerEnhancer(Enhancer):
                 break
 
             # if selected skip
-            if any(d_id == doc_id for d_id, _, _ in selected):
+            if doc_id in selected_ids:
                 continue
 
             doc_sqs = doc_to_subqueries.get(doc_id, [])
@@ -376,6 +378,7 @@ class MultihopRerankerEnhancer(Enhancer):
 
             if not violates_max:
                 selected.append((doc_id, payload, score))
+                selected_ids.add(doc_id)
                 for sq in doc_sqs:
                     subquery_counts[sq] += 1
 
