@@ -261,27 +261,30 @@ class EnhancedPipeline(BasePipeline):
                 final_answer = cove_result.corrected_answer
                 logger.info(f"Using corrected answer (status: {cove_result.status})")
 
-        # Step 6a: Check for evidences, TODO function for it
-        all_evidences = cove_result.metadata.get("all_evidences", [])
-        if all_evidences:
-            logger.info(f"Found {len(all_evidences)} evidences")
+        # Step 6a: Prepare sources list (contexts + used evidences from CoVe)
+        sources = contexts.copy()
+        all_evidences = cove_result.metadata.get("all_evidences", []) if cove_result else []
 
-            existing_ids = {ctx.get("id") for ctx in contexts
+        if all_evidences:
+            logger.info(f"Found {len(all_evidences)} evidences from supported / refuted claims.")
+
+            existing_ids = {ctx.get("id") for ctx in sources
                             if ctx.get("id") is not None}
 
             new_evidences_added = 0
             for ev in all_evidences:
-                if ev.get("id") and ev["id"] not in existing_ids:
-                    contexts.append({
-                        "id": ev["id"],
+                ev_id = ev.get("id")
+                if not ev_id or ev_id in existing_ids or str(ev_id).startswith("unknown_"):
+                    sources.append({
+                        "id": ev_id,
                         "text": ev["text"],
                         "doc_title": ev.get("doc_title", "Unknown"),
+                        "position": ev.get("position", 0),
+                        "retrieval_score": ev.get("score", 0),
                         "url": ev.get("url", ""),
-                        "retrieval_score": ev["score"],
-                        "source": "cove_recovery",
-                        "position": ev.get("position", 0)
+                        "source": "EVIDENCE FROM COVE",
                     })
-                    existing_ids.add(ev["id"])
+                    existing_ids.add(ev_id)
                     new_evidences_added += 1
 
                 if new_evidences_added > 0:
@@ -312,7 +315,7 @@ class EnhancedPipeline(BasePipeline):
             "cove_time_ms": round(cove_time, 2) if settings.cove.enabled else 0,
             "total_time_ms": round(total_time, 2),
             "num_candidates": num_retrieved_candidates,
-            "num_sources": len(contexts),
+            "num_sources": len(sources),
         }
 
         if cove_result:
@@ -324,7 +327,7 @@ class EnhancedPipeline(BasePipeline):
 
         return {
             "answer": final_answer,
-            "sources": contexts,
+            "sources": sources,
             "metadata": metadata,
         }
 
