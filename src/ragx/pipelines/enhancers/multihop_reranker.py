@@ -352,9 +352,6 @@ class MultihopRerankerEnhancer(Enhancer):
 
         # Pass 1: Min enforced
         for doc_id, payload, score in final:
-            if len(selected) >= effective_top_k:
-                break
-
             doc_sqs = doc_to_subqueries.get(doc_id, [])
             needs_min = any(subquery_counts[sq] < min_per_subquery for sq in doc_sqs)
 
