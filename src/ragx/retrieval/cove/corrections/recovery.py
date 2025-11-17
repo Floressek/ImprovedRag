@@ -138,12 +138,15 @@ class RecoveryEngine:
 
         evidence = []
         for doc_id, payload, score in results:
+            metadata = payload.get("metadata", {}) or {}
             evidence.append({
                 "id": doc_id,
                 "text": payload.get("text", ""),
                 "doc_title": payload.get("doc_title"),
+                "position": payload.get("position", 0),
                 "retrieval_score": float(score),
-                "metadata": payload.get("metadata", {})
+                "metadata": payload.get("metadata", {}),
+                "url": metadata.get("url", "") if isinstance(metadata, dict) else "",
             })
 
         return evidence
