@@ -24,6 +24,7 @@ from ragas.metrics import (
 )
 from datasets import Dataset
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from openai import RateLimitError, APIError, APIConnectionError
 
 from src.ragx.utils.settings import settings
 
@@ -199,19 +200,42 @@ class RAGASEvaluator:
             "ground_truth": [ground_truth],
         })
 
-        # Run RAGAS evaluation
+        # Run RAGAS evaluation with retry on rate limits
         logger.debug(f"Evaluating question: {question[:50]}...")
-        ragas_result = evaluate(
-            dataset,
-            metrics=[
-                faithfulness,
-                answer_relevancy,
-                context_precision,
-                context_recall,
-            ],
-            llm=self.llm,
-            embeddings=self.embeddings,
-        )
+
+        max_retries = 3
+        retry_delay = 60  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                ragas_result = evaluate(
+                    dataset,
+                    metrics=[
+                        faithfulness,
+                        answer_relevancy,
+                        context_precision,
+                        context_recall,
+                    ],
+                    llm=self.llm,
+                    embeddings=self.embeddings,
+                )
+                break  # Success, exit retry loop
+
+            except RateLimitError as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Rate limit hit (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"Rate limit exceeded after {max_retries} attempts")
+                    raise
+
+            except (APIError, APIConnectionError) as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"API error (attempt {attempt + 1}/{max_retries}): {e}, retrying in 30s...")
+                    time.sleep(30)
+                else:
+                    logger.error(f"API error after {max_retries} attempts: {e}")
+                    raise
 
         # Extract RAGAS scores
         ragas_scores = ragas_result.to_pandas().iloc[0]

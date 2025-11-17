@@ -32,6 +32,7 @@ class AnswerCorrector:
             verifications: List[Verification],
             contexts: List[Dict[str, Any]],
             provider: Optional[str] = None,
+            correction_mode: Optional[str] = None,
     ) -> tuple[Optional[str], Dict[str, Any]]:
         """
         Generate corrected answer based on correction_mode.
@@ -42,6 +43,7 @@ class AnswerCorrector:
             verifications: List of verification results
             contexts: List of contexts
             provider: LLM provider ("api", "ollama", "huggingface", etc.) - defaults to settings
+            correction_mode: Correction mode ("off", "metadata", "suggest", "auto") - defaults to settings
 
         Returns:
             (corrected_answer, metadata_dict)
@@ -52,7 +54,7 @@ class AnswerCorrector:
         if provider is None:
             provider = settings.llm.provider
 
-        mode = settings.cove.correction_mode
+        mode = correction_mode if correction_mode is not None else settings.cove.correction_mode
         failed = [v for v in verifications if v.label in ["refutes", "insufficient"]]
 
         if not failed:

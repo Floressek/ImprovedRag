@@ -42,22 +42,24 @@ class WikipediaQuestionGenerator:
         if not self.data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {self.data_dir}")
 
-    def load_articles(
+    def load_articles_sample(
         self,
         folders: List[str],
-        max_articles_per_folder: int = 100,
+        sample_size: int,
     ) -> List[Dict[str, Any]]:
         """
-        Load random articles from specified folders.
+        Load random sample of articles using reservoir sampling (memory-efficient).
 
         Args:
             folders: List of folder names (e.g. ["AA", "AB", ...])
-            max_articles_per_folder: Max articles to load per folder
+            sample_size: Number of articles to sample
 
         Returns:
-            List of article dicts
+            List of sampled article dicts
         """
-        articles = []
+        # Reservoir sampling: memory-efficient random sampling from stream
+        reservoir = []
+        total_seen = 0
 
         for folder in folders:
             folder_path = self.data_dir / folder
@@ -73,10 +75,6 @@ class WikipediaQuestionGenerator:
                 logger.warning(f"No .jsonl files in {folder_path}")
                 continue
 
-            logger.info(f"Loading from {folder} ({len(jsonl_files)} files)...")
-
-            folder_articles = []
-
             for jsonl_file in jsonl_files:
                 try:
                     with open(jsonl_file, 'r', encoding='utf-8') as f:
@@ -87,19 +85,21 @@ class WikipediaQuestionGenerator:
                             if all(k in article for k in ["id", "title", "text", "url"]):
                                 # Skip very short articles
                                 if len(article["text"]) > 200:
-                                    folder_articles.append(article)
+                                    total_seen += 1
+
+                                    # Reservoir sampling algorithm
+                                    if len(reservoir) < sample_size:
+                                        reservoir.append(article)
+                                    else:
+                                        # Replace with decreasing probability
+                                        rand_idx = random.randint(0, total_seen - 1)
+                                        if rand_idx < sample_size:
+                                            reservoir[rand_idx] = article
                 except Exception as e:
                     logger.error(f"Failed to load {jsonl_file}: {e}")
 
-            # Random sample
-            if len(folder_articles) > max_articles_per_folder:
-                folder_articles = random.sample(folder_articles, max_articles_per_folder)
-
-            articles.extend(folder_articles)
-            logger.info(f"  Loaded {len(folder_articles)} articles from {folder}")
-
-        logger.info(f"Total articles loaded: {len(articles)}")
-        return articles
+        logger.info(f"Sampled {len(reservoir)} articles from {total_seen} total (memory-efficient)")
+        return reservoir
 
     def generate_questions(
         self,
@@ -130,8 +130,12 @@ class WikipediaQuestionGenerator:
                 "temporal": 0.10,
             }
 
-        # Load articles
-        articles = self.load_articles(folders, max_articles_per_folder=200)
+        # Calculate sample size: enough for generation with buffer (memory-efficient)
+        # For 1000 questions with 50% buffer = 1500 attempts, we need ~500-1000 articles
+        sample_size = max(num_questions, 1000)  # At least 1000 articles
+
+        # Load articles using reservoir sampling (memory-efficient)
+        articles = self.load_articles_sample(folders, sample_size=sample_size)
 
         if not articles:
             raise ValueError("No articles loaded")

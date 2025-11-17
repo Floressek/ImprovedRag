@@ -41,7 +41,7 @@ async def pipeline_ablation(
         reranker_enhancer: RerankerEnhancer = Depends(get_reranker_enhancer),
         multihop_reranker: MultihopRerankerEnhancer = Depends(get_multihop_reranker),
         cove_enhancer: CoVeEnhancer = Depends(get_cove_enhancer),
-) -> Dict[str, Any]:
+) -> PipelineAblationResponse:
     """
     Pipeline ablation study - toggle each stage on/off.
     Allows testing different combinations of:
@@ -181,14 +181,14 @@ async def pipeline_ablation(
         metadata["num_contexts"] = 0
         metadata["multihop_coverage"] = 0.0
 
-        return {
-            "answer": "I couldn't find any relevant information to answer your question.",
-            "contexts": [],
-            "context_details": [],
-            "sub_queries": sub_queries,
-            "sources": [],
-            "metadata": metadata,
-        }
+        return PipelineAblationResponse(
+            answer="I couldn't find any relevant information to answer your question.",
+            contexts=[],
+            context_details=[],
+            sub_queries=sub_queries,
+            sources=[],
+            metadata=metadata,
+        )
 
     # STAGE 4: Reranking (optional)
     if request.reranker_enabled:
@@ -298,23 +298,20 @@ async def pipeline_ablation(
         # Prepare contexts for CoVe (full payloads with all metadata)
         cove_contexts = [payload for _, payload, _ in final_results]
 
-        # Temporarily override cove settings for this request
+        # Temporarily override cove.enabled for this request (thread-safe)
         original_cove_enabled = settings.cove.enabled
-        original_correction_mode = settings.cove.correction_mode
-
         settings.cove.enabled = True
-        settings.cove.correction_mode = request.cove_mode  # "auto", "metadata", or "suggest"
 
-        # Run CoVe verification
+        # Run CoVe verification with explicit correction_mode (thread-safe)
         cove_result = cove_enhancer.verify(
             query=query,
             answer=answer,
             contexts=cove_contexts,
+            correction_mode=request.cove_mode,  # Pass as parameter instead of modifying global settings
         )
 
         # Restore original settings
         settings.cove.enabled = original_cove_enabled
-        settings.cove.correction_mode = original_correction_mode
 
         # Update answer if corrections were made
         if cove_result.corrected_answer:
@@ -436,11 +433,11 @@ async def pipeline_ablation(
     # Convert contexts to list[str] for schema compliance (RAGAS expects List[str])
     contexts_text = [ctx.get("text", "") for ctx in contexts]
 
-    return {
-        "answer": final_answer,
-        "contexts": contexts_text,  # list[str] as per schema
-        "context_details": context_details,  # Full details with citation_id, url, etc.
-        "sub_queries": sub_queries,
-        "sources": sources,
-        "metadata": metadata,
-    }
+    return PipelineAblationResponse(
+        answer=final_answer,
+        contexts=contexts_text,  # list[str] as per schema
+        context_details=context_details,  # Full details with citation_id, url, etc.
+        sub_queries=sub_queries,
+        sources=sources,
+        metadata=metadata,
+    )

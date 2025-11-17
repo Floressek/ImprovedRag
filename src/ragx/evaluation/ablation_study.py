@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 import statistics
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from scipy import stats
 
 from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator, BatchEvaluationResult
@@ -338,7 +340,20 @@ class AblationStudy:
         """
         self.api_base_url = api_base_url.rstrip("/")
         self.ragas_evaluator = ragas_evaluator or RAGASEvaluator()
-        logger.info(f"Initialized ablation study with API: {self.api_base_url}")
+
+        # Configure retry strategy for network resilience
+        retry_strategy = Retry(
+            total=3,  # Max 3 retries
+            backoff_factor=2,  # Wait 2s, 4s, 8s between retries
+            status_forcelist=[429, 500, 502, 503, 504],  # Retry on these HTTP codes
+            allowed_methods=["POST"],  # Only retry POST requests
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session = requests.Session()
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+
+        logger.info(f"Initialized ablation study with API: {self.api_base_url} (retry: 3x with backoff)")
 
     def run(
         self,
@@ -434,18 +449,30 @@ class AblationStudy:
                     config=config,
                 )
 
+                # Validate response has required fields
+                if not isinstance(response, dict):
+                    raise ValueError(f"Invalid response type: {type(response)}")
+
+                required_fields = ["answer", "contexts"]
+                missing_fields = [f for f in required_fields if f not in response]
+                if missing_fields:
+                    raise ValueError(f"Missing required fields in API response: {missing_fields}")
+
                 api_responses.append(response)
 
-                # Extract data for RAGAS
+                # Extract data for RAGAS with safe defaults
                 rag_questions.append(q["question"])
-                rag_answers.append(response["answer"])
-                rag_contexts_list.append(response["contexts"])
+                rag_answers.append(response.get("answer", ""))
+                rag_contexts_list.append(response.get("contexts", []))
                 ground_truths.append(q["ground_truth"])
 
                 # Metadata for custom metrics
+                # Use response["sources"] which includes merged CoVe evidences
+                sources_urls = [s.get("url") for s in response.get("sources", []) if s.get("url")]
+
                 metadata = {
                     "latency_ms": response.get("metadata", {}).get("total_time_ms", 0.0),
-                    "sources": [ctx.get("url") for ctx in response.get("context_details", [])],
+                    "sources": sources_urls,  # Use merged sources (includes CoVe recovery)
                     "is_multihop": response.get("metadata", {}).get("is_multihop", False),
                     "sub_queries": response.get("sub_queries", []),
                     "query_type": response.get("metadata", {}).get("query_type"),
@@ -504,7 +531,7 @@ class AblationStudy:
             "top_k": 8,  # Standard top-k
         }
 
-        response = requests.post(url, json=payload, timeout=120)
+        response = self.session.post(url, json=payload, timeout=120)
         response.raise_for_status()
 
         return response.json()
