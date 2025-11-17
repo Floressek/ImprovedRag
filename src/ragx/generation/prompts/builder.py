@@ -6,7 +6,7 @@ from collections import defaultdict
 import yaml
 import re
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 from langdetect import detect, LangDetectException
 
 from src.ragx.generation.prompts.utils.prompt_config import PromptConfig
@@ -145,7 +145,7 @@ class PromptBuilder:
             is_multihop: bool = False,
             sub_queries: Optional[List[str]] = None,
             **kwargs
-    ) -> str:
+    ) -> Union[str, Tuple[str, Dict[int, str]]]:
         """
         Build advanced prompt from template.
 
@@ -236,7 +236,7 @@ class PromptBuilder:
             contexts: List[Dict[str, Any]],
             config: Optional[PromptConfig] = None,
             **kwargs
-    ) -> str:
+    ) -> Tuple[str, Dict[int, str]]:
         """Build multihop prompt with grouped contexts.
 
         Args:
@@ -258,7 +258,7 @@ class PromptBuilder:
 
         # Group contexts by source sub-query
         grouped = self._group_context_by_subquery(contexts)
-        grouped_contexts_str = self._format_grouped_contexts_for_multihop(
+        grouped_contexts_str, citation_mapping = self._format_grouped_contexts_for_multihop(
             grouped, sub_queries
         )
 
@@ -291,7 +291,7 @@ class PromptBuilder:
         )
 
         logger.info(f"Multihop prompt built for query: {prompt}")
-        return prompt.strip()
+        return prompt.strip(), citation_mapping
 
     def _group_context_by_subquery(
             self,
@@ -318,13 +318,14 @@ class PromptBuilder:
             self,
             grouped: Dict[str, List[Dict[str, Any]]],
             sub_queries: List[str],
-    ) -> str:
+    ) -> Tuple[str, Dict[int, str]]:
         """Format grouped contexts for multihop prompt."""
         if not grouped:
-            return "[No contexts available]"
+            return "[No contexts available]", {}
 
         formatted_sections = []
         global_idx = 1
+        citation_to_doc_id = {}
 
         # Iterate in sub-query order
         for sub_query in sub_queries:
@@ -352,6 +353,9 @@ class PromptBuilder:
                 title = ctx.get("doc_title", "Unknown")
                 position = ctx.get("position", 0)
                 total = ctx.get("total_chunks", 1)
+
+                real_doc_id = ctx.get("id") or str(global_idx)
+                citation_to_doc_id[global_idx] = real_doc_id
 
                 if total > 1:
                     section.append(f"[{global_idx}] SOURCE: {title} (Fragment {position + 1}/{total})")
@@ -384,7 +388,7 @@ class PromptBuilder:
 
             formatted_sections.append("\n".join(section))
 
-        return "\n".join(formatted_sections)
+        return "\n".join(formatted_sections), citation_to_doc_id
 
     def _format_chat_history(
             self,

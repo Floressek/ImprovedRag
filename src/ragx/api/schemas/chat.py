@@ -51,3 +51,14 @@ class AskResponse(BaseModel):
     answer: str
     sources: List[SourceInfo]
     metadata: Dict[str, Any]
+    cove_info: Optional[CoVeInfo] = None
+
+class CoVeInfo(BaseModel):
+    """CoVe verification info."""
+    status: str
+    needs_correction: bool
+    num_claims: int
+    num_verified: int
+    num_refuted: int
+    num_insufficient: int
+    citations_injected: int

@@ -4,7 +4,9 @@ import logging
 import time
 from typing import Dict, Any, Optional, List, Iterator
 
+from src.ragx.generation.prompts.utils.citation_remapper import remap_citations
 from src.ragx.pipelines.base import BasePipeline
+from src.ragx.pipelines.enhancers.cove import CoVeEnhancer
 from src.ragx.pipelines.enhancers.reranker import RerankerEnhancer
 from src.ragx.pipelines.enhancers.multihop_reranker import MultihopRerankerEnhancer
 from src.ragx.retrieval.analyzers.linguistic_analyzer import LinguisticAnalyzer
@@ -30,6 +32,7 @@ class EnhancedPipeline(BasePipeline):
             reranker_enhancer: Optional[RerankerEnhancer] = None,
             multihop_reranker: Optional[MultihopRerankerEnhancer] = None,
             llm: Optional[LLMInference] = None,
+            cove_enhancer: Optional[CoVeEnhancer] = None,
             initial_top_k: Optional[int] = None,
     ):
         # Embedder and vector store
@@ -50,8 +53,8 @@ class EnhancedPipeline(BasePipeline):
 
         # Multihop reranking (handles fusion internally)
         self.multihop_reranker = multihop_reranker or MultihopRerankerEnhancer(
-            top_k_per_subquery=settings.retrieval.context_top_n,
-            final_top_k=settings.retrieval.context_top_n,
+            top_k_per_subquery=settings.multihop.top_k_per_subquery,
+            final_top_k=settings.multihop.final_top_k,
             fusion_strategy="max",
             global_rerank_weight=0.6,
         )
@@ -75,9 +78,16 @@ class EnhancedPipeline(BasePipeline):
             think_tag_style=think_style,
         )
 
+        self.cove_enhancer = cove_enhancer or CoVeEnhancer(
+            embedder=self.embedder,
+            vector_store=self.vector_store,
+            reranker=self.reranker_enhancer,
+        )
+
         logger.info(
             f"EnhancedPipeline initialized "
             f"(retrieve={self.initial_top_k}, rerank_to={self.reranker_enhancer.top_k})"
+            f"cove={settings.cove.enabled})"
         )
 
     def answer(
@@ -170,7 +180,7 @@ class EnhancedPipeline(BasePipeline):
             rerank_time = (time.time() - rerank_start) * 1000
             logger.info(f"Reranked {len(results)} candidates")
 
-        # Step 4: Format Contexts
+        # Step 4: Format Contexts, TODO function for it
         contexts = []
         for idx, payload, score in results:
             metadata = payload.get("metadata", {})
@@ -202,46 +212,125 @@ class EnhancedPipeline(BasePipeline):
             contexts.append(context_dict)
 
         # Step 5: Generation
-        prompt = self.prompt_builder.build(
-            query=query,
-            contexts=contexts,
-            template_name="enhanced",
-            chat_history=chat_history,
-            max_history=max_history,
-            config=self.prompt_config,
-            is_multihop=is_multihop,
-            sub_queries=queries if is_multihop else None,
-        )
+        if is_multihop:
+            prompt, citation_mapping = self.prompt_builder.build(
+                query=query,
+                contexts=contexts,
+                template_name="enhanced",
+                chat_history=chat_history,
+                max_history=max_history,
+                config=self.prompt_config,
+                is_multihop=is_multihop,
+                sub_queries=queries if is_multihop else None,
+            )
+        else:
+            prompt = self.prompt_builder.build(
+                query=query,
+                contexts=contexts,
+                template_name="enhanced",
+                chat_history=chat_history,
+                max_history=max_history,
+                config=self.prompt_config,
+                is_multihop=is_multihop,
+                sub_queries=queries if is_multihop else None,
+            )
+            citation_mapping = None
 
         llm_start = time.time()
         answer = self.llm.generate(prompt)
         llm_time = (time.time() - llm_start) * 1000
 
+        if is_multihop and citation_mapping:
+            answer, contexts = remap_citations(answer, citation_mapping, contexts)
+            logger.info("Remapped citations")
+
+        # Step 6: CoVe verification
+        cove_start = time.time()
+        cove_result = None
+        final_answer = answer
+
+        if settings.cove.enabled:
+            logger.info("Starting CoVe verification and correction...")
+            cove_result = self.cove_enhancer.verify(
+                query=query,
+                answer=answer,
+                contexts=contexts,
+            )
+
+            if cove_result.corrected_answer:
+                final_answer = cove_result.corrected_answer
+                logger.info(f"Using corrected answer (status: {cove_result.status})")
+
+        # Step 6a: Prepare sources list (contexts + used evidences from CoVe)
+        sources = contexts.copy()
+        all_evidences = cove_result.metadata.get("all_evidences", []) if cove_result else []
+
+        if all_evidences:
+            logger.info(f"Found {len(all_evidences)} evidences from supported / refuted claims.")
+
+            existing_ids = {ctx.get("id") for ctx in sources
+                            if ctx.get("id") is not None}
+
+            new_evidences_added = 0
+            for ev in all_evidences:
+                ev_id = ev.get("id")
+                if not ev_id or ev_id in existing_ids or str(ev_id).startswith("unknown_"):
+                    continue
+
+                sources.append({
+                    "id": ev_id,
+                    "text": ev["text"],
+                    "doc_title": ev.get("doc_title", "Unknown"),
+                    "position": ev.get("position", 0),
+                    "retrieval_score": ev.get("score", 0),
+                    "url": ev.get("url", ""),
+                    "source": "EVIDENCE FROM COVE",
+                })
+                existing_ids.add(ev_id)
+                new_evidences_added += 1
+
+            if new_evidences_added > 0:
+                logger.info(f"Added {new_evidences_added} new evidences to sources")
+            else:
+                logger.info("No new evidences added (all already present or invalid)")
+
+        cove_time = (time.time() - cove_start) * 1000
         total_time = (time.time() - start) * 1000
 
+        metadata = {
+            "pipeline": "enhanced",
+            "is_multihop": is_multihop,
+            "sub_queries": queries if is_multihop else None,
+            "reasoning": rewrite_result["reasoning"],
+            "phases": [
+                "linguistic_analysis",
+                "adaptive_rewriting",
+                "retrieval",
+                "multihop_reranking (local→fusion→global)" if is_multihop else "reranking",
+                "generation",
+                "cove_verification" if settings.cove.enabled else None,
+            ],
+            "rewrite_time_ms": round(rewrite_time, 2),
+            "retrieval_time_ms": round(retrieval_time, 2),
+            "rerank_time_ms": round(rerank_time, 2),
+            "llm_time_ms": round(llm_time, 2),
+            "cove_time_ms": round(cove_time, 2) if settings.cove.enabled else 0,
+            "total_time_ms": round(total_time, 2),
+            "num_candidates": num_retrieved_candidates,
+            "num_sources": len(sources),
+        }
+
+        if cove_result:
+            metadata["cove"] = {
+                "status": cove_result.status,
+                "needs_correction": cove_result.needs_correction,
+                **cove_result.metadata,
+            }
+
         return {
-            "answer": answer,
-            "sources": contexts,
-            "metadata": {
-                "pipeline": "enhanced",
-                "is_multihop": is_multihop,
-                "sub_queries": queries if is_multihop else None,
-                "reasoning": rewrite_result["reasoning"],
-                "phases": [
-                    "linguistic_analysis",
-                    "adaptive_rewriting",
-                    "retrieval",
-                    "multihop_reranking (local→fusion→global)" if is_multihop else "reranking",
-                    "generation"
-                ],
-                "rewrite_time_ms": round(rewrite_time, 2),
-                "retrieval_time_ms": round(retrieval_time, 2),
-                "rerank_time_ms": round(rerank_time, 2),
-                "llm_time_ms": round(llm_time, 2),
-                "total_time_ms": round(total_time, 2),
-                "num_candidates": num_retrieved_candidates,
-                "num_sources": len(contexts),
-            },
+            "answer": final_answer,
+            "sources": sources,
+            "metadata": metadata,
         }
 
     def answer_stream(

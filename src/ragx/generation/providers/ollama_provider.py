@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Iterator
 
 import ollama
@@ -26,7 +27,7 @@ class OllamaProvider:
         Args:
             model_name: Ollama model name (format: model:tag)
             host: Ollama server URL
-            timeout: Request timeout in seconds
+            timeout: Server startup timeout in seconds
         """
         self.model_name = model_name or settings.llm.model_name
         self.host = host or settings.llm.ollama_host
@@ -34,7 +35,7 @@ class OllamaProvider:
 
         logger.info(f"Loading Ollama model: {self.model_name}")
         logger.info(f"  - Host: {self.host}")
-        logger.info(f"  - Timeout: {self.timeout} seconds")
+        logger.info(f"  - Startup Timeout: {self.timeout} seconds")
 
         try:
             if not ensure_ollama_running(timeout=self.timeout, host=self.host):
@@ -84,10 +85,9 @@ class OllamaProvider:
                 "num_predict": max_new_tokens or settings.llm.max_new_tokens,
                 "top_p": top_p or settings.llm.top_p,
                 "think": chain_of_thought_enabled,
+                "repeat_penalty": 1.5,
             }
         )
-        # logger.info(f"Response: {response}")
-
         generated_text = response.get('response', '')
         logger.info(f"Generated text: {generated_text}")
 

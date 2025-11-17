@@ -134,13 +134,11 @@ class LLMInference:
         elif self.provider == 'api':
             try:
                 base_url = settings.llm.api_base_url
-
-
                 logger.info(f"⚡ Initializing API provider: {base_url}")
                 return APIProvider(
                     model_name=settings.llm.api_model_name,
                     api_key=settings.llm.api_key,
-                    base_url=settings.llm.api_base_url,
+                    base_url=base_url,
                     timeout=120,
                 )
             except Exception as e:

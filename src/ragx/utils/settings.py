@@ -82,7 +82,7 @@ class RerankerConfig:
     """Reranker model configuration."""
     model_id: str = os.getenv("RERANKER_MODEL", "jinaai/jina-reranker-v2-base-multilingual")
     device: str = os.getenv("RERANKER_DEVICE", "auto")
-    batch_size: int = int(os.getenv("RERANKER_BATCH_SIZE", "16"))
+    batch_size: int = int(os.getenv("RERANKER_BATCH_SIZE", "10"))
     max_length: int = int(os.getenv("RERANKER_MAX_LENGTH", "512"))
     show_progress: bool = str_to_bool(os.getenv("RERANKER_SHOW_PROGRESS", "false"))
 
@@ -138,6 +138,28 @@ class MultihopConfig:
     top_k_per_subquery: int = int(os.getenv("MULTIHOP_TOP_K_PER_SUBQUERY", "20"))
     final_top_k: int = int(os.getenv("MULTIHOP_FINAL_TOP_K", "10"))
 
+    diversity_enabled: bool = str_to_bool(os.getenv("MULTIHOP_DIVERSITY_ENABLED", "true"))
+    min_per_subquery: int = int(os.getenv("MULTIHOP_MIN_PER_SUBQUERY", "1"))
+    max_per_subquery: int = int(os.getenv("MULTIHOP_MAX_PER_SUBQUERY", "5"))
+    adaptive_top_k: bool = str_to_bool(os.getenv("MULTIHOP_ADAPTIVE_TOP_K", "true"))
+
+@dataclass
+class CoVeConfig:
+    """CoVe configuration."""
+    enabled: bool = str_to_bool(os.getenv("COVE_ENABLED", "false"))
+    perform_correction: bool = str_to_bool(os.getenv("COVE_PERFORM_CORRECTION", "true"))
+    correction_mode: str = os.getenv("COVE_CORRECTION_MODE", "auto")  # auto, suggest, metadata
+    inject_missing_citations: bool = str_to_bool(os.getenv("COVE_INJECT_MISSING_CITATIONS", "true"))
+    max_verification: int = int(os.getenv("COVE_MAX_VERIFICATION", "5"))
+    verification_threshold: float = float(os.getenv("COVE_VERIFICATION_THRESHOLD", "0.6"))
+    temperature: float = float(os.getenv("COVE_TEMPERATURE", "0.2"))
+    max_tokens: int = int(os.getenv("COVE_MAX_TOKENS", "8192"))
+    enable_recovery: bool = str_to_bool(os.getenv("COVE_ENABLE_RECOVERY", "true"))
+    max_targeted_queries: int = int(os.getenv("COVE_MAX_TARGETED_QUERIES", "8"))
+    critical_failure_threshold: float = float(os.getenv("COVE_CRITICAL_FAILURE_THRESHOLD", "0.3"))
+    missing_evidence_threshold: float = float(os.getenv("COVE_MISSING_EVIDENCE_THRESHOLD", "0.5"))
+    use_batch_nli: bool = str_to_bool(os.getenv("COVE_USE_BATCH_NLI", "true"))
+    correction_confidence_threshold: float = float(os.getenv("COVE_CORRECTION_CONFIDENCE_THRESHOLD", "0.8"))
 
 @dataclass
 class HNSWConfig:
@@ -189,6 +211,7 @@ class Settings:
     chat: ChatConfig
     rewrite: RewriteConfig
     multihop: MultihopConfig
+    cove: CoVeConfig
 
     @classmethod
     def load(cls) -> Settings:
@@ -206,7 +229,8 @@ class Settings:
             huggingface=HuggingFaceConfig(),
             chat=ChatConfig(),
             rewrite=RewriteConfig(),
-            multihop=MultihopConfig()
+            multihop=MultihopConfig(),
+            cove=CoVeConfig()
         )
 
     def setup_huggingface_cache(self) -> None:

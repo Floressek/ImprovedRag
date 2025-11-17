@@ -81,6 +81,8 @@ class APIProvider:
 
             generated_text = data['choices'][0]['message']['content']
 
+            logger.info(f"Generated text: {generated_text}")
+
             # Extract thinking/reasoning if present
             if chain_of_thought_enabled:
                 thinking = None
