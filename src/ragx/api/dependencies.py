@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from torch.distributions.utils import vec_to_tril_matrix
-
 from src.ragx.generation.inference import LLMInference
 from src.ragx.generation.prompts.builder import PromptBuilder
 from src.ragx.pipelines.baseline import BaselinePipeline
