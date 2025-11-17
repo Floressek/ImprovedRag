@@ -36,8 +36,8 @@ def main():
     parser.add_argument(
         "--num-questions",
         type=int,
-        default=500,
-        help="Number of questions to generate (default: 500)",
+        default=1000,
+        help="Number of questions to generate (default: 1000)",
     )
     parser.add_argument(
         "--folders",

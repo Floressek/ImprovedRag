@@ -9,8 +9,10 @@ Combines:
 from __future__ import annotations
 
 import logging
+import math
+import statistics
 import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, field
 
 from ragas import evaluate
@@ -84,13 +86,25 @@ class BatchEvaluationResult:
     mean_sources_count: float
     mean_multihop_coverage: float
 
+    # Confidence intervals (95% CI) - (lower, upper)
+    ci_faithfulness: Tuple[float, float] = field(default_factory=lambda: (0.0, 0.0))
+    ci_answer_relevancy: Tuple[float, float] = field(default_factory=lambda: (0.0, 0.0))
+    ci_context_precision: Tuple[float, float] = field(default_factory=lambda: (0.0, 0.0))
+    ci_context_recall: Tuple[float, float] = field(default_factory=lambda: (0.0, 0.0))
+
+    # Standard deviations
+    std_faithfulness: float = 0.0
+    std_answer_relevancy: float = 0.0
+    std_context_precision: float = 0.0
+    std_context_recall: float = 0.0
+
     # Per-question results
-    results: List[EvaluationResult]
+    results: List[EvaluationResult] = field(default_factory=list)
 
     # Statistics
-    num_questions: int
-    num_multihop: int
-    num_simple: int
+    num_questions: int = 0
+    num_multihop: int = 0
+    num_simple: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -102,6 +116,14 @@ class BatchEvaluationResult:
             "mean_latency_ms": self.mean_latency_ms,
             "mean_sources_count": self.mean_sources_count,
             "mean_multihop_coverage": self.mean_multihop_coverage,
+            "ci_faithfulness": self.ci_faithfulness,
+            "ci_answer_relevancy": self.ci_answer_relevancy,
+            "ci_context_precision": self.ci_context_precision,
+            "ci_context_recall": self.ci_context_recall,
+            "std_faithfulness": self.std_faithfulness,
+            "std_answer_relevancy": self.std_answer_relevancy,
+            "std_context_precision": self.std_context_precision,
+            "std_context_recall": self.std_context_recall,
             "num_questions": self.num_questions,
             "num_multihop": self.num_multihop,
             "num_simple": self.num_simple,
@@ -319,6 +341,12 @@ class RAGASEvaluator:
         num_multihop = sum(1 for r in results if r.is_multihop)
         num_simple = len(results) - num_multihop
 
+        # Calculate confidence intervals and std devs
+        faithfulness_vals = [r.faithfulness for r in results]
+        answer_rel_vals = [r.answer_relevancy for r in results]
+        context_prec_vals = [r.context_precision for r in results]
+        context_rec_vals = [r.context_recall for r in results]
+
         return BatchEvaluationResult(
             mean_faithfulness=float(ragas_df["faithfulness"].mean()),
             mean_answer_relevancy=float(ragas_df["answer_relevancy"].mean()),
@@ -327,6 +355,14 @@ class RAGASEvaluator:
             mean_latency_ms=sum(r.latency_ms for r in results) / len(results),
             mean_sources_count=sum(r.sources_count for r in results) / len(results),
             mean_multihop_coverage=sum(r.multihop_coverage for r in results) / len(results),
+            ci_faithfulness=self._calculate_ci(faithfulness_vals),
+            ci_answer_relevancy=self._calculate_ci(answer_rel_vals),
+            ci_context_precision=self._calculate_ci(context_prec_vals),
+            ci_context_recall=self._calculate_ci(context_rec_vals),
+            std_faithfulness=self._safe_std(faithfulness_vals),
+            std_answer_relevancy=self._safe_std(answer_rel_vals),
+            std_context_precision=self._safe_std(context_prec_vals),
+            std_context_recall=self._safe_std(context_rec_vals),
             results=results,
             num_questions=len(results),
             num_multihop=num_multihop,
@@ -367,3 +403,52 @@ class RAGASEvaluator:
                 covered += 1
 
         return covered / len(sub_queries)
+
+    def _safe_std(self, values: List[float]) -> float:
+        """Calculate standard deviation, handling edge cases."""
+        if len(values) < 2:
+            return 0.0
+        try:
+            return statistics.stdev(values)
+        except statistics.StatisticsError:
+            return 0.0
+
+    def _calculate_ci(
+        self,
+        values: List[float],
+        confidence: float = 0.95,
+    ) -> Tuple[float, float]:
+        """
+        Calculate confidence interval.
+
+        Uses formula: CI = mean ± z * (std / sqrt(n))
+        For 95% CI, z = 1.96
+
+        Args:
+            values: List of metric values
+            confidence: Confidence level (default 0.95 for 95% CI)
+
+        Returns:
+            Tuple of (lower_bound, upper_bound)
+        """
+        if len(values) < 2:
+            # Not enough data for CI
+            mean_val = values[0] if values else 0.0
+            return (mean_val, mean_val)
+
+        try:
+            mean_val = statistics.mean(values)
+            std_val = statistics.stdev(values)
+            n = len(values)
+
+            # Z-score for 95% CI
+            z_score = 1.96
+
+            # Margin of error
+            margin = z_score * (std_val / math.sqrt(n))
+
+            return (mean_val - margin, mean_val + margin)
+
+        except (statistics.StatisticsError, ZeroDivisionError):
+            mean_val = statistics.mean(values) if values else 0.0
+            return (mean_val, mean_val)

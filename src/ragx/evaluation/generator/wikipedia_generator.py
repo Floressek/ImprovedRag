@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 import json
 import random
+import re
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 
 from src.ragx.generation.inference import LLMInference
 from src.ragx.utils.settings import settings
@@ -21,6 +22,8 @@ class WikipediaQuestionGenerator:
         self,
         data_dir: Path,
         llm: Optional[LLMInference] = None,
+        validate_grounding: bool = True,
+        grounding_threshold: float = 0.6,
     ):
         """
         Initialize generator.
@@ -28,9 +31,13 @@ class WikipediaQuestionGenerator:
         Args:
             data_dir: Path to processed/wiki_extracted/
             llm: LLM for question generation
+            validate_grounding: Whether to validate ground truth is in contexts
+            grounding_threshold: Min ratio of key terms that must appear in contexts
         """
         self.data_dir = Path(data_dir)
         self.llm = llm or LLMInference(provider="api")  # Use API provider for generation
+        self.validate_grounding = validate_grounding
+        self.grounding_threshold = grounding_threshold
 
         if not self.data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {self.data_dir}")
@@ -96,7 +103,7 @@ class WikipediaQuestionGenerator:
 
     def generate_questions(
         self,
-        num_questions: int = 500,
+        num_questions: int = 1000,
         folders: Optional[List[str]] = None,
         distribution: Optional[Dict[str, float]] = None,
     ) -> List[Dict[str, Any]]:
@@ -104,7 +111,7 @@ class WikipediaQuestionGenerator:
         Generate test questions from Wikipedia articles.
 
         Args:
-            num_questions: Number of questions to generate
+            num_questions: Number of questions to generate (default: 1000)
             folders: Folder names to sample from (default: AA-AJ)
             distribution: Question type distribution
 
@@ -143,12 +150,19 @@ class WikipediaQuestionGenerator:
                 try:
                     question = self._generate_question(qtype, articles)
                     if question:
-                        questions.append(question)
+                        # Validate grounding if enabled
+                        if self.validate_grounding:
+                            if self._validate_grounding(question["ground_truth"], question["contexts"]):
+                                questions.append(question)
+                            else:
+                                logger.debug(f"Skipping question - ground truth not grounded in contexts")
+                        else:
+                            questions.append(question)
                 except Exception as e:
                     logger.warning(f"Failed to generate {qtype} question: {e}")
 
         random.shuffle(questions)
-        logger.info(f"Generated {len(questions)} questions total")
+        logger.info(f"Generated {len(questions)} questions total (after validation)")
 
         return questions
 
@@ -377,6 +391,86 @@ Response format (JSON):
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON: {e}")
             return None
+
+    def _extract_key_terms(self, text: str) -> Set[str]:
+        """
+        Extract key terms (words, numbers, dates) from text.
+        Used for ground truth validation.
+        """
+        # Remove punctuation and convert to lowercase
+        text_clean = re.sub(r'[^\w\s]', ' ', text.lower())
+
+        # Split into tokens
+        tokens = text_clean.split()
+
+        # Filter stopwords (basic list)
+        stopwords = {
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+            'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
+            'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+            'should', 'could', 'can', 'may', 'might', 'must', 'i', 'you', 'he',
+            'she', 'it', 'we', 'they', 'this', 'that', 'these', 'those', 'what',
+            'which', 'who', 'when', 'where', 'why', 'how', 'if', 'then', 'than',
+        }
+
+        # Keep tokens that are:
+        # 1. Longer than 2 chars
+        # 2. Not stopwords
+        # 3. Or numbers/dates
+        key_terms = set()
+        for token in tokens:
+            if len(token) > 2 and token not in stopwords:
+                key_terms.add(token)
+            elif re.match(r'\d+', token):  # Numbers/dates
+                key_terms.add(token)
+
+        return key_terms
+
+    def _validate_grounding(
+        self,
+        ground_truth: str,
+        contexts: List[str],
+    ) -> bool:
+        """
+        Validate that ground truth is grounded in contexts.
+
+        Uses keyword matching: checks if key terms from ground truth
+        appear in contexts at rate >= threshold.
+
+        Args:
+            ground_truth: Expected answer
+            contexts: Context chunks
+
+        Returns:
+            True if ground truth is sufficiently grounded
+        """
+        # Extract key terms from ground truth
+        gt_terms = self._extract_key_terms(ground_truth)
+
+        if not gt_terms:
+            # No key terms -> can't validate
+            logger.warning(f"No key terms extracted from ground truth: {ground_truth[:50]}")
+            return False
+
+        # Combine all contexts
+        contexts_text = " ".join(contexts).lower()
+
+        # Count how many terms appear in contexts
+        found_terms = 0
+        for term in gt_terms:
+            if term in contexts_text:
+                found_terms += 1
+
+        ratio = found_terms / len(gt_terms)
+
+        if ratio < self.grounding_threshold:
+            logger.debug(
+                f"Ground truth not sufficiently grounded: "
+                f"{found_terms}/{len(gt_terms)} terms found ({ratio:.2%} < {self.grounding_threshold:.2%})"
+            )
+            return False
+
+        return True
 
     def save_questions(
         self,

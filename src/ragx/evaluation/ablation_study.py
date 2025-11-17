@@ -30,22 +30,29 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PipelineConfig:
-    """Configuration for a pipeline variant."""
+    """Configuration for a pipeline variant with 5 independent toggles."""
 
     name: str
     description: str
+    # Toggle 1: Query Analysis
     query_analysis_enabled: bool = True
+    # Toggle 2: Enhanced Features
+    enhanced_features_enabled: bool = True
+    # Toggle 3: Chain of Thought
+    cot_enabled: bool = True
+    # Toggle 4: Reranking
     reranker_enabled: bool = True
-    cove_enabled: bool = True
-    multihop_enabled: bool = True
+    # Toggle 5: CoVe mode
+    cove_mode: str = "off"  # "off", "auto", "metadata", "suggest"
 
-    def to_dict(self) -> Dict[str, bool]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dict for API request."""
         return {
             "query_analysis_enabled": self.query_analysis_enabled,
+            "enhanced_features_enabled": self.enhanced_features_enabled,
+            "cot_enabled": self.cot_enabled,
             "reranker_enabled": self.reranker_enabled,
-            "cove_enabled": self.cove_enabled,
-            "multihop_enabled": self.multihop_enabled,
+            "cove_mode": self.cove_mode,
         }
 
 
@@ -188,59 +195,131 @@ class AblationStudy:
     Uses RAGAS evaluator to score each configuration.
     """
 
-    # Predefined configurations
+    # Predefined configurations - 12 configs covering important toggle combinations
+
+    # === Baseline (all off) ===
     BASELINE = PipelineConfig(
         name="baseline",
         description="No enhancements (vector search only)",
         query_analysis_enabled=False,
+        enhanced_features_enabled=False,
+        cot_enabled=False,
         reranker_enabled=False,
-        cove_enabled=False,
-        multihop_enabled=False,
+        cove_mode="off",
     )
 
+    # === Single toggle configs ===
     QUERY_ONLY = PipelineConfig(
         name="query_only",
-        description="Query analysis/rewriting only",
+        description="Query analysis only (multihop detection)",
         query_analysis_enabled=True,
+        enhanced_features_enabled=False,
+        cot_enabled=False,
         reranker_enabled=False,
-        cove_enabled=False,
-        multihop_enabled=True,  # Multihop is part of query analysis
+        cove_mode="off",
+    )
+
+    ENHANCED_ONLY = PipelineConfig(
+        name="enhanced_only",
+        description="Enhanced features only (metadata, quality checks)",
+        query_analysis_enabled=False,
+        enhanced_features_enabled=True,
+        cot_enabled=False,
+        reranker_enabled=False,
+        cove_mode="off",
+    )
+
+    COT_ONLY = PipelineConfig(
+        name="cot_only",
+        description="Chain of Thought only",
+        query_analysis_enabled=False,
+        enhanced_features_enabled=False,
+        cot_enabled=True,
+        reranker_enabled=False,
+        cove_mode="off",
     )
 
     RERANKER_ONLY = PipelineConfig(
         name="reranker_only",
-        description="Reranker only (no query analysis)",
+        description="Reranker only",
         query_analysis_enabled=False,
+        enhanced_features_enabled=False,
+        cot_enabled=False,
         reranker_enabled=True,
-        cove_enabled=False,
-        multihop_enabled=False,
+        cove_mode="off",
     )
 
-    COVE_ONLY = PipelineConfig(
-        name="cove_only",
-        description="CoVe verification only",
+    COVE_AUTO_ONLY = PipelineConfig(
+        name="cove_auto_only",
+        description="CoVe auto-correction only",
         query_analysis_enabled=False,
+        enhanced_features_enabled=False,
+        cot_enabled=False,
         reranker_enabled=False,
-        cove_enabled=True,
-        multihop_enabled=False,
+        cove_mode="auto",
     )
 
-    FULL = PipelineConfig(
-        name="full",
-        description="All enhancements enabled",
+    # === Important combinations ===
+    COT_ENHANCED = PipelineConfig(
+        name="cot_enhanced",
+        description="CoT + Enhanced Features",
+        query_analysis_enabled=False,
+        enhanced_features_enabled=True,
+        cot_enabled=True,
+        reranker_enabled=False,
+        cove_mode="off",
+    )
+
+    QUERY_RERANK = PipelineConfig(
+        name="query_rerank",
+        description="Query Analysis + Reranking",
         query_analysis_enabled=True,
+        enhanced_features_enabled=False,
+        cot_enabled=False,
         reranker_enabled=True,
-        cove_enabled=True,
-        multihop_enabled=True,
+        cove_mode="off",
     )
 
-    NO_COVE = PipelineConfig(
-        name="no_cove",
+    # === CoVe mode variations ===
+    FULL_COVE_AUTO = PipelineConfig(
+        name="full_cove_auto",
+        description="Full pipeline with CoVe auto-correction",
+        query_analysis_enabled=True,
+        enhanced_features_enabled=True,
+        cot_enabled=True,
+        reranker_enabled=True,
+        cove_mode="auto",
+    )
+
+    FULL_COVE_METADATA = PipelineConfig(
+        name="full_cove_metadata",
+        description="Full pipeline with CoVe metadata-only",
+        query_analysis_enabled=True,
+        enhanced_features_enabled=True,
+        cot_enabled=True,
+        reranker_enabled=True,
+        cove_mode="metadata",
+    )
+
+    FULL_COVE_SUGGEST = PipelineConfig(
+        name="full_cove_suggest",
+        description="Full pipeline with CoVe suggest mode",
+        query_analysis_enabled=True,
+        enhanced_features_enabled=True,
+        cot_enabled=True,
+        reranker_enabled=True,
+        cove_mode="suggest",
+    )
+
+    # === Full (no CoVe) ===
+    FULL_NO_COVE = PipelineConfig(
+        name="full_no_cove",
         description="Full pipeline without CoVe",
         query_analysis_enabled=True,
+        enhanced_features_enabled=True,
+        cot_enabled=True,
         reranker_enabled=True,
-        cove_enabled=False,
-        multihop_enabled=True,
+        cove_mode="off",
     )
 
     def __init__(
@@ -280,15 +359,21 @@ class AblationStudy:
         questions = self._load_questions(questions_path, max_questions)
         logger.info(f"Loaded {len(questions)} test questions")
 
-        # Default configs if not provided
+        # Default configs if not provided (12 configs)
         if configs is None:
             configs = [
                 self.BASELINE,
                 self.QUERY_ONLY,
+                self.ENHANCED_ONLY,
+                self.COT_ONLY,
                 self.RERANKER_ONLY,
-                self.COVE_ONLY,
-                self.NO_COVE,
-                self.FULL,
+                self.COVE_AUTO_ONLY,
+                self.COT_ENHANCED,
+                self.QUERY_RERANK,
+                self.FULL_NO_COVE,
+                self.FULL_COVE_AUTO,
+                self.FULL_COVE_METADATA,
+                self.FULL_COVE_SUGGEST,
             ]
 
         logger.info(f"Testing {len(configs)} configurations")
@@ -409,12 +494,12 @@ class AblationStudy:
         payload = {
             "query": query,
             "query_analysis_enabled": config.query_analysis_enabled,
+            "enhanced_features_enabled": config.enhanced_features_enabled,
+            "cot_enabled": config.cot_enabled,
             "reranker_enabled": config.reranker_enabled,
-            "cove_enabled": config.cove_enabled,
-            "multihop_enabled": config.multihop_enabled,
-            "use_cot": True,  # Default
+            "cove_mode": config.cove_mode,
             "prompt_template": "auto",  # Auto-select based on query
-            "top_k": 5,  # Standard top-k
+            "top_k": 8,  # Standard top-k
         }
 
         response = requests.post(url, json=payload, timeout=120)
