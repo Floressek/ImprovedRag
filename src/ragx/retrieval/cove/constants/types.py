@@ -28,7 +28,7 @@ class Evidence:
 class Verification:
     """Single verification document."""
     claim: Claim
-    label: str # "supports", "refutes", "not enough info"
+    label: str # "supports", "refutes", "insufficient"
     confidence: float
     reasoning: str
     evidences: List[Evidence] = field(default_factory=list)
