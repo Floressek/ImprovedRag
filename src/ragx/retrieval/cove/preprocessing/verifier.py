@@ -125,7 +125,11 @@ class ClaimVerifier:
             Evidence(
                 doc_id=str(ctx.get("id", f"unknown_{i}")),
                 text=ctx.get("text", ""),
-                score=ctx.get("retrieval_score") or ctx.get("rerank_score") or ctx.get("score", 0.0),
+                score=(
+                    ctx.get("retrieval_score") if ctx.get("retrieval_score") is not None
+                    else ctx.get("rerank_score") if ctx.get("rerank_score") is not None
+                    else ctx.get("score", 0.0)
+                ),
                 doc_title=ctx.get("doc_title"),
                 metadata={
                     "position": ctx.get("position", 0),
