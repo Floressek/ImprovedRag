@@ -7,6 +7,7 @@ from src.ragx.pipelines.enhancers.base import Enhancer
 from src.ragx.retrieval.constants import QUERY_TYPE_WEIGHTS, get_query_type_weight
 from src.ragx.retrieval.rerankers.reranker import Reranker
 from src.ragx.utils.settings import settings
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +76,16 @@ class MultihopRerankerEnhancer(Enhancer):
         if not results_by_subquery:
             return []
 
+        num_subqueries = len(results_by_subquery)
+        if settings.multihop.adaptive_top_k and override_top_k is None:
+            adaptive_k = max(self.final_top_k, num_subqueries * 2)
+            logger.info(f"Adaptive top_k: {self.final_top_k} -> {adaptive_k}")
+            effective_top_k = adaptive_k
+        else:
+            effective_top_k = override_top_k if override_top_k is not None else self.final_top_k
+
         # Stage 1: Local reranking per subquery
-        local_reranked = self._local_rerank(results_by_subquery)
+        local_reranked = self._local_rerank(results_by_subquery, override_top_k)
 
         # Stage 2: Fusion with score agg.
         fused = self._fuse_results(local_reranked)
@@ -87,18 +96,28 @@ class MultihopRerankerEnhancer(Enhancer):
         )
 
         # Stage 3: Global reranking against original query
-        final = self._global_rerank(
-            original_query=original_query,
-            fused_results=fused,
-            override_top_k=override_top_k,
-            query_type=query_type
-        )
+        if settings.multihop.diversity_enabled:
+            final = self._global_rerank_with_diversity(
+                original_query=original_query,
+                fused_results=fused,
+                local_reranked=local_reranked,
+                effective_top_k=effective_top_k,
+                query_type=query_type
+            )
+        else:
+            final = self._global_rerank(
+                original_query=original_query,
+                fused_results=fused,
+                override_top_k=effective_top_k,
+                query_type=query_type
+            )
 
         return final
 
     def _local_rerank(
             self,
             results_by_subquery: Dict[str, List[ResultT]],
+            override_top_k: Optional[int] = None,
     ) -> Dict[str, List[ResultT]]:
         """Stage 1: Rerank each sub-query independently."""
         reranked_by_subquery = {}  # maybe defaultdict?
@@ -120,7 +139,7 @@ class MultihopRerankerEnhancer(Enhancer):
             reranked = self.reranker.rerank(
                 query=sub_query,
                 documents=documents,
-                top_k=self.top_k_per_subquery,
+                top_k=override_top_k if override_top_k is not None else self.top_k_per_subquery,
                 text_field="text",
             )
 
@@ -256,6 +275,124 @@ class MultihopRerankerEnhancer(Enhancer):
         )
 
         return final
+
+    def _global_rerank_with_diversity(
+            self,
+            original_query: str,
+            fused_results: List[ResultT],
+            local_reranked: Dict[str, List[ResultT]],
+            effective_top_k: int,
+            query_type: Optional[str] = None,
+    ) -> List[ResultT]:
+        """
+        Stage 3: Global rerank against original query.
+
+        - Enforce min_per_subquery (at least N docs per sub-query)
+        - Enforce max_per_subquery (prevent monopoly)
+        - Adaptive top_k based on num_subqueries
+        """
+        if not fused_results:
+            return []
+
+        min_per_subquery = settings.multihop.min_per_subquery
+        max_per_subquery = settings.multihop.max_per_subquery
+
+        # based on query type
+        if query_type:
+            effective_weight = get_query_type_weight(query_type, default_weight=self.global_rerank_weight)
+            if query_type in QUERY_TYPE_WEIGHTS:
+                logger.info(f"Using query-type-specific weight for '{query_type}': {effective_weight:.2f}")
+            else:
+                logger.warning(f"Unknown query_type '{query_type}', using default weight {effective_weight:.2f}")
+        else:
+            effective_weight = self.global_rerank_weight
+
+        # Mapper for later eval for doc per subq
+        doc_to_subqueries = {}
+        for doc_id, payload, _ in fused_results:
+            subqueries = payload.get("fusion_metadata", {}).get("source_subqueries", [])
+            doc_to_subqueries[doc_id] = subqueries
+
+        documents = []
+        for doc_id, payload, fused_score in fused_results:
+            documents.append({
+                "id": doc_id,
+                "text": payload.get("text", ""),
+                "payload": payload,
+                "fused_score": float(fused_score)
+            })
+
+        # Global reranking, no top_k for it
+        reranked = self.reranker.rerank(
+            query=original_query,
+            documents=documents,
+            top_k=None,
+            text_field="text",
+        )
+
+        final = []
+        for doc, global_score in reranked:
+            p = doc["payload"]
+            fused_score = doc.get("fused_score", 0.0)
+
+            final_score = (
+                    effective_weight * global_score +
+                    (1 - effective_weight) * fused_score
+            )
+
+            p["global_rerank_score"] = float(global_score)
+            p["final_score"] = float(final_score)
+            p["query_type"] = query_type
+
+            final.append((str(doc["id"]), p, float(final_score)))
+
+        subquery_counts = defaultdict(int)
+        selected = []
+        selected_ids = set()
+
+        # Pass 1: Min enforced
+        for doc_id, payload, score in final:
+            doc_sqs = doc_to_subqueries.get(doc_id, [])
+            needs_min = any(subquery_counts[sq] < min_per_subquery for sq in doc_sqs)
+
+            if needs_min:
+                selected.append((doc_id, payload, score))
+                selected_ids.add(doc_id)
+                for sq in doc_sqs:
+                    subquery_counts[sq] += 1
+
+        # Pass 2: Fill up to top_k with max enforced
+        for doc_id, payload, score in final:
+            if len(selected) >= effective_top_k:
+                break
+
+            # if selected skip
+            if doc_id in selected_ids:
+                continue
+
+            doc_sqs = doc_to_subqueries.get(doc_id, [])
+            violates_max = any(subquery_counts[sq] >= max_per_subquery for sq in doc_sqs)
+
+            if not violates_max:
+                selected.append((doc_id, payload, score))
+                selected_ids.add(doc_id)
+                for sq in doc_sqs:
+                    subquery_counts[sq] += 1
+
+        selected.sort(key=lambda x: x[2], reverse=True)
+
+        logger.info(
+            f"Diversity rerank: {len(fused_results)} → {len(selected)} docs "
+            f"(weight: {effective_weight:.2f} global, {1 - effective_weight:.2f} local)"
+        )
+        logger.info(f"Coverage per sub-query (min={min_per_subquery}, max={max_per_subquery}):")
+        for sq in sorted(local_reranked.keys()):
+            count = subquery_counts[sq]
+            sq_short = sq[:60] + "..." if len(sq) > 60 else sq
+            status = "✓" if count >= min_per_subquery else "⚠"
+            logger.info(f"  {status} '{sq_short}': {count} docs")
+
+        return selected
 
     @property
     def name(self) -> str:

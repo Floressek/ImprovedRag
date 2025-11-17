@@ -8,7 +8,7 @@ from fastapi import Request
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.ragx.api.routers import chat, search, health, llm, analysis
+from src.ragx.api.routers import chat, search, health, llm, analysis, cove, eval
 from src.ragx.api.dependencies import (
     get_baseline_pipeline,
     get_enhanced_pipeline,
@@ -43,6 +43,8 @@ async def lifespan(app: FastAPI):
             logger.info(f"✓ LLM: {settings.llm.model_id}")
         else:
             logger.info(f"✓ LLM: Unknown provider ({getattr(settings.llm, 'provider', 'N/A')})")
+        logger.info(f"✓ CoVe {settings.cove.enabled}")
+        logger.info("✓ RAGx API server is ready to accept requests!")
 
     except QdrantConnectionError as e:
         logger.error("=" * 80)
@@ -107,7 +109,9 @@ async def log_requests(request: Request, call_next):
 app.include_router(search.router)
 app.include_router(analysis.router)
 app.include_router(llm.router)
+app.include_router(cove.router)
 app.include_router(chat.router)
+app.include_router(eval.router)
 app.include_router(health.router)
 
 
@@ -116,18 +120,22 @@ async def root():
     """Root endpoint. -> stream won't be implemented till a UI is built."""
     return {
         "name": "RAGx API",
-        "version": "0.2.0",
+        "version": "0.4.0",
         "docs": "/docs",
         "endpoints": {
             "baseline": "/ask/baseline",
             # "baseline_stream": "/ask/baseline/stream",
             "enhanced": "/ask/enhanced",
             # "enhanced_stream": "/ask/enhanced/stream",
-            "llm": "/llm",
+            "llm": "/llm/generate",
             "search": "/search",
             "rerank": "/rerank",
             "health": "/health",
             "analysis": "/analysis",
+            "eval": "/eval",
+            "query_rewrite": "/analysis/rewrite",
+            "cove_verify": "/cove/verify",
+            "ablation": "/eval/ablation",
         },
     }
 

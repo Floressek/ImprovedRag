@@ -7,6 +7,7 @@ from src.ragx.generation.inference import LLMInference
 from src.ragx.generation.prompts.builder import PromptBuilder
 from src.ragx.pipelines.baseline import BaselinePipeline
 from src.ragx.pipelines.enhanced import EnhancedPipeline
+from src.ragx.pipelines.enhancers.cove import CoVeEnhancer
 from src.ragx.pipelines.enhancers.multihop_reranker import MultihopRerankerEnhancer
 from src.ragx.pipelines.enhancers.reranker import RerankerEnhancer
 from src.ragx.retrieval.analyzers.linguistic_analyzer import LinguisticAnalyzer
@@ -112,6 +113,16 @@ def get_multihop_reranker() -> MultihopRerankerEnhancer:
         global_rerank_weight=settings.multihop.global_rerank_weight,
     )
 
+@lru_cache(maxsize=1)
+def get_cove_enhancer() -> CoVeEnhancer:
+    """Get cached CoVe enhancer."""
+    logger.info("Creating CoVeEnhancer...")
+    return CoVeEnhancer(
+        embedder=get_embedder(),
+        vector_store=get_vector_store(),
+        reranker=get_reranker(),
+    )
+
 # ============================================================================
 # Pipelines
 # ============================================================================
@@ -136,4 +147,5 @@ def get_enhanced_pipeline() -> EnhancedPipeline:
         adaptive_rewriter=get_adaptive_rewriter(),
         reranker_enhancer=get_reranker_enhancer(),
         multihop_reranker=get_multihop_reranker(),
+        cove_enhancer=get_cove_enhancer(),
     )
