@@ -414,5 +414,5 @@ class CoVeEnhancer:
                     "position": ev.metadata.get("position", 0) if isinstance(ev.metadata, dict) else 0,
                 })
 
-        logger.debug(f"Collected {len(evidences)} unique evidences from {sum(1 for v in verifications if v.label not in ["supports", "refutes"])} verified claims")
+        logger.debug(f"Collected {len(evidences)} unique evidences from {sum(1 for v in verifications if v.label in ['supports', 'refutes'])} verified claims")
         return evidences
