@@ -27,7 +27,7 @@ async def search(
     query_vector = embedder.embed_query(request.query)
 
     results = vector_store.search(
-        query_vector,
+        vector=query_vector,
         top_k=request.top_k,
         filter_dict=request.filters,
     )
@@ -60,8 +60,8 @@ async def rerank(
 
     query_vector = embedder.embed_query(request.query)
     results = vector_store.search(
-        query_vector,
-        top_k=request.top_k_retrival,
+        vector=query_vector,
+        top_k=request.top_k_retrieval,
     )
 
     # tuple to dict conversion should be a separate function
