@@ -109,8 +109,8 @@ async def log_requests(request: Request, call_next):
 app.include_router(search.router)
 app.include_router(analysis.router)
 app.include_router(llm.router)
-app.include_router(chat.router)
 app.include_router(cove.router)
+app.include_router(chat.router)
 app.include_router(eval.router)
 app.include_router(health.router)
 
@@ -132,6 +132,7 @@ async def root():
             "rerank": "/rerank",
             "health": "/health",
             "analysis": "/analysis",
+            "eval": "/eval",
             "query_rewrite": "/analysis/rewrite",
             "cove_verify": "/cove/verify",
             "ablation": "/eval/ablation",

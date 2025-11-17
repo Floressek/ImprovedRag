@@ -53,8 +53,8 @@ class EnhancedPipeline(BasePipeline):
 
         # Multihop reranking (handles fusion internally)
         self.multihop_reranker = multihop_reranker or MultihopRerankerEnhancer(
-            top_k_per_subquery=settings.retrieval.context_top_n,
-            final_top_k=settings.retrieval.context_top_n,
+            top_k_per_subquery=settings.multihop.top_k_per_subquery,
+            final_top_k=settings.multihop.final_top_k,
             fusion_strategy="max",
             global_rerank_weight=0.6,
         )
@@ -180,7 +180,7 @@ class EnhancedPipeline(BasePipeline):
             rerank_time = (time.time() - rerank_start) * 1000
             logger.info(f"Reranked {len(results)} candidates")
 
-        # Step 4: Format Contexts
+        # Step 4: Format Contexts, TODO function for it
         contexts = []
         for idx, payload, score in results:
             metadata = payload.get("metadata", {})
@@ -236,7 +236,6 @@ class EnhancedPipeline(BasePipeline):
             )
             citation_mapping = None
 
-
         llm_start = time.time()
         answer = self.llm.generate(prompt)
         llm_time = (time.time() - llm_start) * 1000
@@ -262,6 +261,39 @@ class EnhancedPipeline(BasePipeline):
                 final_answer = cove_result.corrected_answer
                 logger.info(f"Using corrected answer (status: {cove_result.status})")
 
+        # Step 6a: Prepare sources list (contexts + used evidences from CoVe)
+        sources = contexts.copy()
+        all_evidences = cove_result.metadata.get("all_evidences", []) if cove_result else []
+
+        if all_evidences:
+            logger.info(f"Found {len(all_evidences)} evidences from supported / refuted claims.")
+
+            existing_ids = {ctx.get("id") for ctx in sources
+                            if ctx.get("id") is not None}
+
+            new_evidences_added = 0
+            for ev in all_evidences:
+                ev_id = ev.get("id")
+                if not ev_id or ev_id in existing_ids or str(ev_id).startswith("unknown_"):
+                    continue
+
+                sources.append({
+                    "id": ev_id,
+                    "text": ev["text"],
+                    "doc_title": ev.get("doc_title", "Unknown"),
+                    "position": ev.get("position", 0),
+                    "retrieval_score": ev.get("score", 0),
+                    "url": ev.get("url", ""),
+                    "source": "EVIDENCE FROM COVE",
+                })
+                existing_ids.add(ev_id)
+                new_evidences_added += 1
+
+            if new_evidences_added > 0:
+                logger.info(f"Added {new_evidences_added} new evidences to sources")
+            else:
+                logger.info("No new evidences added (all already present or invalid)")
+
         cove_time = (time.time() - cove_start) * 1000
         total_time = (time.time() - start) * 1000
 
@@ -285,7 +317,7 @@ class EnhancedPipeline(BasePipeline):
             "cove_time_ms": round(cove_time, 2) if settings.cove.enabled else 0,
             "total_time_ms": round(total_time, 2),
             "num_candidates": num_retrieved_candidates,
-            "num_sources": len(contexts),
+            "num_sources": len(sources),
         }
 
         if cove_result:
@@ -297,7 +329,7 @@ class EnhancedPipeline(BasePipeline):
 
         return {
             "answer": final_answer,
-            "sources": contexts,
+            "sources": sources,
             "metadata": metadata,
         }
 
