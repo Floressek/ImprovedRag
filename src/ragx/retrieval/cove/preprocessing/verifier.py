@@ -68,8 +68,8 @@ class ClaimVerifier:
         total_chars = sum(len(ctx.get('text', '')) for ctx in contexts)
         logger.info(
             f"Evidence for verification: {len(contexts)} docs, "
-            f"{total_chars} chars (~{total_chars//4} tokens)"
-    )
+            f"{total_chars} chars (~{total_chars // 4} tokens)"
+        )
 
         if settings.cove.use_batch_nli and len(claims) > 1:
             return self._batch_verify(claims, evidence_str, contexts)
@@ -127,7 +127,12 @@ class ClaimVerifier:
                 text=ctx.get("text", ""),
                 score=ctx.get("retrieval_score") or ctx.get("rerank_score") or ctx.get("score", 0.0),
                 doc_title=ctx.get("doc_title"),
-                metadata=ctx.get("metadata", {}),
+                metadata={
+                    "position": ctx.get("position", 0),
+                    "url": ctx.get("url", ""),
+                    "total_chunks": ctx.get("total_chunks", 1),
+                    **(ctx.get("metadata", {}) or {}),
+                },
             )
             for i, ctx in enumerate(contexts)
         ]
@@ -184,7 +189,8 @@ class ClaimVerifier:
             return [self._verify_single(claim, evidence_str, contexts) for claim in claims]
 
         if len(result["results"]) != len(claims):
-            logger.warning(f"Verification results count ({len(result['results'])}) does not match claims count ({len(claims)})")
+            logger.warning(
+                f"Verification results count ({len(result['results'])}) does not match claims count ({len(claims)})")
             return [self._verify_single(claim, evidence_str, contexts) for claim in claims]
 
         verifications = []
@@ -194,7 +200,12 @@ class ClaimVerifier:
                 text=ctx.get("text", ""),
                 score=ctx.get("retrieval_score") or ctx.get("rerank_score") or ctx.get("score", 0.0),
                 doc_title=ctx.get("doc_title"),
-                metadata=ctx.get("metadata", {}),
+                metadata={
+                    "position": ctx.get("position", 0),
+                    "url": ctx.get("url", ""),
+                    "total_chunks": ctx.get("total_chunks", 1),
+                    **(ctx.get("metadata", {}) or {}),
+                },
             )
             for i, ctx in enumerate(contexts)
         ]
