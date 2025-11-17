@@ -4,7 +4,7 @@ import logging
 from typing import List, Dict, Any, Optional
 
 from src.ragx.retrieval.cove.constants.types import Verification
-from src.ragx.retrieval.cove.preprocessing.validators import validate_claims_response, validate_suggestions_response
+from src.ragx.retrieval.cove.preprocessing.validators import validate_suggestions_response
 from src.ragx.retrieval.rewriters.tools.parse import safe_parse, JSONValidator
 from src.ragx.generation.inference import LLMInference
 from src.ragx.utils.settings import settings
