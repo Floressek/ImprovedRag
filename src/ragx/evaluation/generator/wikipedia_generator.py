@@ -197,6 +197,9 @@ class WikipediaQuestionGenerator:
             return self._generate_multihop(articles)
         elif qtype == "temporal":
             return self._generate_temporal(articles)
+        else:
+            logger.warning(f"Unknown question type: {qtype}")
+            return None
 
     def _generate_simple(self, articles: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate simple factual question from 1 article."""
@@ -432,12 +435,12 @@ Response format (JSON):
         # Keep tokens that are:
         # 1. Longer than 2 chars
         # 2. Not stopwords
-        # 3. Or numbers/dates
+        # 3. Or pure numbers/dates
         key_terms = set()
         for token in tokens:
             if len(token) > 2 and token not in stopwords:
                 key_terms.add(token)
-            elif re.match(r'\d+', token):  # Numbers/dates
+            elif re.fullmatch(r'\d+', token):  # Pure numbers/dates only
                 key_terms.add(token)
 
         return key_terms

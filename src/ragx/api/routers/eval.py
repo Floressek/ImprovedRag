@@ -143,7 +143,7 @@ async def pipeline_ablation(
         for sq in sub_queries:
             sq_embedding = embedder.embed_query(sq)
             sq_results = vector_store.search(
-                query_vector=sq_embedding,
+                vector=sq_embedding,
                 top_k=request.top_k * 2,  # Over-retrieve for reranking
             )
             results_by_subquery[sq] = sq_results
@@ -163,7 +163,7 @@ async def pipeline_ablation(
         # Simple retrieval
         query_embedding = embedder.embed_query(rewritten_query)
         initial_results = vector_store.search(
-            query_vector=query_embedding,
+            vector=query_embedding,
             top_k=request.top_k * 2,  # Over-retrieve for reranking
         )
         results_by_subquery = {rewritten_query: initial_results}

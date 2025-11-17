@@ -137,10 +137,12 @@ class AblationStudyResult:
         # T-test on paired samples
         t_stat, p_value = stats.ttest_rel(paired_scores_a, paired_scores_b)
 
-        # Effect size (Cohen's d)
+        # Effect size (Cohen's d for paired samples)
+        # For paired t-test, use standard deviation of differences
         mean_diff = statistics.mean(paired_scores_a) - statistics.mean(paired_scores_b)
-        pooled_std = statistics.stdev(paired_scores_a + paired_scores_b)
-        cohens_d = mean_diff / pooled_std if pooled_std > 0 else 0.0
+        differences = [a - b for a, b in zip(paired_scores_a, paired_scores_b)]
+        std_diff = statistics.stdev(differences) if len(differences) > 1 else 0.0
+        cohens_d = mean_diff / std_diff if std_diff > 0 else 0.0
 
         return {
             "config_a": config_a,
