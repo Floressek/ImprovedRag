@@ -53,8 +53,8 @@ class EnhancedPipeline(BasePipeline):
 
         # Multihop reranking (handles fusion internally)
         self.multihop_reranker = multihop_reranker or MultihopRerankerEnhancer(
-            top_k_per_subquery=settings.retrieval.context_top_n,
-            final_top_k=settings.retrieval.context_top_n,
+            top_k_per_subquery=settings.multihop.top_k_per_subquery,
+            final_top_k=settings.multihop.final_top_k,
             fusion_strategy="max",
             global_rerank_weight=0.6,
         )
