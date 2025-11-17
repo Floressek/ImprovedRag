@@ -15,7 +15,7 @@ import logging
 import json
 import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass, field
 import statistics
 
@@ -45,7 +45,7 @@ class PipelineConfig:
     # Toggle 5: CoVe mode
     cove_mode: str = "off"  # "off", "auto", "metadata", "suggest"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Union[bool, str]]:
         """Convert to dict for API request."""
         return {
             "query_analysis_enabled": self.query_analysis_enabled,

@@ -61,18 +61,18 @@ async def pipeline_ablation(
 
     logger.info(
         f"Ablation: query_analysis={request.query_analysis_enabled}, "
-        f"multihop={request.multihop_enabled}, reranker={request.reranker_enabled}, "
-        f"cove={request.cove_enabled}, template={request.prompt_template}"
+        f"enhanced_features={request.enhanced_features_enabled}, cot={request.cot_enabled}, "
+        f"reranking={request.reranker_enabled}, cove_mode={request.cove_mode}"
     )
 
     # Initialize metadata tracking
     metadata = {
         "ablation_config": {
             "query_analysis_enabled": request.query_analysis_enabled,
-            "multihop_enabled": request.multihop_enabled,
-            "reranker_enabled": request.reranker_enabled,
-            "cove_enabled": request.cove_enabled,
-            "use_cot": request.use_cot,
+            "enhanced_features_enabled": request.enhanced_features_enabled,
+            "cot_enabled": request.cot_enabled,
+            "reranking_enabled": request.reranker_enabled,
+            "cove_mode": request.cove_mode,
             "prompt_template": request.prompt_template,
             "provider": request.provider or settings.llm.provider,
             "top_k": request.top_k,
@@ -101,8 +101,8 @@ async def pipeline_ablation(
         rewritten_query = query
         metadata["query_type"] = "simple"
 
-    # STAGE 2: Multihop Decomposition (optional)
-    if request.multihop_enabled and request.query_analysis_enabled and features:
+    # STAGE 2: Multihop Decomposition (auto-determined by query analysis)
+    if request.query_analysis_enabled and features:
         # Check if query should be decomposed
         should_decompose = (
             features.query_type in ["comparison", "multihop"] or
@@ -235,24 +235,27 @@ async def pipeline_ablation(
     provider = request.provider or settings.llm.provider
     llm = LLMInference(provider=provider)
 
-    # Select template
+    # Select template (Toggle 1: Query Analysis controls this)
     if request.prompt_template == "auto":
         if is_multihop:
-            template = "multihop"
-        elif query_type == "comparison":
-            template = "enhanced"
+            template = "multihop"  # Multihop detected → use multihop template
         else:
-            template = "basic"
+            template = "enhanced"  # Single query → use enhanced template (NOT basic)
     else:
         template = request.prompt_template
 
+    # Build prompt config with Toggles 2 & 3
     prompt_config = PromptConfig(
-        template=template,
-        include_context_citations=True,
-        include_instructions=True,
+        use_cot=request.cot_enabled,  # Toggle 3: Chain of Thought
+        include_metadata=request.enhanced_features_enabled,  # Toggle 2: Enhanced Features
+        strict_citations=request.enhanced_features_enabled,
+        detect_language=request.enhanced_features_enabled,
+        check_contradictions=request.enhanced_features_enabled,
+        confidence_scoring=request.enhanced_features_enabled,
+        think_tag_style="qwen" if request.cot_enabled else "none",  # CoT style
     )
 
-    builder = PromptBuilder(config=prompt_config)
+    builder = PromptBuilder()
 
     # Build prompt with proper signature and handle citation_mapping
     citation_mapping = None
@@ -261,6 +264,7 @@ async def pipeline_ablation(
             query=query,
             contexts=contexts,
             template_name=template,  # Use selected template
+            config=prompt_config,  # Pass config here
             is_multihop=True,
             sub_queries=sub_queries,
         )
@@ -269,27 +273,37 @@ async def pipeline_ablation(
             query=query,
             contexts=contexts,
             template_name=template,  # Use selected template
+            config=prompt_config,  # Pass config here
             is_multihop=False,
             sub_queries=None,
         )
 
-    # Generate answer
+    # Generate answer (CoT already handled in prompt_config)
     answer = llm.generate(
         prompt=prompt,
         temperature=0.1,
         max_new_tokens=500,
-        chain_of_thought_enabled=request.use_cot,
     )
 
     metadata["timings"]["generation_ms"] = (time.time() - start_generation) * 1000
     metadata["prompt_template_used"] = template
 
-    # STAGE 6: CoVe Verification (optional)
-    if request.cove_enabled:
+    # STAGE 6: CoVe Verification (Toggle 5) - mode: off/auto/metadata/suggest
+    cove_enabled = request.cove_mode != "off"
+
+    if cove_enabled:
         start_cove = time.time()
+        logger.info(f"Running CoVe in mode: {request.cove_mode}")
 
         # Prepare contexts for CoVe (full payloads with all metadata)
         cove_contexts = [payload for _, payload, _ in final_results]
+
+        # Temporarily override cove settings for this request
+        original_cove_enabled = settings.cove.enabled
+        original_correction_mode = settings.cove.correction_mode
+
+        settings.cove.enabled = True
+        settings.cove.correction_mode = request.cove_mode  # "auto", "metadata", or "suggest"
 
         # Run CoVe verification
         cove_result = cove_enhancer.verify(
@@ -298,6 +312,10 @@ async def pipeline_ablation(
             contexts=cove_contexts,
         )
 
+        # Restore original settings
+        settings.cove.enabled = original_cove_enabled
+        settings.cove.correction_mode = original_correction_mode
+
         # Update answer if corrections were made
         if cove_result.corrected_answer:
             answer = cove_result.corrected_answer
@@ -305,9 +323,11 @@ async def pipeline_ablation(
             metadata["cove_num_claims"] = cove_result.metadata.get("num_claims", 0)
             metadata["cove_num_refuted"] = cove_result.metadata.get("num_refuted", 0)
             metadata["cove_status"] = str(cove_result.status)
+            metadata["cove_mode_used"] = request.cove_mode
         else:
             metadata["cove_corrections_made"] = False
             metadata["cove_num_claims"] = cove_result.metadata.get("num_claims", 0)
+            metadata["cove_mode_used"] = request.cove_mode
 
         # Merge CoVe evidences into contexts (recovery sources)
         all_evidences = cove_result.metadata.get("all_evidences", [])
@@ -354,10 +374,12 @@ async def pipeline_ablation(
 
         metadata["timings"]["cove_ms"] = (time.time() - start_cove) * 1000
     else:
-        # CoVe disabled - set all metrics to default/false
+        # CoVe mode = "off" - set all metrics to default/false
         metadata["cove_corrections_made"] = False
         metadata["cove_evidences_added"] = 0
         metadata["cove_num_claims"] = 0
+        metadata["cove_mode_used"] = "off"
+        logger.info("CoVe disabled (mode: off)")
 
     # STAGE 7: Remap citations (if needed)
     if citation_mapping:

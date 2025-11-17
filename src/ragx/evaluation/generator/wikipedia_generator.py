@@ -136,16 +136,21 @@ class WikipediaQuestionGenerator:
         if not articles:
             raise ValueError("No articles loaded")
 
-        # Generate questions
+        # Generate questions with retry loop to handle validation failures
         questions = []
 
         for qtype, ratio in distribution.items():
-            count = int(num_questions * ratio)
-            logger.info(f"Generating {count} {qtype} questions...")
+            target_count = int(num_questions * ratio)
+            logger.info(f"Generating {target_count} {qtype} questions...")
 
-            for i in range(count):
-                if i % 10 == 0 and i > 0:
-                    logger.info(f"  Progress: {i}/{count}")
+            # Over-generate to account for validation failures (up to 50% extra attempts)
+            attempts = 0
+            max_attempts = int(target_count * 1.5)
+            type_questions = []
+
+            while len(type_questions) < target_count and attempts < max_attempts:
+                if attempts > 0 and attempts % 10 == 0:
+                    logger.info(f"  Progress: {len(type_questions)}/{target_count} (attempts: {attempts})")
 
                 try:
                     question = self._generate_question(qtype, articles)
@@ -153,16 +158,27 @@ class WikipediaQuestionGenerator:
                         # Validate grounding if enabled
                         if self.validate_grounding:
                             if self._validate_grounding(question["ground_truth"], question["contexts"]):
-                                questions.append(question)
+                                type_questions.append(question)
                             else:
                                 logger.debug(f"Skipping question - ground truth not grounded in contexts")
                         else:
-                            questions.append(question)
+                            type_questions.append(question)
                 except Exception as e:
                     logger.warning(f"Failed to generate {qtype} question: {e}")
 
+                attempts += 1
+
+            logger.info(f"  Generated {len(type_questions)}/{target_count} {qtype} questions ({attempts} attempts)")
+            questions.extend(type_questions)
+
         random.shuffle(questions)
-        logger.info(f"Generated {len(questions)} questions total (after validation)")
+        logger.info(f"Generated {len(questions)}/{num_questions} questions total (after validation)")
+
+        if len(questions) < num_questions * 0.8:
+            logger.warning(
+                f"Generated significantly fewer questions than requested: "
+                f"{len(questions)}/{num_questions} ({len(questions)/num_questions*100:.1f}%)"
+            )
 
         return questions
 

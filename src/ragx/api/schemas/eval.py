@@ -5,33 +5,43 @@ from pydantic import BaseModel, Field
 
 
 class PipelineAblationRequest(BaseModel):
-    """Request for pipeline ablation study."""
+    """Request for pipeline ablation study with 5 independent toggles."""
     query: str = Field(..., description="Query to process")
 
-    # Toggles (aligned with ablation_study.py)
+    # 5 Independent Toggles = 32 base permutations
+    # Toggle 1: Query Analysis - multihop detection + template choice
     query_analysis_enabled: bool = Field(
         True,
         alias="use_query_analysis",
-        description="Enable query analysis and multihop decomposition"
+        description="Toggle 1: Enable query analysis (OFF = always single query, template 'enhanced')"
     )
+
+    # Toggle 2: Enhanced Features - metadata, quality checks
+    enhanced_features_enabled: bool = Field(
+        True,
+        alias="use_enhanced_features",
+        description="Toggle 2: Enable enhanced features (metadata, quality checks, contradictions)"
+    )
+
+    # Toggle 3: Chain of Thought
+    cot_enabled: bool = Field(
+        True,
+        alias="use_cot",
+        description="Toggle 3: Enable Chain-of-Thought reasoning"
+    )
+
+    # Toggle 4: Reranking - 3-stage (multihop) or standard (single)
     reranker_enabled: bool = Field(
         True,
         alias="use_reranker",
-        description="Enable reranking (multihop or standard)"
+        description="Toggle 4: Enable reranking (type auto-selected: multihop → 3-stage, single → standard)"
     )
-    cove_enabled: bool = Field(
-        False,
-        alias="use_cove",
-        description="Enable CoVe verification"
-    )
-    multihop_enabled: bool = Field(
-        True,
-        alias="use_multihop",
-        description="Enable multihop decomposition"
-    )
-    use_cot: bool = Field(
-        True,
-        description="Enable Chain-of-Thought for generation"
+
+    # Toggle 5: CoVe mode - "off", "auto", "metadata", "suggest"
+    cove_mode: str = Field(
+        "off",
+        alias="cove",
+        description="Toggle 5: CoVe mode ('off', 'auto', 'metadata', 'suggest')"
     )
 
     # Prompt engineering

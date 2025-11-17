@@ -432,9 +432,10 @@ class RAGASEvaluator:
             Tuple of (lower_bound, upper_bound)
         """
         if len(values) < 2:
-            # Not enough data for CI
-            mean_val = values[0] if values else 0.0
-            return (mean_val, mean_val)
+            # Not enough data for CI - need at least 2 samples
+            # Return (0, 0) to indicate invalid CI rather than misleading equal bounds
+            logger.warning(f"Cannot calculate CI with n={len(values)} samples (need n>=2)")
+            return (0.0, 0.0)
 
         try:
             mean_val = statistics.mean(values)
