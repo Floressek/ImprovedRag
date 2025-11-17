@@ -275,22 +275,24 @@ class EnhancedPipeline(BasePipeline):
             for ev in all_evidences:
                 ev_id = ev.get("id")
                 if not ev_id or ev_id in existing_ids or str(ev_id).startswith("unknown_"):
-                    sources.append({
-                        "id": ev_id,
-                        "text": ev["text"],
-                        "doc_title": ev.get("doc_title", "Unknown"),
-                        "position": ev.get("position", 0),
-                        "retrieval_score": ev.get("score", 0),
-                        "url": ev.get("url", ""),
-                        "source": "EVIDENCE FROM COVE",
-                    })
-                    existing_ids.add(ev_id)
-                    new_evidences_added += 1
+                    continue
 
-                if new_evidences_added > 0:
-                    logger.info(f"Added {new_evidences_added} evidences to the context")
-                else:
-                    logger.info("No new evidences added")
+                sources.append({
+                    "id": ev_id,
+                    "text": ev["text"],
+                    "doc_title": ev.get("doc_title", "Unknown"),
+                    "position": ev.get("position", 0),
+                    "retrieval_score": ev.get("score", 0),
+                    "url": ev.get("url", ""),
+                    "source": "EVIDENCE FROM COVE",
+                })
+                existing_ids.add(ev_id)
+                new_evidences_added += 1
+
+            if new_evidences_added > 0:
+                logger.info(f"Added {new_evidences_added} new evidences to sources")
+            else:
+                logger.info("No new evidences added (all already present or invalid)")
 
         cove_time = (time.time() - cove_start) * 1000
         total_time = (time.time() - start) * 1000
