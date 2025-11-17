@@ -38,8 +38,7 @@ class CitationInjector:
             logger.debug("No contexts available for citation injection")
             return None
 
-        # Optional fix for correcting citation injection FIXME delete this comment or code if buggy
-        # Remove existing citations from claim text for matching
+        # Remove existing citations from claim text for clean matching
         claim_clean = re.sub(r'\[\d+\]', '', claim.text).strip()
 
         documents = [

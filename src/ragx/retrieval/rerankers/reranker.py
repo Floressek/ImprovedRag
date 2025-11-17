@@ -126,7 +126,7 @@ class Reranker:
             passages: list[str],
             top_k: Optional[int] = None,
             batch_size: Optional[int] = None,
-    ) -> list[Any] | list[tuple[int, tuple[int, Any]]]:
+    ) -> list[tuple[int, float]]:
         """Rerank raw text passages.
 
         Args:

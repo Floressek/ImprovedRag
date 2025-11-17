@@ -194,8 +194,8 @@ async def pipeline_ablation(
     if request.reranker_enabled:
         start_rerank = time.time()
 
-        if is_multihop and request.multihop_enabled:
-            # Multihop reranking with diversity
+        if is_multihop:
+            # Multihop reranking with diversity (3-stage: local → fusion → global)
             reranked_results = multihop_reranker.process(
                 original_query=query,
                 results_by_subquery=results_by_subquery,
@@ -203,7 +203,7 @@ async def pipeline_ablation(
                 query_type=query_type,
             )
         else:
-            # Standard reranking
+            # Standard reranking (single query)
             reranked_results = reranker_enhancer.process(
                 query=rewritten_query,
                 results=initial_results,

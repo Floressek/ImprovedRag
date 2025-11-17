@@ -61,7 +61,7 @@ async def ask_enhanced(
             "num_verified": cove_data.get("num_verified", 0),
             "num_refuted": cove_data.get("num_refuted", 0),
             "num_insufficient": cove_data.get("num_insufficient", 0),
-            "citations_injected": cove_data.get("citations_injected", 0),
+            "citations_injected": cove_data.get("citations_injected", False),
         }
 
     return {

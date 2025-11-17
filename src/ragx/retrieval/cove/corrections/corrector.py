@@ -223,7 +223,7 @@ class AnswerCorrector:
             contexts: List[Dict[str, Any]],
             provider: str,
     ) -> tuple[str, Dict[str, Any]]:
-        """Mode 3: auto correction, buggy with smaller models for some fking reason"""
+        """Mode 3: auto correction - Note: may be unreliable with smaller models (8B-14B)"""
         use_simplified = provider in ["ollama", "huggingface",
                                       "vllm"]  # local providers, unless your GPU has like 24 GB of VRAM
 

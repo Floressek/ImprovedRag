@@ -121,13 +121,19 @@ class ClaimVerifier:
                 evidences=[],
             )
 
+        # Build evidence objects from contexts
         evidence = [
             Evidence(
-                doc_id=str(i),
+                doc_id=str(ctx.get("id", f"unknown_{i}")),
                 text=ctx.get("text", ""),
-                score=ctx.get("score", 0.0),
+                score=ctx.get("retrieval_score") or ctx.get("rerank_score") or 0.0,
                 doc_title=ctx.get("doc_title"),
-                metadata=ctx.get("metadata", {}),
+                metadata={
+                    "position": ctx.get("position", 0),
+                    "url": ctx.get("url", ""),
+                    "total_chunks": ctx.get("total_chunks", 1),
+                    **(ctx.get("metadata", {}) or {}),
+                },
             )
             for i, ctx in enumerate(contexts)
         ]
@@ -188,13 +194,19 @@ class ClaimVerifier:
             return [self._verify_single(claim, evidence_str, contexts) for claim in claims]
 
         verifications = []
+        # Build evidence objects from contexts (same as _verify_single)
         evidence_objs = [
             Evidence(
-                doc_id=str(i),
+                doc_id=str(ctx.get("id", f"unknown_{i}")),
                 text=ctx.get("text", ""),
-                score=ctx.get("score", 0.0),
+                score=ctx.get("retrieval_score") or ctx.get("rerank_score") or 0.0,
                 doc_title=ctx.get("doc_title"),
-                metadata=ctx.get("metadata", {}),
+                metadata={
+                    "position": ctx.get("position", 0),
+                    "url": ctx.get("url", ""),
+                    "total_chunks": ctx.get("total_chunks", 1),
+                    **(ctx.get("metadata", {}) or {}),
+                },
             )
             for i, ctx in enumerate(contexts)
         ]
