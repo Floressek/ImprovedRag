@@ -204,7 +204,7 @@ class ClaimVerifier:
                     "position": ctx.get("position", 0),
                     "url": ctx.get("url", ""),
                     "total_chunks": ctx.get("total_chunks", 1),
-                    **(ctx.get("metadata", {}) or {}),
+                    **ctx.get("metadata", {}),
                 },
             )
             for i, ctx in enumerate(contexts)
