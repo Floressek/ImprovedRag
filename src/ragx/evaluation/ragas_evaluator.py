@@ -295,6 +295,10 @@ class RAGASEvaluator:
         if metadata_list is None:
             metadata_list = [{}] * len(questions)
 
+        # Validate input lists are not empty
+        if not questions:
+            raise ValueError("Cannot evaluate empty question list")
+
         if not (len(questions) == len(answers) == len(contexts_list) == len(ground_truths)):
             raise ValueError("All input lists must have the same length")
 

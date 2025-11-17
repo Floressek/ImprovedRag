@@ -355,6 +355,15 @@ class AblationStudy:
 
         logger.info(f"Initialized ablation study with API: {self.api_base_url} (retry: 3x with backoff)")
 
+    def __del__(self):
+        """Clean up HTTP session on destruction."""
+        if hasattr(self, 'session'):
+            try:
+                self.session.close()
+                logger.debug("Closed HTTP session")
+            except Exception as e:
+                logger.warning(f"Error closing session: {e}")
+
     def run(
         self,
         questions_path: Path,
@@ -545,11 +554,23 @@ class AblationStudy:
         questions = []
 
         with open(path, 'r', encoding='utf-8') as f:
-            for line in f:
-                questions.append(json.loads(line.strip()))
+            for line_num, line in enumerate(f, start=1):
+                line = line.strip()
+                if not line:  # Skip empty lines
+                    continue
+
+                try:
+                    question = json.loads(line)
+                    questions.append(question)
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Skipping invalid JSON at line {line_num}: {e}")
+                    continue
 
                 if max_questions and len(questions) >= max_questions:
                     break
+
+        if not questions:
+            raise ValueError(f"No valid questions loaded from {path}")
 
         return questions
 
