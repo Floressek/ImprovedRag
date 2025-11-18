@@ -164,35 +164,67 @@ def _generate_answer(
     cot_enabled: bool,
     enhanced_features_enabled: bool,
     provider: str,
+    prompt_template: str = "auto",
 ) -> Tuple[str, Any]:
-    """Generate answer using LLM."""
+    """Generate answer using LLM with configurable prompt template.
+
+    Args:
+        prompt_template: "basic", "enhanced", "multihop", or "auto"
+            - basic: Simple prompt, no enhanced features (can use with reranker/CoVe)
+            - enhanced: With enhanced features (metadata, quality checks)
+            - multihop: With multihop reasoning (requires is_multihop=True)
+            - auto: Choose automatically (enhanced if single, multihop if is_multihop)
+    """
+
+    # Select template based on prompt_template parameter
+    if prompt_template == "auto":
+        # Auto-select: multihop if is_multihop, else enhanced
+        template_name = "multihop" if is_multihop else "enhanced"
+    elif prompt_template == "multihop":
+        # Force multihop template (requires is_multihop=True)
+        template_name = "multihop"
+    elif prompt_template == "enhanced":
+        template_name = "enhanced"
+    elif prompt_template == "basic":
+        template_name = "basic"
+    else:
+        # Fallback to auto
+        template_name = "multihop" if is_multihop else "enhanced"
+
+    # Build prompt config
+    # For basic template, ignore enhanced_features_enabled and force False
+    use_enhanced_features = enhanced_features_enabled if template_name != "basic" else False
+
     prompt_config = PromptConfig(
         use_cot=cot_enabled,
-        include_metadata=enhanced_features_enabled,
-        strict_citations=enhanced_features_enabled,
-        detect_language=enhanced_features_enabled,
-        check_contradictions=enhanced_features_enabled,
-        confidence_scoring=enhanced_features_enabled,
+        include_metadata=use_enhanced_features,
+        strict_citations=use_enhanced_features,
+        detect_language=use_enhanced_features,
+        check_contradictions=use_enhanced_features,
+        confidence_scoring=use_enhanced_features,
         think_tag_style="qwen" if cot_enabled else "none",
     )
 
     llm = LLMInference(provider=provider)
     prompt_builder = PromptBuilder()
 
-    if is_multihop:
+    # Build prompt with selected template
+    if is_multihop and template_name in ["multihop", "enhanced"]:
+        # Multihop prompts support citation mapping
         prompt, citation_mapping = prompt_builder.build(
             query=query,
             contexts=contexts,
-            template_name="enhanced",
+            template_name=template_name,
             config=prompt_config,
             is_multihop=True,
             sub_queries=queries,
         )
     else:
+        # Basic or single-query prompts
         prompt = prompt_builder.build(
             query=query,
             contexts=contexts,
-            template_name="enhanced",
+            template_name=template_name,
             config=prompt_config,
             is_multihop=False,
             sub_queries=None,
@@ -350,9 +382,11 @@ async def pipeline_ablation(
     provider = request.provider or settings.llm.provider
     answer, citation_mapping = _generate_answer(
         request.query, queries, contexts, is_multihop,
-        request.cot_enabled, request.enhanced_features_enabled, provider
+        request.cot_enabled, request.enhanced_features_enabled, provider,
+        request.prompt_template
     )
     metadata["timings"]["llm_ms"] = round((time.time() - llm_start) * 1000, 2)
+    metadata["prompt_template"] = request.prompt_template
 
     # Remap citations
     if is_multihop and citation_mapping:

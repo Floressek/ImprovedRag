@@ -46,8 +46,12 @@ class PipelineConfig:
     reranker_enabled: bool = True
     # Toggle 5: CoVe mode
     cove_mode: str = "off"  # "off", "auto", "metadata", "suggest"
+    # Prompt template selection
+    prompt_template: str = "auto"  # "basic", "enhanced", "multihop", "auto"
+    # Retrieval parameters
+    top_k: int = 8
 
-    def to_dict(self) -> Dict[str, Union[bool, str]]:
+    def to_dict(self) -> Dict[str, Union[bool, str, int]]:
         """Convert to dict for API request."""
         return {
             "query_analysis_enabled": self.query_analysis_enabled,
@@ -55,6 +59,8 @@ class PipelineConfig:
             "cot_enabled": self.cot_enabled,
             "reranker_enabled": self.reranker_enabled,
             "cove_mode": self.cove_mode,
+            "prompt_template": self.prompt_template,
+            "top_k": self.top_k,
         }
 
 
@@ -330,6 +336,9 @@ class AblationStudy:
         self,
         api_base_url: str,
         ragas_evaluator: Optional[RAGASEvaluator] = None,
+        api_timeout: int = 120,
+        retry_total: int = 3,
+        retry_backoff: int = 2,
     ):
         """
         Initialize ablation study.
@@ -337,14 +346,18 @@ class AblationStudy:
         Args:
             api_base_url: Base URL for RAG API (e.g., http://localhost:8000)
             ragas_evaluator: RAGAS evaluator instance (creates default if None)
+            api_timeout: API request timeout in seconds (default: 120)
+            retry_total: Max number of retries for failed requests (default: 3)
+            retry_backoff: Backoff factor for retries in seconds (default: 2)
         """
         self.api_base_url = api_base_url.rstrip("/")
         self.ragas_evaluator = ragas_evaluator or RAGASEvaluator()
+        self.api_timeout = api_timeout
 
         # Configure retry strategy for network resilience
         retry_strategy = Retry(
-            total=3,  # Max 3 retries
-            backoff_factor=2,  # Wait 2s, 4s, 8s between retries
+            total=retry_total,
+            backoff_factor=retry_backoff,
             status_forcelist=[429, 500, 502, 503, 504],  # Retry on these HTTP codes
             allowed_methods=["POST"],  # Only retry POST requests
         )
@@ -353,7 +366,10 @@ class AblationStudy:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
-        logger.info(f"Initialized ablation study with API: {self.api_base_url} (retry: 3x with backoff)")
+        logger.info(
+            f"Initialized ablation study with API: {self.api_base_url} "
+            f"(timeout: {api_timeout}s, retry: {retry_total}x with backoff {retry_backoff}s)"
+        )
 
     def __del__(self):
         """Clean up HTTP session on destruction."""
@@ -532,16 +548,10 @@ class AblationStudy:
         # Flatten config into request (no nested "config" object)
         payload = {
             "query": query,
-            "query_analysis_enabled": config.query_analysis_enabled,
-            "enhanced_features_enabled": config.enhanced_features_enabled,
-            "cot_enabled": config.cot_enabled,
-            "reranker_enabled": config.reranker_enabled,
-            "cove_mode": config.cove_mode,
-            "prompt_template": "auto",  # Auto-select based on query
-            "top_k": 8,  # Standard top-k
+            **config.to_dict(),  # Use config's to_dict() method
         }
 
-        response = self.session.post(url, json=payload, timeout=120)
+        response = self.session.post(url, json=payload, timeout=self.api_timeout)
         response.raise_for_status()
 
         return response.json()
