@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import statistics
 import time
 from typing import List, Dict, Any, Optional, Tuple
@@ -155,9 +156,15 @@ class RAGASEvaluator:
         """
         api_key = openai_api_key or settings.openai.api_key
 
+        # Set OPENAI_API_KEY environment variable for LangChain compatibility
+        # LangChain 0.1.0+ uses environment variables instead of api_key parameter
+        if api_key:
+            os.environ["OPENAI_API_KEY"] = api_key
+
         # Initialize LangChain LLM and embeddings for RAGAS
-        self.llm = ChatOpenAI(model=llm_model, api_key=api_key)
-        self.embeddings = OpenAIEmbeddings(model=embeddings_model, api_key=api_key)
+        # Note: api_key parameter removed - uses OPENAI_API_KEY from environment
+        self.llm = ChatOpenAI(model=llm_model)
+        self.embeddings = OpenAIEmbeddings(model=embeddings_model)
 
         logger.info(f"Initialized RAGAS evaluator with LLM: {llm_model}")
 

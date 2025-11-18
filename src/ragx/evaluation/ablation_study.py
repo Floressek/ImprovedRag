@@ -201,10 +201,10 @@ class AblationStudy:
         name="baseline",
         description="No enhancements (vector search only)",
         query_analysis_enabled=False,
-        enhanced_features_enabled=False,
         cot_enabled=False,
         reranker_enabled=False,
         cove_mode="off",
+        prompt_template="basic",
     )
 
     # === Single toggle configs ===
@@ -212,50 +212,60 @@ class AblationStudy:
         name="query_only",
         description="Query analysis only (multihop detection)",
         query_analysis_enabled=True,
-        enhanced_features_enabled=False,
         cot_enabled=False,
         reranker_enabled=False,
         cove_mode="off",
+        prompt_template="basic",
     )
 
     ENHANCED_ONLY = PipelineConfig(
         name="enhanced_only",
         description="Enhanced features only (metadata, quality checks)",
         query_analysis_enabled=False,
-        enhanced_features_enabled=True,
         cot_enabled=False,
         reranker_enabled=False,
         cove_mode="off",
+        prompt_template="enhanced",
     )
 
     COT_ONLY = PipelineConfig(
         name="cot_only",
         description="Chain of Thought only",
         query_analysis_enabled=False,
-        enhanced_features_enabled=False,
         cot_enabled=True,
         reranker_enabled=False,
         cove_mode="off",
+        prompt_template="basic",
     )
 
     RERANKER_ONLY = PipelineConfig(
         name="reranker_only",
         description="Reranker only",
         query_analysis_enabled=False,
-        enhanced_features_enabled=False,
         cot_enabled=False,
         reranker_enabled=True,
         cove_mode="off",
+        prompt_template="basic",
+    )
+
+    MULTIHOP_ONLY = PipelineConfig(
+        name="multihop_only",
+        description="Multihop detection only",
+        query_analysis_enabled=True,
+        cot_enabled=True,
+        reranker_enabled=True,
+        cove_mode="off",
+        prompt_template="multihop",
     )
 
     COVE_AUTO_ONLY = PipelineConfig(
         name="cove_auto_only",
         description="CoVe auto-correction only",
         query_analysis_enabled=False,
-        enhanced_features_enabled=False,
         cot_enabled=False,
         reranker_enabled=False,
         cove_mode="auto",
+        prompt_template="basic",
     )
 
     # === Important combinations ===
@@ -263,20 +273,20 @@ class AblationStudy:
         name="cot_enhanced",
         description="CoT + Enhanced Features",
         query_analysis_enabled=False,
-        enhanced_features_enabled=True,
         cot_enabled=True,
         reranker_enabled=False,
         cove_mode="off",
+        prompt_template="enhanced",
     )
 
     QUERY_RERANK = PipelineConfig(
         name="query_rerank",
         description="Query Analysis + Reranking",
         query_analysis_enabled=True,
-        enhanced_features_enabled=False,
         cot_enabled=False,
         reranker_enabled=True,
         cove_mode="off",
+        prompt_template="basic",
     )
 
     # === CoVe mode variations ===
@@ -284,30 +294,30 @@ class AblationStudy:
         name="full_cove_auto",
         description="Full pipeline with CoVe auto-correction",
         query_analysis_enabled=True,
-        enhanced_features_enabled=True,
         cot_enabled=True,
         reranker_enabled=True,
         cove_mode="auto",
+        prompt_template="multihop",
     )
 
     FULL_COVE_METADATA = PipelineConfig(
         name="full_cove_metadata",
         description="Full pipeline with CoVe metadata-only",
         query_analysis_enabled=True,
-        enhanced_features_enabled=True,
         cot_enabled=True,
         reranker_enabled=True,
         cove_mode="metadata",
+        prompt_template="multihop",
     )
 
     FULL_COVE_SUGGEST = PipelineConfig(
         name="full_cove_suggest",
         description="Full pipeline with CoVe suggest mode",
         query_analysis_enabled=True,
-        enhanced_features_enabled=True,
         cot_enabled=True,
         reranker_enabled=True,
         cove_mode="suggest",
+        prompt_template="multihop",
     )
 
     # === Full (no CoVe) ===
@@ -315,10 +325,10 @@ class AblationStudy:
         name="full_no_cove",
         description="Full pipeline without CoVe",
         query_analysis_enabled=True,
-        enhanced_features_enabled=True,
         cot_enabled=True,
         reranker_enabled=True,
         cove_mode="off",
+        prompt_template="multihop",
     )
 
     def __init__(
@@ -467,7 +477,7 @@ class AblationStudy:
                 if not isinstance(response, dict):
                     raise ValueError(f"Invalid response type: {type(response)}")
 
-                required_fields = ["answer", "contexts"]
+                required_fields = ["answer", "sources"]
                 missing_fields = [f for f in required_fields if f not in response]
                 if missing_fields:
                     raise ValueError(f"Missing required fields in API response: {missing_fields}")
@@ -477,18 +487,22 @@ class AblationStudy:
                 # Extract data for RAGAS with safe defaults
                 rag_questions.append(q["question"])
                 rag_answers.append(response.get("answer", ""))
-                rag_contexts_list.append(response.get("contexts", []))
+
+                # Extract text from sources for RAGAS (RAGAS needs List[str], not List[Dict])
+                sources = response.get("sources", [])
+                contexts = [s.get("text", "") for s in sources]
+                rag_contexts_list.append(contexts)
                 ground_truths.append(q["ground_truth"])
 
                 # Metadata for custom metrics
                 # Use response["sources"] which includes merged CoVe evidences
-                sources_urls = [s.get("url") for s in response.get("sources", []) if s.get("url")]
+                sources_urls = [s.get("url") for s in sources if s.get("url")]
 
                 metadata = {
                     "latency_ms": response.get("metadata", {}).get("total_time_ms", 0.0),
                     "sources": sources_urls,  # Use merged sources (includes CoVe recovery)
                     "is_multihop": response.get("metadata", {}).get("is_multihop", False),
-                    "sub_queries": response.get("sub_queries", []),
+                    "sub_queries": response.get("metadata", {}).get("sub_queries", []),
                     "query_type": response.get("metadata", {}).get("query_type"),
                     "results_by_subquery": response.get("metadata", {}).get("results_by_subquery", {}),
                 }
