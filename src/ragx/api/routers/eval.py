@@ -313,6 +313,13 @@ async def pipeline_ablation(
     metadata["timings"]["retrieval_ms"] = round((time.time() - retrieval_start) * 1000, 2)
     metadata["num_candidates"] = num_retrieved
 
+    # Store results_by_subquery for multihop coverage calculation
+    if is_multihop and results_by_subquery:
+        # Convert to dict of query -> result count for metadata
+        metadata["results_by_subquery"] = {
+            query: len(results) for query, results in results_by_subquery.items()
+        }
+
     # Edge case: No results
     if num_retrieved == 0:
         metadata["total_time_ms"] = round((time.time() - start_total) * 1000, 2)

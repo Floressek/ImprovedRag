@@ -485,6 +485,7 @@ class AblationStudy:
                     "is_multihop": response.get("metadata", {}).get("is_multihop", False),
                     "sub_queries": response.get("sub_queries", []),
                     "query_type": response.get("metadata", {}).get("query_type"),
+                    "results_by_subquery": response.get("metadata", {}).get("results_by_subquery", {}),
                 }
                 metadata_list.append(metadata)
 

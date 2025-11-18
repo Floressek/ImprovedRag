@@ -80,29 +80,29 @@ def print_summary(result):
     print("STATISTICAL COMPARISONS (t-tests)")
     print(f"{'=' * 80}\n")
 
-    # Compare full vs baseline
-    if any(cr.config.name == "full" for cr in result.config_results) and \
+    # Compare full_cove_auto vs baseline
+    if any(cr.config.name == "full_cove_auto" for cr in result.config_results) and \
        any(cr.config.name == "baseline" for cr in result.config_results):
 
-        comparison = result.compare_configs("full", "baseline", "mean_faithfulness")
-        print(f"Full vs Baseline (Faithfulness):")
-        print(f"  Full:     {comparison['mean_a']:.3f}")
-        print(f"  Baseline: {comparison['mean_b']:.3f}")
-        print(f"  Diff:     {comparison['mean_diff']:+.3f}")
-        print(f"  p-value:  {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
-        print(f"  Effect:   {comparison['effect_size']} (d={comparison['cohens_d']:.2f})\n")
+        comparison = result.compare_configs("full_cove_auto", "baseline", "mean_faithfulness")
+        print(f"Full (CoVe Auto) vs Baseline (Faithfulness):")
+        print(f"  Full (CoVe Auto): {comparison['mean_a']:.3f}")
+        print(f"  Baseline:         {comparison['mean_b']:.3f}")
+        print(f"  Diff:             {comparison['mean_diff']:+.3f}")
+        print(f"  p-value:          {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
+        print(f"  Effect:           {comparison['effect_size']} (d={comparison['cohens_d']:.2f})\n")
 
-    # Compare full vs no_cove
-    if any(cr.config.name == "full" for cr in result.config_results) and \
-       any(cr.config.name == "no_cove" for cr in result.config_results):
+    # Compare full_cove_auto vs full_no_cove
+    if any(cr.config.name == "full_cove_auto" for cr in result.config_results) and \
+       any(cr.config.name == "full_no_cove" for cr in result.config_results):
 
-        comparison = result.compare_configs("full", "no_cove", "mean_faithfulness")
-        print(f"Full vs No CoVe (Faithfulness):")
-        print(f"  Full:    {comparison['mean_a']:.3f}")
-        print(f"  No CoVe: {comparison['mean_b']:.3f}")
-        print(f"  Diff:    {comparison['mean_diff']:+.3f}")
-        print(f"  p-value: {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
-        print(f"  Effect:  {comparison['effect_size']} (d={comparison['cohens_d']:.2f})\n")
+        comparison = result.compare_configs("full_cove_auto", "full_no_cove", "mean_faithfulness")
+        print(f"Full (CoVe Auto) vs Full (No CoVe) (Faithfulness):")
+        print(f"  With CoVe:    {comparison['mean_a']:.3f}")
+        print(f"  Without CoVe: {comparison['mean_b']:.3f}")
+        print(f"  Diff:         {comparison['mean_diff']:+.3f}")
+        print(f"  p-value:      {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
+        print(f"  Effect:       {comparison['effect_size']} (d={comparison['cohens_d']:.2f})\n")
 
 
 def main():
@@ -136,7 +136,16 @@ def main():
     parser.add_argument(
         "--configs",
         nargs="+",
-        choices=["baseline", "query_only", "reranker_only", "cove_only", "no_cove", "full"],
+        choices=[
+            "baseline",
+            "query_only",
+            "reranker_only",
+            "cove_auto_only",
+            "full_no_cove",
+            "full_cove_auto",
+            "full_cove_metadata",
+            "full_cove_suggest",
+        ],
         default=None,
         help="Specific configurations to test (default: all)",
     )
@@ -171,9 +180,11 @@ def main():
             "baseline": AblationStudy.BASELINE,
             "query_only": AblationStudy.QUERY_ONLY,
             "reranker_only": AblationStudy.RERANKER_ONLY,
-            "cove_only": AblationStudy.COVE_ONLY,
-            "no_cove": AblationStudy.NO_COVE,
-            "full": AblationStudy.FULL,
+            "cove_auto_only": AblationStudy.COVE_AUTO_ONLY,
+            "full_no_cove": AblationStudy.FULL_NO_COVE,
+            "full_cove_auto": AblationStudy.FULL_COVE_AUTO,
+            "full_cove_metadata": AblationStudy.FULL_COVE_METADATA,
+            "full_cove_suggest": AblationStudy.FULL_COVE_SUGGEST,
         }
         configs = [config_map[name] for name in args.configs]
 

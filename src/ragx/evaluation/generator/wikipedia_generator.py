@@ -290,7 +290,7 @@ class WikipediaQuestionGenerator:
                 "contexts": [text1, text2],
             }
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON: {e}")
+            logger.error(f"Failed to parse JSON: {e}\nResponse: {response}")
             return None
 
     def _generate_multihop(self, articles: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -329,7 +329,7 @@ class WikipediaQuestionGenerator:
                 "contexts": texts,
             }
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON: {e}")
+            logger.error(f"Failed to parse JSON: {e}\nResponse: {response}")
             return None
 
     def _generate_temporal(self, articles: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -363,7 +363,7 @@ class WikipediaQuestionGenerator:
                 "contexts": [text],
             }
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON: {e}")
+            logger.error(f"Failed to parse JSON: {e}\nResponse: {response}")
             return None
 
     def _extract_key_terms(self, text: str) -> Set[str]:

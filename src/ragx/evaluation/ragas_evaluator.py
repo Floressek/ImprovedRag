@@ -302,6 +302,12 @@ class RAGASEvaluator:
         if not (len(questions) == len(answers) == len(contexts_list) == len(ground_truths)):
             raise ValueError("All input lists must have the same length")
 
+        if len(metadata_list) != len(questions):
+            raise ValueError(
+                f"metadata_list length ({len(metadata_list)}) must match "
+                f"questions length ({len(questions)})"
+            )
+
         logger.info(f"Evaluating batch of {len(questions)} questions...")
 
         # Prepare dataset for RAGAS
@@ -375,14 +381,17 @@ class RAGASEvaluator:
         context_prec_vals = [r.context_precision for r in results]
         context_rec_vals = [r.context_recall for r in results]
 
+        # Defensive division (results is never empty due to line 299, but be safe)
+        num_results = len(results) if results else 1
+
         return BatchEvaluationResult(
-            mean_faithfulness=float(ragas_df["faithfulness"].mean()),
-            mean_answer_relevancy=float(ragas_df["answer_relevancy"].mean()),
-            mean_context_precision=float(ragas_df["context_precision"].mean()),
-            mean_context_recall=float(ragas_df["context_recall"].mean()),
-            mean_latency_ms=sum(r.latency_ms for r in results) / len(results),
-            mean_sources_count=sum(r.sources_count for r in results) / len(results),
-            mean_multihop_coverage=sum(r.multihop_coverage for r in results) / len(results),
+            mean_faithfulness=safe_float(ragas_df["faithfulness"].mean()),
+            mean_answer_relevancy=safe_float(ragas_df["answer_relevancy"].mean()),
+            mean_context_precision=safe_float(ragas_df["context_precision"].mean()),
+            mean_context_recall=safe_float(ragas_df["context_recall"].mean()),
+            mean_latency_ms=sum(r.latency_ms for r in results) / num_results if results else 0.0,
+            mean_sources_count=sum(r.sources_count for r in results) / num_results if results else 0.0,
+            mean_multihop_coverage=sum(r.multihop_coverage for r in results) / num_results if results else 0.0,
             ci_faithfulness=self._calculate_ci(faithfulness_vals),
             ci_answer_relevancy=self._calculate_ci(answer_rel_vals),
             ci_context_precision=self._calculate_ci(context_prec_vals),
