@@ -431,8 +431,8 @@ eval-generate:
 
 eval-api:
 	@echo "Starting RAG API server..."
-	@echo "API will be available at: http://localhost:8000"
-	@echo "Docs: http://localhost:8000/docs"
+	@echo "API will be available at: http://localhost:8080"
+	@echo "Docs: http://localhost:8080/docs"
 	@echo ""
 	@echo "Press Ctrl+C to stop"
 	@echo ""
@@ -451,7 +451,7 @@ eval-run:
 		--output $(EVAL_OUTPUT) \
 		--checkpoint-dir $(CHECKPOINT_DIR) \
 		--run-id $(RUN_ID) \
-		--api-url http://localhost:8000
+		--api-url http://localhost:8080
 	@echo ""
 	@echo "Ablation study complete!"
 	@echo "Results: $(EVAL_OUTPUT)"
@@ -469,7 +469,7 @@ eval-resume:
 		--checkpoint-dir $(CHECKPOINT_DIR) \
 		--run-id $(RUN_ID) \
 		--resume \
-		--api-url http://localhost:8000
+		--api-url http://localhost:8080
 	@echo ""
 	@echo "Ablation study complete!"
 	@echo ""
@@ -484,7 +484,7 @@ eval-quick:
 		--output results/quick_test.json \
 		--configs baseline full_no_cove full_cove_auto \
 		--max-questions 10 \
-		--api-url http://localhost:8000
+		--api-url http://localhost:8080
 	@echo ""
 	@echo "Quick test complete!"
 	@echo "Results: results/quick_test.json"

@@ -13,9 +13,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from scipy import stats
-
 logger = logging.getLogger(__name__)
-
 try:
     from tqdm import tqdm
     TQDM_AVAILABLE = True
@@ -24,9 +22,9 @@ except ImportError:
     logger.warning("tqdm not available - progress bars disabled. Install with: pip install tqdm")
 
 from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator, BatchEvaluationResult
+from src.ragx.utils.settings import settings
 
 
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -653,7 +651,12 @@ class AblationStudy:
             else questions
         )
 
-        for i, q in enumerate(questions_iterator if TQDM_AVAILABLE else questions):
+        # Debug: Check what we're iterating over
+        logger.debug(f"Questions type: {type(questions)}, length: {len(questions)}")
+        if questions:
+            logger.debug(f"First question type: {type(questions[0])}, value: {questions[0]}")
+
+        for i, q in enumerate(questions_iterator):
             max_retries = 3
             retry_delay = 2  # seconds
 
@@ -731,7 +734,7 @@ class AblationStudy:
             logger.warning(f"{'=' * 80}\n")
 
         # Evaluate with RAGAS
-        logger.info(f"Evaluating with RAGAS...")
+        logger.info("Evaluating with RAGAS...")
         evaluation = self.ragas_evaluator.evaluate_batch(
             questions=rag_questions,
             answers=rag_answers,
@@ -767,7 +770,15 @@ class AblationStudy:
             **config.to_dict(),  # Use config's to_dict() method
         }
 
+        logger.debug(f"Sending request to {url}")
+        logger.debug(f"Payload: {json.dumps(payload, indent=2)}")
+
         response = self.session.post(url, json=payload, timeout=self.api_timeout)
+
+        # Log response details before raising
+        if not response.ok:
+            logger.error(f"API returned {response.status_code}: {response.text}")
+
         response.raise_for_status()
 
         return response.json()
