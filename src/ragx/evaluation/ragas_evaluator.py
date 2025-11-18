@@ -17,8 +17,6 @@ from ragas.metrics import (
 )
 from datasets import Dataset
 from openai import RateLimitError, APIError, APIConnectionError
-
-from src.ragx.utils.settings import settings
 from src.ragx.evaluation.langchain_adapters import LLMInferenceAdapter, EmbedderAdapter
 
 logger = logging.getLogger(__name__)
@@ -256,6 +254,7 @@ class RAGASEvaluator:
         # Calculate custom metrics
         latency_ms = metadata.get("latency_ms", 0.0)
         sources = metadata.get("sources") or []
+
         sources_count = self._count_sources(sources)
 
         sub_queries = metadata.get("sub_queries") or []
