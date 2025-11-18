@@ -20,7 +20,7 @@ class LLMInferenceAdapter(LLM):
     (API, Ollama, HuggingFace) instead of being locked to OpenAI.
     """
 
-    llm_inference: LLMInference
+    llm_inference: Any
     temperature: float = 0.5
     max_tokens: int = 4092
 
@@ -44,9 +44,12 @@ class LLMInferenceAdapter(LLM):
             temperature=temperature,
             max_new_tokens=max_tokens,
         )
-        super().__init__(llm_inference=llm_inference, **kwargs)
-        self.temperature = temperature
-        self.max_tokens = max_tokens
+        super().__init__(
+            llm_inference=llm_inference,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs
+        )
         logger.info(f"Initialized LLMInferenceAdapter with provider: {provider}")
 
     @property
@@ -88,7 +91,11 @@ class EmbedderAdapter(Embeddings):
     instead of requiring OpenAI embeddings API.
     """
 
-    embedder: Embedder
+    embedder: Any  # Type hint but not validated by Pydantic
+
+    class Config:
+        """Pydantic config to allow arbitrary types."""
+        arbitrary_types_allowed = True
 
     def __init__(
             self,
@@ -120,13 +127,14 @@ class EmbedderAdapter(Embeddings):
         Returns:
             List of embeddings (each embedding is a list of floats)
         """
-        # Our Embedder.embed_texts() returns list[list[float]] when convert_to_numpy=False
+        # Use convert_to_numpy=True for reliable conversion, then .tolist()
+        # This matches what embed_query() does
         embeddings = self.embedder.embed_texts(
             texts=texts,
-            convert_to_numpy=False,  # Get list of lists, not numpy array
+            convert_to_numpy=True,  # Get numpy array
             add_prefix=True,  # Treat as passages/documents
         )
-        return embeddings
+        return embeddings.tolist()
 
     def embed_query(self, text: str) -> List[float]:
         """Embed a single query.

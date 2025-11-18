@@ -169,6 +169,14 @@ class RAGASEvaluator:
             device=embeddings_device,
         )
 
+        # Configure RAGAS metrics with our LLM and embeddings
+        # These are global singletons that need to be configured
+        faithfulness.llm = self.llm
+        answer_relevancy.llm = self.llm
+        answer_relevancy.embeddings = self.embeddings
+        context_precision.llm = self.llm
+        context_recall.llm = self.llm
+
         logger.info(
             f"Initialized RAGAS evaluator with LLM provider: {llm_provider}, "
             f"Embeddings model: {self.embeddings.embedder.model_id}"
@@ -247,10 +255,14 @@ class RAGASEvaluator:
 
         # Calculate custom metrics
         latency_ms = metadata.get("latency_ms", 0.0)
-        sources_count = self._count_sources(metadata.get("sources", []))
+        sources = metadata.get("sources") or []
+        sources_count = self._count_sources(sources)
+
+        sub_queries = metadata.get("sub_queries") or []
+        results_by_subquery = metadata.get("results_by_subquery") or {}
         multihop_coverage = self._calculate_multihop_coverage(
-            metadata.get("sub_queries", []),
-            metadata.get("results_by_subquery", {}),
+            sub_queries,
+            results_by_subquery,
         )
 
         # Handle NaN values from RAGAS (replace with 0.0)
@@ -272,7 +284,7 @@ class RAGASEvaluator:
             num_contexts=len(contexts),
             query_type=metadata.get("query_type"),
             is_multihop=metadata.get("is_multihop", False),
-            num_sub_queries=len(metadata.get("sub_queries", [])),
+            num_sub_queries=len(sub_queries),
             details=metadata,
         )
 
@@ -324,6 +336,7 @@ class RAGASEvaluator:
         })
 
         # Run RAGAS evaluation (batch)
+        # Limit parallel execution to avoid rate limits
         start_time = time.time()
         ragas_result = evaluate(
             dataset,
@@ -354,10 +367,14 @@ class RAGASEvaluator:
         results = []
         for i in range(len(questions)):
             latency_ms = metadata_list[i].get("latency_ms", 0.0)
-            sources_count = self._count_sources(metadata_list[i].get("sources", []))
+            sources = metadata_list[i].get("sources") or []
+            sources_count = self._count_sources(sources)
+
+            sub_queries = metadata_list[i].get("sub_queries") or []
+            results_by_subquery = metadata_list[i].get("results_by_subquery") or {}
             multihop_coverage = self._calculate_multihop_coverage(
-                metadata_list[i].get("sub_queries", []),
-                metadata_list[i].get("results_by_subquery", {}),
+                sub_queries,
+                results_by_subquery,
             )
 
             result = EvaluationResult(
@@ -371,7 +388,7 @@ class RAGASEvaluator:
                 num_contexts=len(contexts_list[i]),
                 query_type=metadata_list[i].get("query_type"),
                 is_multihop=metadata_list[i].get("is_multihop", False),
-                num_sub_queries=len(metadata_list[i].get("sub_queries", [])),
+                num_sub_queries=len(sub_queries),
                 details=metadata_list[i],
             )
             results.append(result)
