@@ -13,11 +13,25 @@ sys.path.insert(0, str(project_root))
 from src.ragx.evaluation.generator.wikipedia_generator import WikipediaQuestionGenerator
 from src.ragx.generation.inference import LLMInference
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+from colorlog import ColoredFormatter
+
+formatter = ColoredFormatter(
+    "%(log_color)s%(asctime)s%(reset)s │ %(cyan)s%(name)s%(reset)s │ %(log_color)s%(levelname)-8s%(reset)s │ %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S", reset=True,
+    log_colors={'DEBUG': 'blue', 'INFO': 'green', 'WARNING': 'yellow', 'ERROR': 'red', 'CRITICAL': 'red,bg_white', })
+
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+
+logging.basicConfig(level=logging.DEBUG, handlers=[handler])
 logger = logging.getLogger(__name__)
+
+
+# logging.basicConfig(
+#     level=logging.DEBUG,
+#     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+# )
+# logger = logging.getLogger(__name__)
 
 
 def main():
@@ -81,6 +95,7 @@ def main():
     # Initialize LLM
     logger.info(f"Initializing LLM with provider: {args.provider}")
     llm = LLMInference(provider=args.provider)
+    # llm = LLMInference(provider="ollama")
 
     # Initialize generator
     logger.info(f"Initializing question generator with data_dir: {args.data_dir}")

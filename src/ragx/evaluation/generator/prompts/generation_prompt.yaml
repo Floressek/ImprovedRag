@@ -44,6 +44,7 @@ generate_comparison:
     {text2}
 
     Generate a question that compares or contrasts these two topics.
+    DO NOT MENTION IN THE QUESTION THAT THEY ARE FROM SEPARATE ARTICLES (example do not add: (Art. 2)).
     Use patterns like: "X vs Y", "Compare X and Y", "Difference between X and Y"
     Or in Polish: "X kontra Y", "Porównaj X i Y", "Różnica między X a Y"
 
@@ -71,6 +72,7 @@ generate_multihop:
     {articles_text}
 
     Generate a question that requires connecting information from MULTIPLE articles.
+    DO NOT MENTION IN THE QUESTION THAT THEY ARE FROM SEPARATE ARTICLES (example do not add: (Art. 2)).
     The question should need information from at least 2 different articles to answer fully.
 
     Example patterns:
@@ -109,6 +111,7 @@ generate_temporal:
     {text}
 
     Generate a question about time, sequence, dates, or chronology.
+    DO NOT MENTION IN THE QUESTION THAT THEY ARE FROM SEPARATE ARTICLES (example do not add: (Art. 2)).
     Examples: "When did X occur?", "What happened between X and Y?", "Timeline of X"
     Or in Polish: "Kiedy nastąpiło X?", "Co wydarzyło się między X a Y?", "Chronologia X"
 

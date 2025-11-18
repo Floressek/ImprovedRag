@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 import json
 import random
-import re
 import yaml
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional
 
 from src.ragx.generation.inference import LLMInference
+from src.ragx.retrieval.rerankers.reranker import Reranker
 from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class WikipediaQuestionGenerator:
             data_dir: Path,
             llm: Optional[LLMInference] = None,
             validate_grounding: bool = True,
-            grounding_threshold: float = 0.6,
+            similarity_threshold: float = 0.5,
             prompts_path: Optional[Path] = None,
     ):
         """
@@ -33,17 +33,24 @@ class WikipediaQuestionGenerator:
         Args:
             data_dir: Path to processed/wiki_extracted/
             llm: LLM for question generation
-            validate_grounding: Whether to validate ground truth is in contexts
-            grounding_threshold: Min ratio of key terms that must appear in contexts
+            validate_grounding: Whether to validate ground truth is in contexts using cross-encoder
+            similarity_threshold: Min cross-encoder similarity score (0-1) for validation
             prompts_path: Path to YAML prompts file (default: generator/prompts/generation_prompt.yaml)
         """
         self.data_dir = Path(data_dir)
         self.llm = llm or LLMInference(provider="api")  # Use API provider for generation
         self.validate_grounding = validate_grounding
-        self.grounding_threshold = grounding_threshold
+        self.similarity_threshold = similarity_threshold
 
         if not self.data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {self.data_dir}")
+
+        # Initialize cross-encoder for semantic validation
+        if self.validate_grounding:
+            logger.info("Initializing cross-encoder for ground truth validation...")
+            self.reranker = Reranker(show_progress=False)
+        else:
+            self.reranker = None
 
         # Load prompts from YAML
         if prompts_path is None:
@@ -84,16 +91,16 @@ class WikipediaQuestionGenerator:
                 logger.warning(f"Folder not found: {folder_path}")
                 continue
 
-            # Find all .jsonl files
-            jsonl_files = list(folder_path.glob("*.jsonl"))
+            # Find all wiki_* files (WikiExtractor output format)
+            wiki_files = list(folder_path.glob("wiki_*"))
 
-            if not jsonl_files:
-                logger.warning(f"No .jsonl files in {folder_path}")
+            if not wiki_files:
+                logger.warning(f"No wiki_* files in {folder_path}")
                 continue
 
-            for jsonl_file in jsonl_files:
+            for wiki_file in wiki_files:
                 try:
-                    with open(jsonl_file, 'r', encoding='utf-8') as f:
+                    with open(wiki_file, 'r', encoding='utf-8') as f:
                         for line in f:
                             article = json.loads(line.strip())
 
@@ -112,7 +119,7 @@ class WikipediaQuestionGenerator:
                                         if rand_idx < sample_size:
                                             reservoir[rand_idx] = article
                 except Exception as e:
-                    logger.error(f"Failed to load {jsonl_file}: {e}")
+                    logger.error(f"Failed to load {wiki_file}: {e}")
 
         logger.info(f"Sampled {len(reservoir)} articles from {total_seen} total (memory-efficient)")
         return reservoir
@@ -180,7 +187,7 @@ class WikipediaQuestionGenerator:
                             if self._validate_grounding(question["ground_truth"], question["contexts"]):
                                 type_questions.append(question)
                             else:
-                                logger.debug(f"Skipping question - ground truth not grounded in contexts")
+                                logger.debug("Skipping question - ground truth not grounded in contexts")
                         else:
                             type_questions.append(question)
                 except Exception as e:
@@ -236,8 +243,8 @@ class WikipediaQuestionGenerator:
 
         response = self.llm.generate(
             prompt=prompt,
-            temperature=0.7,
-            max_new_tokens=300,
+            temperature=0.3, # prev 0.7
+            max_new_tokens=4092, # prev 200
             chain_of_thought_enabled=False,
         )
 
@@ -260,8 +267,8 @@ class WikipediaQuestionGenerator:
         """Generate comparison question from 2 articles."""
 
         article1, article2 = random.sample(articles, 2)
-        text1 = article1["text"][:800]
-        text2 = article2["text"][:800]
+        text1 = article1["text"][:1500]
+        text2 = article2["text"][:1500]
 
         # Load prompt from YAML
         prompt_template = self.prompts["generate_comparison"]["template"]
@@ -274,8 +281,8 @@ class WikipediaQuestionGenerator:
 
         response = self.llm.generate(
             prompt=prompt,
-            temperature=0.7,
-            max_new_tokens=400,
+            temperature=0.3,
+            max_new_tokens=4092,
             chain_of_thought_enabled=False,
         )
 
@@ -299,7 +306,7 @@ class WikipediaQuestionGenerator:
         num_articles = random.choice([2, 3])
         selected = random.sample(articles, num_articles)
 
-        texts = [a["text"][:600] for a in selected]
+        texts = [a["text"][:1200] for a in selected]
         titles = [a["title"] for a in selected]
 
         articles_text = "\n\n".join([
@@ -313,8 +320,8 @@ class WikipediaQuestionGenerator:
 
         response = self.llm.generate(
             prompt=prompt,
-            temperature=0.7,
-            max_new_tokens=500,
+            temperature=0.3,
+            max_new_tokens=4092,
             chain_of_thought_enabled=False,
         )
 
@@ -336,7 +343,7 @@ class WikipediaQuestionGenerator:
         """Generate temporal/chronological question."""
 
         article = random.choice(articles)
-        text = article["text"][:1000]
+        text = article["text"][:1500]
 
         # Load prompt from YAML
         prompt_template = self.prompts["generate_temporal"]["template"]
@@ -347,8 +354,8 @@ class WikipediaQuestionGenerator:
 
         response = self.llm.generate(
             prompt=prompt,
-            temperature=0.7,
-            max_new_tokens=300,
+            temperature=0.3,
+            max_new_tokens=4092,
             chain_of_thought_enabled=False,
         )
 
@@ -366,93 +373,63 @@ class WikipediaQuestionGenerator:
             logger.error(f"Failed to parse JSON: {e}\nResponse: {response}")
             return None
 
-    def _extract_key_terms(self, text: str) -> Set[str]:
-        """
-        Extract key terms (words, numbers, dates) from text.
-        Used for ground truth validation.
-        POLISH corpus - using Polish stopwords.
-        """
-        # Remove punctuation and convert to lowercase
-        text_clean = re.sub(r'[^\w\s]', ' ', text.lower())
-
-        # Split into tokens
-        tokens = text_clean.split()
-
-        # Filter Polish stopwords
-        stopwords = {
-            # Polish stopwords (najpopularniejsze)
-            'i', 'w', 'z', 'na', 'do', 'o', 'a', 'ale', 'od', 'po', 'że', 'ze',
-            'się', 'to', 'jest', 'są', 'był', 'była', 'było', 'były', 'być',
-            'może', 'można', 'ma', 'mają', 'miał', 'miała', 'miało', 'miały',
-            'został', 'została', 'zostało', 'zostały', 'będzie', 'będą',
-            'dla', 'przez', 'przy', 'bez', 'pod', 'nad', 'za', 'przed', 'między',
-            'ja', 'ty', 'on', 'ona', 'ono', 'my', 'wy', 'oni', 'one',
-            'ten', 'ta', 'to', 'ci', 'te', 'tego', 'tej', 'tym', 'tych',
-            'który', 'która', 'które', 'którzy', 'którego', 'której', 'którym', 'których',
-            'co', 'kto', 'gdzie', 'kiedy', 'jak', 'dlaczego', 'czy', 'jeśli', 'jeżeli',
-            'więc', 'więcej', 'mniej', 'tylko', 'także', 'również', 'lub', 'ani',
-            'bardzo', 'jeszcze', 'już', 'nie', 'nigdy', 'zawsze', 'często',
-            'jego', 'jej', 'ich', 'swój', 'swoja', 'swoje', 'swoich',
-        }
-
-        # Keep tokens that are:
-        # 1. Longer than 2 chars
-        # 2. Not stopwords
-        # 3. Or pure numbers/dates
-        key_terms = set()
-        for token in tokens:
-            if len(token) > 2 and token not in stopwords:
-                key_terms.add(token)
-            elif re.fullmatch(r'\d+', token):  # Pure numbers/dates only
-                key_terms.add(token)
-
-        return key_terms
-
     def _validate_grounding(
             self,
             ground_truth: str,
             contexts: List[str],
     ) -> bool:
         """
-        Validate that ground truth is grounded in contexts.
+        Validate that ground truth is grounded in contexts using cross-encoder.
 
-        Uses keyword matching: checks if key terms from ground truth
-        appear in contexts at rate >= threshold.
+        Uses semantic similarity: scores ground_truth against each context
+        and checks if max similarity >= threshold.
 
         Args:
             ground_truth: Expected answer
             contexts: Context chunks
 
         Returns:
-            True if ground truth is sufficiently grounded
+            True if ground truth is sufficiently grounded (semantically similar to contexts)
         """
-        # Extract key terms from ground truth
-        gt_terms = self._extract_key_terms(ground_truth)
-
-        if not gt_terms:
-            # No key terms -> can't validate
-            logger.warning(f"No key terms extracted from ground truth: {ground_truth[:50]}")
+        if not contexts:
+            logger.warning("No contexts provided for validation")
             return False
 
-        # Combine all contexts
-        contexts_text = " ".join(contexts).lower()
+        if not ground_truth.strip():
+            logger.warning("Empty ground truth provided")
+            return False
 
-        # Count how many terms appear in contexts
-        found_terms = 0
-        for term in gt_terms:
-            if term in contexts_text:
-                found_terms += 1
+        # Create pairs: [ground_truth, context] for each context
+        pairs = [[ground_truth, ctx] for ctx in contexts if ctx.strip()]
 
-        ratio = found_terms / len(gt_terms)
+        if not pairs:
+            logger.warning("No valid context pairs to score")
+            return False
 
-        if ratio < self.grounding_threshold:
-            logger.debug(
-                f"Ground truth not sufficiently grounded: "
-                f"{found_terms}/{len(gt_terms)} terms found ({ratio:.2%} < {self.grounding_threshold:.2%})"
+        # Score using cross-encoder (higher score = more similar/relevant)
+        try:
+            scores = self.reranker.model.predict(
+                pairs,
+                batch_size=len(pairs),  # Process all at once
+                show_progress_bar=False,
             )
-            return False
 
-        return True
+            max_score = float(max(scores))
+
+            if max_score < self.similarity_threshold:
+                logger.debug(
+                    f"Ground truth not sufficiently grounded: "
+                    f"max similarity {max_score:.3f} < threshold {self.similarity_threshold:.3f}"
+                )
+                return False
+
+            logger.debug(
+                f"Ground truth validated: max similarity {max_score:.3f} >= threshold {self.similarity_threshold:.3f}"
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to validate ground truth: {e}")
+            return False
 
     def save_questions(
             self,
