@@ -13,18 +13,17 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from scipy import stats
+
 logger = logging.getLogger(__name__)
 try:
     from tqdm import tqdm
+
     TQDM_AVAILABLE = True
 except ImportError:
     TQDM_AVAILABLE = False
     logger.warning("tqdm not available - progress bars disabled. Install with: pip install tqdm")
 
 from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator, BatchEvaluationResult
-from src.ragx.utils.settings import settings
-
-
 
 
 @dataclass
@@ -55,7 +54,7 @@ class PipelineConfig:
     # LLM provider
     provider: Optional[str] = None  # "api", "ollama", "huggingface", or None (use default)
     # Retrieval parameters
-    top_k: int = 8
+    top_k: int = 10
 
     def to_dict(self) -> Dict[str, Union[bool, str, int, None]]:
         """
@@ -520,7 +519,8 @@ class AblationStudy:
         if resume and self.checkpoint_dir:
             checkpoint = self._load_checkpoint(run_id)
             if checkpoint:
-                logger.info(f"🔄 Resuming from checkpoint ({len(checkpoint.completed_configs)}/{checkpoint.total_configs} configs completed)")
+                logger.info(
+                    f"🔄 Resuming from checkpoint ({len(checkpoint.completed_configs)}/{checkpoint.total_configs} configs completed)")
                 questions = checkpoint.questions
             else:
                 logger.info("No checkpoint found, starting fresh")
@@ -591,12 +591,14 @@ class AblationStudy:
 
         # Progress bar for configs
         configs_iterator = (
-            tqdm(configs[start_config_idx:], desc="Configs", unit="config", initial=start_config_idx, total=len(configs))
+            tqdm(configs[start_config_idx:], desc="Configs", unit="config", initial=start_config_idx,
+                 total=len(configs))
             if TQDM_AVAILABLE
             else configs[start_config_idx:]
         )
 
-        for config_idx, config in enumerate(configs_iterator if TQDM_AVAILABLE else configs[start_config_idx:], start=start_config_idx):
+        for config_idx, config in enumerate(configs_iterator if TQDM_AVAILABLE else configs[start_config_idx:],
+                                            start=start_config_idx):
             logger.info(f"\n{'=' * 80}")
             logger.info(f"Running configuration [{config_idx + 1}/{len(configs)}]: {config.name}")
             logger.info(f"Description: {config.description}")
@@ -709,11 +711,11 @@ class AblationStudy:
                 except Exception as e:
                     retry_count += 1
                     if attempt < max_retries - 1:
-                        logger.warning(f"Question {i+1} failed (attempt {attempt+1}/{max_retries}): {e}")
+                        logger.warning(f"Question {i + 1} failed (attempt {attempt + 1}/{max_retries}): {e}")
                         logger.warning(f"Retrying in {retry_delay}s...")
                         time.sleep(retry_delay)
                     else:
-                        logger.error(f"Question {i+1} failed after {max_retries} attempts: {e}")
+                        logger.error(f"Question {i + 1} failed after {max_retries} attempts: {e}")
                         failed_questions.append((i, q["question"], str(e)))
                         # Add placeholder to maintain alignment
                         rag_questions.append(q["question"])
@@ -728,7 +730,7 @@ class AblationStudy:
             logger.warning(f"⚠️  {len(failed_questions)} questions failed after retries (total retries: {retry_count})")
             logger.warning(f"{'=' * 80}")
             for idx, question, error in failed_questions[:5]:  # Show first 5
-                logger.warning(f"  [{idx+1}] {question[:60]}... → {error}")
+                logger.warning(f"  [{idx + 1}] {question[:60]}... → {error}")
             if len(failed_questions) > 5:
                 logger.warning(f"  ... and {len(failed_questions) - 5} more")
             logger.warning(f"{'=' * 80}\n")
