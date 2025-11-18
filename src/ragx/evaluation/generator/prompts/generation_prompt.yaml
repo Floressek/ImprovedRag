@@ -3,40 +3,43 @@
 
 generate_simple:
   system: |
-    Based on this Wikipedia article, generate a SIMPLE factual question.
-    CRITICAL: Extract question in the SAME language as the article!
-    If article is in Polish, question and answer MUST be in Polish.
+    UWAGA: Artykuł jest PO POLSKU. Pytanie i odpowiedź MUSZĄ być PO POLSKU.
+    Based on this Polish Wikipedia article, generate a SIMPLE factual question IN POLISH.
+    CRITICAL: Article is in POLISH → question MUST be in POLISH → answer MUST be in POLISH.
 
   template: |
-    Based on this Wikipedia article, generate a SIMPLE factual question.
+    TEN ARTYKUŁ JEST PO POLSKU. Wygeneruj pytanie PO POLSKU.
+    This article is in POLISH. Generate question in POLISH language.
 
     ARTICLE TITLE: {title}
 
     ARTICLE TEXT:
     {text}
 
-    Generate a clear, answerable question that requires information from this article.
+    Generate a clear, answerable question IN POLISH that requires information from this article.
 
-    IMPORTANT:
-    - PRESERVE THE LANGUAGE: if article is in Polish, question MUST be in Polish
-    - Question must be answerable from the text above
-    - ground_truth should be concise (1-3 sentences)
-    - RESPOND IN JSON ONLY
+    KRYTYCZNE WYMAGANIA / CRITICAL REQUIREMENTS:
+    - Artykuł jest PO POLSKU → pytanie MUSI być PO POLSKU
+    - Article is in POLISH → question MUST be in POLISH
+    - Używaj polskich słów: "Co to jest...", "Kiedy...", "Gdzie...", "Kto..."
+    - ground_truth MUSI być PO POLSKU (1-3 zdania)
+    - ODPOWIEDZ TYLKO W FORMACIE JSON
 
     Response format (JSON):
     {{
-      "question": "What is...?" or "Co to jest...?" (match article language),
-      "ground_truth": "Concise answer based on the text" (match article language)
+      "question": "Co to jest...?" (MUSI BYĆ PO POLSKU / MUST BE IN POLISH),
+      "ground_truth": "Odpowiedź po polsku..." (MUSI BYĆ PO POLSKU / MUST BE IN POLISH)
     }}
 
 generate_comparison:
   system: |
-    Based on two Wikipedia articles, generate a COMPARISON question.
-    CRITICAL: Extract question in the SAME language as the articles!
-    If articles are in Polish, question and answer MUST be in Polish.
+    UWAGA: Artykuły są PO POLSKU. Pytanie i odpowiedź MUSZĄ być PO POLSKU.
+    Based on two Polish Wikipedia articles, generate a COMPARISON question IN POLISH.
+    CRITICAL: Articles are in POLISH → question MUST be in POLISH → answer MUST be in POLISH.
 
   template: |
-    Based on these two Wikipedia articles, generate a COMPARISON question.
+    TE ARTYKUŁY SĄ PO POLSKU. Wygeneruj pytanie porównawcze PO POLSKU.
+    These articles are in POLISH. Generate comparison question in POLISH language.
 
     ARTICLE 1 TITLE: {title1}
     ARTICLE 1 TEXT:
@@ -46,83 +49,88 @@ generate_comparison:
     ARTICLE 2 TEXT:
     {text2}
 
-    Generate a question that compares or contrasts these two topics.
-    Use patterns like: "X vs Y", "Compare X and Y", "Difference between X and Y"
-    Or in Polish: "X kontra Y", "Porównaj X i Y", "Różnica między X a Y"
+    Generate a question IN POLISH that compares or contrasts these two topics.
+    Użyj wzorów: "X kontra Y", "Porównaj X i Y", "Różnica między X a Y", "Co różni X od Y?"
+    Use patterns: "X vs Y", "Compare X and Y", "What's the difference between X and Y?"
 
-    IMPORTANT:
-    - PRESERVE THE LANGUAGE: if articles are in Polish, question MUST be in Polish
-    - Question must be answerable from both texts
-    - ground_truth should compare/contrast both topics (2-4 sentences)
-    - RESPOND IN JSON ONLY
+    KRYTYCZNE WYMAGANIA / CRITICAL REQUIREMENTS:
+    - Artykuły są PO POLSKU → pytanie MUSI być PO POLSKU
+    - Articles are in POLISH → question MUST be in POLISH
+    - Używaj polskich fraz porównawczych
+    - ground_truth MUSI być PO POLSKU (2-4 zdania porównujące oba tematy)
+    - ODPOWIEDZ TYLKO W FORMACIE JSON
 
     Response format (JSON):
     {{
-      "question": "Compare X and Y in terms of...?" (match article language),
-      "ground_truth": "X has... while Y has... The main difference is..." (match article language)
+      "question": "Porównaj X i Y pod względem...?" (MUSI BYĆ PO POLSKU / MUST BE IN POLISH),
+      "ground_truth": "X ma..., podczas gdy Y ma... Główna różnica to..." (MUSI BYĆ PO POLSKU / MUST BE IN POLISH)
     }}
 
 generate_multihop:
   system: |
-    Based on Wikipedia articles, generate a MULTIHOP reasoning question.
-    CRITICAL: Extract question in the SAME language as the articles!
-    If articles are in Polish, question and answer MUST be in Polish.
+    UWAGA: Artykuły są PO POLSKU. Pytanie i odpowiedź MUSZĄ być PO POLSKU.
+    Based on Polish Wikipedia articles, generate a MULTIHOP reasoning question IN POLISH.
+    CRITICAL: Articles are in POLISH → question MUST be in POLISH → answer MUST be in POLISH.
 
   template: |
-    Based on these Wikipedia articles, generate a MULTIHOP question.
+    TE ARTYKUŁY SĄ PO POLSKU. Wygeneruj pytanie wieloetapowe PO POLSKU.
+    These articles are in POLISH. Generate multihop question in POLISH language.
 
     {articles_text}
 
-    Generate a question that requires connecting information from MULTIPLE articles.
+    Generate a question IN POLISH that requires connecting information from MULTIPLE articles.
     The question should need information from at least 2 different articles to answer fully.
 
-    Example patterns:
-    - "How did X influence Y, and what impact did that have on Z?"
-    - "What was X's contribution to Y?"
-    - "Connect A and B through their relationship with C"
-    Or in Polish:
+    Przykładowe wzory / Example patterns:
     - "Jak X wpłynął na Y i jaki to miało wpływ na Z?"
     - "Jaki był wkład X w Y?"
     - "Połącz A i B poprzez ich relację z C"
+    - "W jaki sposób X był związany z Y?"
 
-    IMPORTANT:
-    - PRESERVE THE LANGUAGE: if articles are in Polish, question MUST be in Polish
-    - Question must require reasoning across multiple articles
-    - ground_truth should synthesize info from all relevant articles (2-4 sentences)
-    - RESPOND IN JSON ONLY
+    KRYTYCZNE WYMAGANIA / CRITICAL REQUIREMENTS:
+    - Artykuły są PO POLSKU → pytanie MUSI być PO POLSKU
+    - Articles are in POLISH → question MUST be in POLISH
+    - Pytanie wymaga rozumowania łączącego wiele artykułów
+    - ground_truth MUSI być PO POLSKU (2-4 zdania syntetyzujące info z wszystkich artykułów)
+    - ODPOWIEDZ TYLKO W FORMACIE JSON
 
     Response format (JSON):
     {{
-      "question": "How did X relate to Y and influence Z?" (match article language),
-      "ground_truth": "X contributed to Y by... This influenced Z because..." (match article language)
+      "question": "Jak X był związany z Y i wpłynął na Z?" (MUSI BYĆ PO POLSKU / MUST BE IN POLISH),
+      "ground_truth": "X przyczynił się do Y poprzez... To wpłynęło na Z, ponieważ..." (MUSI BYĆ PO POLSKU / MUST BE IN POLISH)
     }}
 
 generate_temporal:
   system: |
-    Based on this Wikipedia article, generate a TEMPORAL/CHRONOLOGICAL question.
-    CRITICAL: Extract question in the SAME language as the article!
-    If article is in Polish, question and answer MUST be in Polish.
+    UWAGA: Artykuł jest PO POLSKU. Pytanie i odpowiedź MUSZĄ być PO POLSKU.
+    Based on this Polish Wikipedia article, generate a TEMPORAL/CHRONOLOGICAL question IN POLISH.
+    CRITICAL: Article is in POLISH → question MUST be in POLISH → answer MUST be in POLISH.
 
   template: |
-    Based on this Wikipedia article, generate a TEMPORAL/CHRONOLOGICAL question.
+    TEN ARTYKUŁ JEST PO POLSKU. Wygeneruj pytanie temporalne/chronologiczne PO POLSKU.
+    This article is in POLISH. Generate temporal/chronological question in POLISH language.
 
     ARTICLE TITLE: {title}
 
     ARTICLE TEXT:
     {text}
 
-    Generate a question about time, sequence, dates, or chronology.
-    Examples: "When did X occur?", "What happened between X and Y?", "Timeline of X"
-    Or in Polish: "Kiedy nastąpiło X?", "Co wydarzyło się między X a Y?", "Chronologia X"
+    Generate a question IN POLISH about time, sequence, dates, or chronology.
+    Przykłady / Examples:
+    - "Kiedy nastąpiło X?"
+    - "Co wydarzyło się między X a Y?"
+    - "W którym roku miało miejsce X?"
+    - "Jaka była chronologia wydarzeń X?"
 
-    IMPORTANT:
-    - PRESERVE THE LANGUAGE: if article is in Polish, question MUST be in Polish
-    - Question must involve time/dates/chronology
-    - ground_truth should mention specific dates/periods (1-3 sentences)
-    - RESPOND IN JSON ONLY
+    KRYTYCZNE WYMAGANIA / CRITICAL REQUIREMENTS:
+    - Artykuł jest PO POLSKU → pytanie MUSI być PO POLSKU
+    - Article is in POLISH → question MUST be in POLISH
+    - Pytanie dotyczy czasu/dat/chronologii
+    - ground_truth MUSI być PO POLSKU z konkretnymi datami/okresami (1-3 zdania)
+    - ODPOWIEDZ TYLKO W FORMACIE JSON
 
     Response format (JSON):
     {{
-      "question": "When did X happen?" (match article language),
-      "ground_truth": "X occurred in YYYY when..." (match article language)
+      "question": "Kiedy miało miejsce X?" (MUSI BYĆ PO POLSKU / MUST BE IN POLISH),
+      "ground_truth": "X nastąpiło w roku YYYY, gdy..." (MUSI BYĆ PO POLSKU / MUST BE IN POLISH)
     }}
