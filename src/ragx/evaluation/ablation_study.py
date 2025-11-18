@@ -13,8 +13,6 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from scipy import stats
-from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator, BatchEvaluationResult
-from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +24,7 @@ except ImportError:
     logger.warning("tqdm not available - progress bars disabled. Install with: pip install tqdm")
 
 from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator, BatchEvaluationResult
-from src.ragx.utils.settings import settings
+
 
 logger = logging.getLogger(__name__)
 

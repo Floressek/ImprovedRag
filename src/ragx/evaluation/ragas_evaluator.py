@@ -16,10 +16,10 @@ from ragas.metrics import (
     context_recall,
 )
 from datasets import Dataset
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from openai import RateLimitError, APIError, APIConnectionError
 
 from src.ragx.utils.settings import settings
+from src.ragx.evaluation.langchain_adapters import LLMInferenceAdapter, EmbedderAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -142,31 +142,37 @@ class RAGASEvaluator:
 
     def __init__(
             self,
-            llm_model: str = "gpt-4o-mini",
-            embeddings_model: str = "text-embedding-3-small",
-            openai_api_key: Optional[str] = None,
+            llm_provider: str = "api",
+            llm_temperature: float = 0.5,
+            llm_max_tokens: int = 4092,
+            embeddings_model: Optional[str] = None,
+            embeddings_device: Optional[str] = None,
     ):
         """
-        Initialize RAGAS evaluator.
+        Initialize RAGAS evaluator with our LLM and embeddings infrastructure.
 
         Args:
-            llm_model: OpenAI model for LLM-based metrics
-            embeddings_model: OpenAI embeddings model
-            openai_api_key: OpenAI API key (uses settings if not provided)
+            llm_provider: LLM provider ("api", "ollama", "huggingface")
+            llm_temperature: Sampling temperature for LLM
+            llm_max_tokens: Max tokens for LLM generation
+            embeddings_model: SentenceTransformers model ID (uses settings if None)
+            embeddings_device: Device for embeddings ("cpu", "cuda", "auto")
         """
-        api_key = openai_api_key or settings.openai.api_key
+        # Initialize our LangChain-compatible adapters
+        self.llm = LLMInferenceAdapter(
+            provider=llm_provider,
+            temperature=llm_temperature,
+            max_tokens=llm_max_tokens,
+        )
+        self.embeddings = EmbedderAdapter(
+            model_id=embeddings_model,
+            device=embeddings_device,
+        )
 
-        # Set OPENAI_API_KEY environment variable for LangChain compatibility
-        # LangChain 0.1.0+ uses environment variables instead of api_key parameter
-        if api_key:
-            os.environ["OPENAI_API_KEY"] = api_key
-
-        # Initialize LangChain LLM and embeddings for RAGAS
-        # Note: api_key parameter removed - uses OPENAI_API_KEY from environment
-        self.llm = ChatOpenAI(model=llm_model)
-        self.embeddings = OpenAIEmbeddings(model=embeddings_model)
-
-        logger.info(f"Initialized RAGAS evaluator with LLM: {llm_model}")
+        logger.info(
+            f"Initialized RAGAS evaluator with LLM provider: {llm_provider}, "
+            f"Embeddings model: {self.embeddings.embedder.model_id}"
+        )
 
     def evaluate_single(
             self,
