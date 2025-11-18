@@ -71,7 +71,8 @@ class PromptBuilder:
             if include_metadata:
                 metadata_parts = []
 
-                rerank_score = ctx.get("rerank_score")
+                rerank_score = ctx.get("rerank_score") if ctx.get("rerank_score") is not None else ctx.get(
+                    "retrieval_score")
                 if rerank_score is not None:
                     confidence = get_confidence_level(rerank_score)
 
@@ -301,7 +302,7 @@ class PromptBuilder:
         grouped = defaultdict(list)
         for ctx in contexts:
             # Check if context has fusion metadata with multiple source sub-queries
-            fusion_meta = ctx.get("fusion_metadata", {})
+            fusion_meta = ctx.get("fusion_metadata", {}) or {}
             source_subqueries = fusion_meta.get("source_subqueries", [])
 
             if source_subqueries:
@@ -375,7 +376,7 @@ class PromptBuilder:
                 # elif retrieval_score is not None:
                 #     section.append(f"    Similarity: {retrieval_score:.3f}")
 
-                fusion_meta = ctx.get("fusion_metadata", {})
+                fusion_meta = ctx.get("fusion_metadata", {}) or {}
                 if fusion_meta.get("num_occurrences", 1) > 1:
                     source_sqs = fusion_meta.get("source_subqueries", [])
                     section.append(

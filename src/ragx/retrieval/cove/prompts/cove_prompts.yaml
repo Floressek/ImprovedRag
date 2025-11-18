@@ -85,7 +85,7 @@ correct_answer:
     ORIGINAL ANSWER (contains errors):
     {answer}
 
-    FALSE STATEMENTS (remove or correct ONLY THESE):
+    FALSE STATEMENTS (remove or correct ONLY THESE, the rest of the answer stays the same):
     {failed_verifications_with_evidence}
 
     CORRECT SOURCES (use ONLY to correct errors):
@@ -95,7 +95,7 @@ correct_answer:
     - Read the original question
     - Find false statements in the answer
     - Correct THEM using the sources
-    - Keep the rest of the answer unchanged
+    - Keep the rest of the answer unchanged, do not modify correct parts
     - DO NOT write about things unrelated to the question
 
     IF ORIGINAL ANSWER IS CORRECT, ONLY RETURN THE ORIGINAL ANSWER WITHOUT CHANGES.
