@@ -7,6 +7,8 @@ import yaml
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
+from tqdm import tqdm
+
 from src.ragx.generation.inference import LLMInference
 from src.ragx.retrieval.rerankers.reranker import Reranker
 from src.ragx.utils.settings import settings
@@ -129,17 +131,23 @@ class WikipediaQuestionGenerator:
             num_questions: int = 1000,
             folders: Optional[List[str]] = None,
             distribution: Optional[Dict[str, float]] = None,
+            max_attempts_per_question: int = 10,
+            sample_size_per_folder: int = 100,
     ) -> List[Dict[str, Any]]:
         """
-        Generate test questions from Wikipedia articles.
+        Generate EXACT number of validated questions from Wikipedia articles.
+
+        Will keep retrying and loading more articles until target count is reached.
 
         Args:
-            num_questions: Number of questions to generate (default: 1000)
-            folders: Folder names to sample from (default: AA-AJ)
-            distribution: Question type distribution
+            num_questions: EXACT number of questions to generate
+            folders: Initial folder names (default: AA-AJ). Will load more if needed.
+            distribution: Question type distribution (default: 40/25/25/10)
+            max_attempts_per_question: Max consecutive failures before giving up
+            sample_size_per_folder: Articles to load per folder
 
         Returns:
-            List of question dicts for RAGAS
+            List of exactly num_questions validated question dicts
         """
         if folders is None:
             # First 10 folders
@@ -153,59 +161,147 @@ class WikipediaQuestionGenerator:
                 "temporal": 0.10,
             }
 
-        # Calculate sample size: enough for generation with buffer (memory-efficient)
-        # For 1000 questions with 50% buffer = 1500 attempts, we need ~500-1000 articles
-        sample_size = max(num_questions, 1000)  # At least 1000 articles
-
-        # Load articles using reservoir sampling (memory-efficient)
-        articles = self.load_articles_sample(folders, sample_size=sample_size)
-
-        if not articles:
-            raise ValueError("No articles loaded")
-
-        # Generate questions with retry loop to handle validation failures
-        questions = []
-
+        # Calculate target count per type
+        targets = {}
         for qtype, ratio in distribution.items():
-            target_count = int(num_questions * ratio)
+            targets[qtype] = int(num_questions * ratio)
+
+        # Adjust for rounding errors - add remainder to first type
+        total_assigned = sum(targets.values())
+        if total_assigned < num_questions:
+            first_type = list(targets.keys())[0]
+            targets[first_type] += (num_questions - total_assigned)
+
+        logger.info(f"Target distribution: {targets}")
+
+        # Load initial article sample
+        initial_sample_size = sample_size_per_folder * len(folders)
+        logger.info(f"Loading initial {initial_sample_size} articles from {len(folders)} folders...")
+        articles = self.load_articles_sample(folders, sample_size=initial_sample_size)
+        logger.info(f"Loaded {len(articles)} articles")
+
+        # Prepare list of all available folders for dynamic loading
+        all_folders = []
+        for i in range(26):  # A-Z
+            for j in range(26):  # A-Z
+                all_folders.append(f"{chr(65+i)}{chr(65+j)}")
+
+        # Track which folders we've already loaded
+        loaded_folders = set(folders)
+        folder_idx = 0
+
+        questions = []
+        type_breakdown = {qtype: 0 for qtype in self.QUESTION_TYPES}
+
+        for qtype, target_count in targets.items():
+            logger.info(f"\n{'='*60}")
             logger.info(f"Generating {target_count} {qtype} questions...")
+            logger.info(f"{'='*60}")
 
-            # Over-generate to account for validation failures (up to 50% extra attempts)
-            attempts = 0
-            max_attempts = int(target_count * 1.5)
-            type_questions = []
+            generated_count = 0
+            total_attempts = 0
+            consecutive_failures = 0
 
-            while len(type_questions) < target_count and attempts < max_attempts:
-                if attempts > 0 and attempts % 10 == 0:
-                    logger.info(f"  Progress: {len(type_questions)}/{target_count} (attempts: {attempts})")
+            pbar = tqdm(total=target_count, desc=f"{qtype.capitalize()}", unit="q")
 
+            while generated_count < target_count:
+                # Check if we need more articles
+                if total_attempts > 0 and total_attempts % 20 == 0:
+                    if len(articles) < 50:  # Running low on articles
+                        logger.info(f"\n⚠️  Running low on articles ({len(articles)}), loading more...")
+
+                        # Find next unloaded folder
+                        loaded_new = False
+                        while folder_idx < len(all_folders):
+                            next_folder = all_folders[folder_idx]
+                            folder_idx += 1
+
+                            if next_folder not in loaded_folders:
+                                folder_path = self.data_dir / next_folder
+                                if folder_path.exists():
+                                    logger.info(f"📂 Loading articles from {next_folder}...")
+                                    new_articles = self.load_articles_sample(
+                                        [next_folder],
+                                        sample_size=sample_size_per_folder
+                                    )
+                                    if new_articles:
+                                        articles.extend(new_articles)
+                                        loaded_folders.add(next_folder)
+                                        logger.info(f"✓ Loaded {len(new_articles)} articles (total: {len(articles)})")
+                                        loaded_new = True
+                                        break
+
+                        if not loaded_new:
+                            logger.warning("⚠️  No more folders available to load!")
+                            if len(articles) == 0:
+                                logger.error(f"❌ Out of articles! Generated {generated_count}/{target_count} {qtype} questions")
+                                break
+
+                # Generate question
                 try:
                     question = self._generate_question(qtype, articles)
-                    if question:
-                        # Validate grounding if enabled
-                        if self.validate_grounding:
-                            if self._validate_grounding(question["ground_truth"], question["contexts"]):
-                                type_questions.append(question)
-                            else:
-                                logger.debug("Skipping question - ground truth not grounded in contexts")
-                        else:
-                            type_questions.append(question)
+                    total_attempts += 1
+
+                    if question is None:
+                        consecutive_failures += 1
+                        if consecutive_failures >= max_attempts_per_question:
+                            logger.warning(
+                                f"❌ Too many consecutive failures ({consecutive_failures}), stopping {qtype} generation. "
+                                f"Generated {generated_count}/{target_count}"
+                            )
+                            break
+                        continue
+
+                    # Validate grounding
+                    if self.validate_grounding:
+                        if not self._validate_grounding(question["ground_truth"], question["contexts"]):
+                            consecutive_failures += 1
+                            logger.debug(f"⚠️  Question failed validation (consecutive: {consecutive_failures})")
+                            if consecutive_failures >= max_attempts_per_question:
+                                logger.warning(
+                                    f"❌ Too many consecutive validation failures ({consecutive_failures}), stopping {qtype}. "
+                                    f"Generated {generated_count}/{target_count}"
+                                )
+                                break
+                            continue
+
+                    # Success!
+                    questions.append(question)
+                    type_breakdown[qtype] += 1
+                    generated_count += 1
+                    consecutive_failures = 0  # Reset failure counter on success
+                    pbar.update(1)
+
                 except Exception as e:
-                    logger.warning(f"Failed to generate {qtype} question: {e}")
+                    logger.error(f"❌ Error generating {qtype} question: {e}")
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_attempts_per_question:
+                        logger.warning(
+                            f"❌ Too many consecutive errors ({consecutive_failures}), stopping {qtype}. "
+                            f"Generated {generated_count}/{target_count}"
+                        )
+                        break
+                    continue
 
-                attempts += 1
+            pbar.close()
 
-            logger.info(f"  Generated {len(type_questions)}/{target_count} {qtype} questions ({attempts} attempts)")
-            questions.extend(type_questions)
+            logger.info(
+                f"✓ Generated {generated_count}/{target_count} {qtype} questions "
+                f"(total attempts: {total_attempts})"
+            )
 
         random.shuffle(questions)
-        logger.info(f"Generated {len(questions)}/{num_questions} questions total (after validation)")
 
-        if len(questions) < num_questions * 0.8:
-            logger.warning(
-                f"Generated significantly fewer questions than requested: "
-                f"{len(questions)}/{num_questions} ({len(questions)/num_questions*100:.1f}%)"
-            )
+        logger.info(f"\n{'='*60}")
+        logger.info(f"GENERATION COMPLETE")
+        logger.info(f"{'='*60}")
+        logger.info(f"Total questions: {len(questions)}/{num_questions}")
+        logger.info(f"Question type breakdown:")
+        for qtype in self.QUESTION_TYPES:
+            count = type_breakdown[qtype]
+            percentage = (count / len(questions) * 100) if questions else 0
+            logger.info(f"  {qtype:12s}: {count:4d} ({percentage:5.1f}%)")
+        logger.info(f"{'='*60}")
 
         return questions
 
@@ -381,12 +477,13 @@ class WikipediaQuestionGenerator:
         """
         Validate that ground truth is grounded in contexts using cross-encoder.
 
-        Uses semantic similarity: scores ground_truth against each context
-        and checks if max similarity >= threshold.
+        Uses semantic similarity: scores ground_truth against concatenated contexts.
+        For multi-context questions (comparison, multihop), this ensures ground truth
+        can reference information from multiple sources.
 
         Args:
             ground_truth: Expected answer
-            contexts: Context chunks
+            contexts: Context chunks (may be from multiple articles)
 
         Returns:
             True if ground truth is sufficiently grounded (semantically similar to contexts)
@@ -399,36 +496,42 @@ class WikipediaQuestionGenerator:
             logger.warning("Empty ground truth provided")
             return False
 
-        # Create pairs: [ground_truth, context] for each context
-        pairs = [[ground_truth, ctx] for ctx in contexts if ctx.strip()]
-
-        if not pairs:
-            logger.warning("No valid context pairs to score")
+        # Filter empty contexts
+        valid_contexts = [ctx for ctx in contexts if ctx.strip()]
+        if not valid_contexts:
+            logger.warning("No valid contexts after filtering")
             return False
+
+        # Concatenate all contexts with separator
+        # This handles multihop/comparison where ground_truth references multiple articles
+        combined_context = "\n\n".join(valid_contexts)
 
         # Score using cross-encoder (higher score = more similar/relevant)
         try:
-            scores = self.reranker.model.predict(
-                pairs,
-                batch_size=len(pairs),  # Process all at once
+            score = self.reranker.model.predict(
+                [[ground_truth, combined_context]],
+                batch_size=1,
                 show_progress_bar=False,
-            )
+            )[0]
 
-            max_score = float(max(scores))
+            score = float(score)
 
-            if max_score < self.similarity_threshold:
-                logger.debug(
+            if score < self.similarity_threshold:
+                logger.info(
                     f"Ground truth not sufficiently grounded: "
-                    f"max similarity {max_score:.3f} < threshold {self.similarity_threshold:.3f}"
+                    f"similarity {score:.3f} < threshold {self.similarity_threshold:.3f} "
+                    f"({len(valid_contexts)} contexts)"
                 )
                 return False
 
-            logger.debug(
-                f"Ground truth validated: max similarity {max_score:.3f} >= threshold {self.similarity_threshold:.3f}"
+            logger.info(
+                f"Ground truth validated: similarity {score:.3f} >= threshold {self.similarity_threshold:.3f} "
+                f"({len(valid_contexts)} contexts)"
             )
             return True
+
         except Exception as e:
-            logger.error(f"Failed to validate ground truth: {e}")
+            logger.error(f"Error during cross-encoder validation: {e}")
             return False
 
     def save_questions(

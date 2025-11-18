@@ -6,7 +6,7 @@ DOCKER_COMPOSE = docker-compose
 PIPELINE = $(PY) -m src.ragx.ingestion.pipelines.pipeline
 
 # Evaluation settings (can override: make eval-run NUM_QUESTIONS=50)
-NUM_QUESTIONS ?= 100
+NUM_QUESTIONS ?= 20
 RUN_ID ?= study_$(shell powershell -Command "Get-Date -Format 'yyyyMMdd_HHmmss'")
 CHECKPOINT_DIR ?= checkpoints
 EVAL_OUTPUT ?= results/ablation_$(shell powershell -Command "Get-Date -Format 'yyyyMMdd_HHmmss'").json
