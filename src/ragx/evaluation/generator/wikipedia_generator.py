@@ -4,6 +4,7 @@ import logging
 import json
 import random
 import re
+import yaml
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Set
 
@@ -24,6 +25,7 @@ class WikipediaQuestionGenerator:
         llm: Optional[LLMInference] = None,
         validate_grounding: bool = True,
         grounding_threshold: float = 0.6,
+        prompts_path: Optional[Path] = None,
     ):
         """
         Initialize generator.
@@ -33,6 +35,7 @@ class WikipediaQuestionGenerator:
             llm: LLM for question generation
             validate_grounding: Whether to validate ground truth is in contexts
             grounding_threshold: Min ratio of key terms that must appear in contexts
+            prompts_path: Path to YAML prompts file (default: generator/prompts/generation_prompt.yaml)
         """
         self.data_dir = Path(data_dir)
         self.llm = llm or LLMInference(provider="api")  # Use API provider for generation
@@ -41,6 +44,19 @@ class WikipediaQuestionGenerator:
 
         if not self.data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {self.data_dir}")
+
+        # Load prompts from YAML
+        if prompts_path is None:
+            prompts_path = Path(__file__).parent / "prompts" / "generation_prompt.yaml"
+
+        self.prompts_path = Path(prompts_path)
+        if not self.prompts_path.exists():
+            raise FileNotFoundError(f"Prompts file not found: {self.prompts_path}")
+
+        with open(self.prompts_path, 'r', encoding='utf-8') as f:
+            self.prompts = yaml.safe_load(f)
+
+        logger.info(f"Loaded prompts from {self.prompts_path}")
 
     def load_articles_sample(
         self,
@@ -211,26 +227,12 @@ class WikipediaQuestionGenerator:
         article = random.choice(articles)
         text = article["text"][:1000]  # First 1000 chars
 
-        prompt = f"""Based on this Wikipedia article, generate a SIMPLE factual question.
-
-ARTICLE TITLE: {article['title']}
-
-ARTICLE TEXT:
-{text}
-
-Generate a clear, answerable question that requires information from this article.
-
-IMPORTANT:
-- Question must be answerable from the text above
-- ground_truth should be concise (1-3 sentences)
-- RESPOND IN JSON ONLY
-
-Response format (JSON):
-{{
-  "question": "What is...?",
-  "ground_truth": "Concise answer based on the text"
-}}
-"""
+        # Load prompt from YAML
+        prompt_template = self.prompts["generate_simple"]["template"]
+        prompt = prompt_template.format(
+            title=article['title'],
+            text=text
+        )
 
         response = self.llm.generate(
             prompt=prompt,
@@ -261,30 +263,14 @@ Response format (JSON):
         text1 = article1["text"][:800]
         text2 = article2["text"][:800]
 
-        prompt = f"""Based on these two Wikipedia articles, generate a COMPARISON question.
-
-ARTICLE 1 TITLE: {article1['title']}
-ARTICLE 1 TEXT:
-{text1}
-
-ARTICLE 2 TITLE: {article2['title']}
-ARTICLE 2 TEXT:
-{text2}
-
-Generate a question that compares or contrasts these two topics.
-Use patterns like: "X vs Y", "Compare X and Y", "Difference between X and Y"
-
-IMPORTANT:
-- Question must be answerable from both texts
-- ground_truth should compare/contrast both topics (2-4 sentences)
-- RESPOND IN JSON ONLY
-
-Response format (JSON):
-{{
-  "question": "Compare X and Y in terms of...?",
-  "ground_truth": "X has... while Y has... The main difference is..."
-}}
-"""
+        # Load prompt from YAML
+        prompt_template = self.prompts["generate_comparison"]["template"]
+        prompt = prompt_template.format(
+            title1=article1['title'],
+            text1=text1,
+            title2=article2['title'],
+            text2=text2
+        )
 
         response = self.llm.generate(
             prompt=prompt,
@@ -321,29 +307,9 @@ Response format (JSON):
             for i in range(num_articles)
         ])
 
-        prompt = f"""Based on these Wikipedia articles, generate a MULTIHOP question.
-
-{articles_text}
-
-Generate a question that requires connecting information from MULTIPLE articles.
-The question should need information from at least 2 different articles to answer fully.
-
-Example patterns:
-- "How did X influence Y, and what impact did that have on Z?"
-- "What was X's contribution to Y?"
-- "Connect A and B through their relationship with C"
-
-IMPORTANT:
-- Question must require reasoning across multiple articles
-- ground_truth should synthesize info from all relevant articles (2-4 sentences)
-- RESPOND IN JSON ONLY
-
-Response format (JSON):
-{{
-  "question": "How did X relate to Y and influence Z?",
-  "ground_truth": "X contributed to Y by... This influenced Z because..."
-}}
-"""
+        # Load prompt from YAML
+        prompt_template = self.prompts["generate_multihop"]["template"]
+        prompt = prompt_template.format(articles_text=articles_text)
 
         response = self.llm.generate(
             prompt=prompt,
@@ -372,27 +338,12 @@ Response format (JSON):
         article = random.choice(articles)
         text = article["text"][:1000]
 
-        prompt = f"""Based on this Wikipedia article, generate a TEMPORAL/CHRONOLOGICAL question.
-
-ARTICLE TITLE: {article['title']}
-
-ARTICLE TEXT:
-{text}
-
-Generate a question about time, sequence, dates, or chronology.
-Examples: "When did X occur?", "What happened between X and Y?", "Timeline of X"
-
-IMPORTANT:
-- Question must involve time/dates/chronology
-- ground_truth should mention specific dates/periods (1-3 sentences)
-- RESPOND IN JSON ONLY
-
-Response format (JSON):
-{{
-  "question": "When did X happen?",
-  "ground_truth": "X occurred in YYYY when..."
-}}
-"""
+        # Load prompt from YAML
+        prompt_template = self.prompts["generate_temporal"]["template"]
+        prompt = prompt_template.format(
+            title=article['title'],
+            text=text
+        )
 
         response = self.llm.generate(
             prompt=prompt,
