@@ -5,13 +5,25 @@ import json
 import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
 import statistics
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from scipy import stats
+from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator, BatchEvaluationResult
+from src.ragx.utils.settings import settings
+
+logger = logging.getLogger(__name__)
+
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    logger.warning("tqdm not available - progress bars disabled. Install with: pip install tqdm")
 
 from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator, BatchEvaluationResult
 from src.ragx.utils.settings import settings
@@ -21,36 +33,50 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PipelineConfig:
-    """Configuration for a pipeline variant with 5 independent toggles."""
+    """
+    Configuration for a pipeline variant with 4 independent toggles.
+
+    Note: In the new /eval/ablation endpoint, enhanced features (metadata, citations, etc.)
+    are controlled by prompt_template:
+    - "basic": enhanced features OFF
+    - "enhanced": enhanced features ON
+    - "auto": enhanced if query_analysis ON, basic if OFF
+    - For multihop queries, "multihop" template is always used (enhanced features ON)
+    """
 
     name: str
     description: str
     # Toggle 1: Query Analysis
     query_analysis_enabled: bool = True
-    # Toggle 2: Enhanced Features
-    enhanced_features_enabled: bool = True
-    # Toggle 3: Chain of Thought
+    # Toggle 2: Chain of Thought
     cot_enabled: bool = True
-    # Toggle 4: Reranking
+    # Toggle 3: Reranking
     reranker_enabled: bool = True
-    # Toggle 5: CoVe mode
+    # Toggle 4: CoVe mode
     cove_mode: str = "off"  # "off", "auto", "metadata", "suggest"
     # Prompt template selection
-    prompt_template: str = "auto"  # "basic", "enhanced", "multihop", "auto"
+    prompt_template: str = "auto"  # "basic", "enhanced", "auto"
+    # LLM provider
+    provider: Optional[str] = None  # "api", "ollama", "huggingface", or None (use default)
     # Retrieval parameters
     top_k: int = 8
 
-    def to_dict(self) -> Dict[str, Union[bool, str, int]]:
-        """Convert to dict for API request."""
-        return {
-            "query_analysis_enabled": self.query_analysis_enabled,
-            "enhanced_features_enabled": self.enhanced_features_enabled,
-            "cot_enabled": self.cot_enabled,
-            "reranker_enabled": self.reranker_enabled,
-            "cove_mode": self.cove_mode,
+    def to_dict(self) -> Dict[str, Union[bool, str, int, None]]:
+        """
+        Convert to dict for API request.
+        Uses aliases compatible with PipelineAblationRequest schema.
+        """
+        request = {
+            "use_query_analysis": self.query_analysis_enabled,
+            "use_cot": self.cot_enabled,
+            "use_reranker": self.reranker_enabled,
+            "cove": self.cove_mode,
             "prompt_template": self.prompt_template,
             "top_k": self.top_k,
         }
+        if self.provider:
+            request["provider"] = self.provider
+        return request
 
 
 @dataclass
@@ -185,6 +211,27 @@ class AblationStudyResult:
                 for cr in self.config_results
             ],
         }
+
+
+@dataclass
+class CheckpointState:
+    """State for resuming ablation study from checkpoint."""
+
+    timestamp: str
+    completed_configs: List[str]  # Names of completed configs
+    config_results: List[Dict[str, Any]]  # Serialized ConfigResult objects
+    questions: List[Dict[str, Any]]
+    current_config_idx: int
+    total_configs: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to dict."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> CheckpointState:
+        """Deserialize from dict."""
+        return cls(**data)
 
 
 class AblationStudy:
@@ -338,6 +385,8 @@ class AblationStudy:
             api_timeout: int = 120,
             retry_total: int = 3,
             retry_backoff: int = 2,
+            checkpoint_dir: Optional[Path] = None,
+            save_every_n_questions: int = 10,
     ):
         """
         Initialize ablation study.
@@ -348,10 +397,19 @@ class AblationStudy:
             api_timeout: API request timeout in seconds (default: 120)
             retry_total: Max number of retries for failed requests (default: 3)
             retry_backoff: Backoff factor for retries in seconds (default: 2)
+            checkpoint_dir: Directory for checkpoint files (default: None = disabled)
+            save_every_n_questions: Save partial results every N questions (default: 10)
         """
         self.api_base_url = api_base_url.rstrip("/")
         self.ragas_evaluator = ragas_evaluator or RAGASEvaluator()
         self.api_timeout = api_timeout
+        self.checkpoint_dir = Path(checkpoint_dir) if checkpoint_dir else None
+        self.save_every_n_questions = save_every_n_questions
+
+        # Create checkpoint directory if specified
+        if self.checkpoint_dir:
+            self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Checkpoint dir: {self.checkpoint_dir}")
 
         # Configure retry strategy for network resilience
         retry_strategy = Retry(
@@ -379,26 +437,102 @@ class AblationStudy:
             except Exception as e:
                 logger.warning(f"Error closing session: {e}")
 
+    def _get_checkpoint_path(self, run_id: str) -> Path:
+        """Get checkpoint file path for given run ID."""
+        if not self.checkpoint_dir:
+            raise ValueError("Checkpoint directory not set")
+        return self.checkpoint_dir / f"checkpoint_{run_id}.json"
+
+    def _save_checkpoint(
+            self,
+            run_id: str,
+            questions: List[Dict[str, Any]],
+            configs: List[PipelineConfig],
+            config_results: List[ConfigResult],
+            current_config_idx: int,
+    ) -> None:
+        """Save checkpoint state to disk."""
+        if not self.checkpoint_dir:
+            return
+
+        checkpoint = CheckpointState(
+            timestamp=datetime.now().isoformat(),
+            completed_configs=[cr.config.name for cr in config_results],
+            config_results=[
+                {
+                    "name": cr.config.name,
+                    "description": cr.config.description,
+                    "config": cr.config.to_dict(),
+                    "evaluation": cr.evaluation.to_dict(),
+                    "run_time_ms": cr.run_time_ms,
+                }
+                for cr in config_results
+            ],
+            questions=questions,
+            current_config_idx=current_config_idx,
+            total_configs=len(configs),
+        )
+
+        checkpoint_path = self._get_checkpoint_path(run_id)
+        with open(checkpoint_path, "w") as f:
+            json.dump(checkpoint.to_dict(), f, indent=2)
+
+        logger.info(f"💾 Checkpoint saved: {checkpoint_path}")
+
+    def _load_checkpoint(self, run_id: str) -> Optional[CheckpointState]:
+        """Load checkpoint state from disk."""
+        if not self.checkpoint_dir:
+            return None
+
+        checkpoint_path = self._get_checkpoint_path(run_id)
+        if not checkpoint_path.exists():
+            return None
+
+        with open(checkpoint_path, "r") as f:
+            data = json.load(f)
+
+        logger.info(f"📂 Checkpoint loaded: {checkpoint_path}")
+        return CheckpointState.from_dict(data)
+
     def run(
             self,
             questions_path: Path,
             configs: Optional[List[PipelineConfig]] = None,
             max_questions: Optional[int] = None,
+            run_id: Optional[str] = None,
+            resume: bool = False,
     ) -> AblationStudyResult:
         """
-        Run ablation study on given questions.
+        Run ablation study on given questions with checkpoint support.
 
         Args:
             questions_path: Path to .jsonl file with test questions
             configs: List of configurations to test (uses default set if None)
             max_questions: Limit number of questions (for testing)
+            run_id: Unique ID for this run (for checkpointing)
+            resume: If True, resume from checkpoint if available
 
         Returns:
             AblationStudyResult with all metrics
         """
-        # Load questions
-        questions = self._load_questions(questions_path, max_questions)
-        logger.info(f"Loaded {len(questions)} test questions")
+        # Generate run_id if not provided
+        if run_id is None:
+            run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Try to load checkpoint if resume=True
+        checkpoint = None
+        if resume and self.checkpoint_dir:
+            checkpoint = self._load_checkpoint(run_id)
+            if checkpoint:
+                logger.info(f"🔄 Resuming from checkpoint ({len(checkpoint.completed_configs)}/{checkpoint.total_configs} configs completed)")
+                questions = checkpoint.questions
+            else:
+                logger.info("No checkpoint found, starting fresh")
+
+        # Load questions if not from checkpoint
+        if checkpoint is None:
+            questions = self._load_questions(questions_path, max_questions)
+            logger.info(f"Loaded {len(questions)} test questions")
 
         # Default configs if not provided (12 configs)
         if configs is None:
@@ -417,25 +551,72 @@ class AblationStudy:
                 self.FULL_COVE_SUGGEST,
             ]
 
-        logger.info(f"Testing {len(configs)} configurations")
+        logger.info(f"Testing {len(configs)} configurations (run_id: {run_id})")
+
+        # Restore config_results from checkpoint
+        config_results = []
+        start_config_idx = 0
+        if checkpoint:
+            # Reconstruct ConfigResult objects from checkpoint
+            for cr_dict in checkpoint.config_results:
+                # Find matching config
+                matching_config = next((c for c in configs if c.name == cr_dict["name"]), None)
+                if not matching_config:
+                    logger.warning(f"Config {cr_dict['name']} not found in current configs, skipping")
+                    continue
+
+                # Reconstruct BatchEvaluationResult
+                eval_dict = cr_dict["evaluation"]
+                evaluation = BatchEvaluationResult(
+                    mean_faithfulness=eval_dict["mean_faithfulness"],
+                    mean_answer_relevancy=eval_dict["mean_answer_relevancy"],
+                    mean_context_precision=eval_dict["mean_context_precision"],
+                    mean_context_recall=eval_dict["mean_context_recall"],
+                    mean_latency_ms=eval_dict["mean_latency_ms"],
+                    mean_sources_count=eval_dict["mean_sources_count"],
+                    mean_multihop_coverage=eval_dict["mean_multihop_coverage"],
+                    num_questions=eval_dict["num_questions"],
+                    num_multihop=eval_dict["num_multihop"],
+                    num_simple=eval_dict["num_simple"],
+                )
+
+                config_result = ConfigResult(
+                    config=matching_config,
+                    evaluation=evaluation,
+                    run_time_ms=cr_dict["run_time_ms"],
+                )
+                config_results.append(config_result)
+
+            start_config_idx = checkpoint.current_config_idx
+            logger.info(f"Restored {len(config_results)} completed configs")
 
         # Run each configuration
         study_start = time.time()
-        config_results = []
 
-        for config in configs:
+        # Progress bar for configs
+        configs_iterator = (
+            tqdm(configs[start_config_idx:], desc="Configs", unit="config", initial=start_config_idx, total=len(configs))
+            if TQDM_AVAILABLE
+            else configs[start_config_idx:]
+        )
+
+        for config_idx, config in enumerate(configs_iterator if TQDM_AVAILABLE else configs[start_config_idx:], start=start_config_idx):
             logger.info(f"\n{'=' * 80}")
-            logger.info(f"Running configuration: {config.name}")
+            logger.info(f"Running configuration [{config_idx + 1}/{len(configs)}]: {config.name}")
             logger.info(f"Description: {config.description}")
             logger.info(f"{'=' * 80}\n")
 
-            result = self._run_config(config, questions)
+            result = self._run_config(config, questions, run_id=run_id)
             config_results.append(result)
 
             logger.info(f"✓ {config.name} completed in {result.run_time_ms:.0f}ms")
             logger.info(f"  Faithfulness: {result.evaluation.mean_faithfulness:.3f}")
             logger.info(f"  Answer Relevancy: {result.evaluation.mean_answer_relevancy:.3f}")
             logger.info(f"  Latency: {result.evaluation.mean_latency_ms:.0f}ms")
+
+            # Save checkpoint after each config
+            if self.checkpoint_dir:
+                self._save_checkpoint(run_id, questions, configs, config_results, config_idx + 1)
 
         total_time_ms = (time.time() - study_start) * 1000
 
@@ -450,8 +631,9 @@ class AblationStudy:
             self,
             config: PipelineConfig,
             questions: List[Dict[str, Any]],
+            run_id: Optional[str] = None,
     ) -> ConfigResult:
-        """Run single configuration on all questions."""
+        """Run single configuration on all questions with progress tracking."""
         start_time = time.time()
 
         # Collect RAG responses
@@ -462,60 +644,93 @@ class AblationStudy:
         metadata_list = []
         api_responses = []
 
-        for i, q in enumerate(questions):
-            if (i + 1) % 10 == 0:
-                logger.info(f"  Progress: {i + 1}/{len(questions)}")
+        # Error tracking
+        failed_questions = []
+        retry_count = 0
 
-            try:
-                # Call RAG API with config
-                response = self._call_rag_api(
-                    query=q["question"],
-                    config=config,
-                )
+        # Progress bar for questions
+        questions_iterator = (
+            tqdm(questions, desc=f"  Questions ({config.name})", unit="q", leave=False)
+            if TQDM_AVAILABLE
+            else questions
+        )
 
-                # Validate response has required fields
-                if not isinstance(response, dict):
-                    raise ValueError(f"Invalid response type: {type(response)}")
+        for i, q in enumerate(questions_iterator if TQDM_AVAILABLE else questions):
+            max_retries = 3
+            retry_delay = 2  # seconds
 
-                required_fields = ["answer", "sources"]
-                missing_fields = [f for f in required_fields if f not in response]
-                if missing_fields:
-                    raise ValueError(f"Missing required fields in API response: {missing_fields}")
+            for attempt in range(max_retries):
+                try:
+                    # Call RAG API with config
+                    response = self._call_rag_api(
+                        query=q["question"],
+                        config=config,
+                    )
 
-                api_responses.append(response)
+                    # Validate response has required fields
+                    if not isinstance(response, dict):
+                        raise ValueError(f"Invalid response type: {type(response)}")
 
-                # Extract data for RAGAS with safe defaults
-                rag_questions.append(q["question"])
-                rag_answers.append(response.get("answer", ""))
+                    required_fields = ["answer", "sources"]
+                    missing_fields = [f for f in required_fields if f not in response]
+                    if missing_fields:
+                        raise ValueError(f"Missing required fields in API response: {missing_fields}")
 
-                # Extract text from sources for RAGAS (RAGAS needs List[str], not List[Dict])
-                sources = response.get("sources", [])
-                contexts = [s.get("text", "") for s in sources]
-                rag_contexts_list.append(contexts)
-                ground_truths.append(q["ground_truth"])
+                    api_responses.append(response)
 
-                # Metadata for custom metrics
-                # Use response["sources"] which includes merged CoVe evidences
-                sources_urls = [s.get("url") for s in sources if s.get("url")]
+                    # Extract data for RAGAS with safe defaults
+                    rag_questions.append(q["question"])
+                    rag_answers.append(response.get("answer", ""))
 
-                metadata = {
-                    "latency_ms": response.get("metadata", {}).get("total_time_ms", 0.0),
-                    "sources": sources_urls,  # Use merged sources (includes CoVe recovery)
-                    "is_multihop": response.get("metadata", {}).get("is_multihop", False),
-                    "sub_queries": response.get("metadata", {}).get("sub_queries", []),
-                    "query_type": response.get("metadata", {}).get("query_type"),
-                    "results_by_subquery": response.get("metadata", {}).get("results_by_subquery", {}),
-                }
-                metadata_list.append(metadata)
+                    # Extract text from sources for RAGAS (RAGAS needs List[str], not List[Dict])
+                    sources = response.get("sources", [])
+                    contexts = [s.get("text", "") for s in sources]
+                    rag_contexts_list.append(contexts)
+                    ground_truths.append(q["ground_truth"])
 
-            except Exception as e:
-                logger.error(f"Failed to process question {i}: {e}")
-                # Add placeholder to maintain alignment
-                rag_questions.append(q["question"])
-                rag_answers.append("")
-                rag_contexts_list.append([])
-                ground_truths.append(q["ground_truth"])
-                metadata_list.append({})
+                    # Metadata for custom metrics
+                    # Use response["sources"] which includes merged CoVe evidences
+                    sources_urls = [s.get("url") for s in sources if s.get("url")]
+
+                    metadata = {
+                        "latency_ms": response.get("metadata", {}).get("total_time_ms", 0.0),
+                        "sources": sources_urls,  # Use merged sources (includes CoVe recovery)
+                        "is_multihop": response.get("metadata", {}).get("is_multihop", False),
+                        "sub_queries": response.get("metadata", {}).get("sub_queries", []),
+                        "query_type": response.get("metadata", {}).get("query_type"),
+                        "results_by_subquery": response.get("metadata", {}).get("results_by_subquery", {}),
+                    }
+                    metadata_list.append(metadata)
+
+                    # Success - break retry loop
+                    break
+
+                except Exception as e:
+                    retry_count += 1
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Question {i+1} failed (attempt {attempt+1}/{max_retries}): {e}")
+                        logger.warning(f"Retrying in {retry_delay}s...")
+                        time.sleep(retry_delay)
+                    else:
+                        logger.error(f"Question {i+1} failed after {max_retries} attempts: {e}")
+                        failed_questions.append((i, q["question"], str(e)))
+                        # Add placeholder to maintain alignment
+                        rag_questions.append(q["question"])
+                        rag_answers.append("")
+                        rag_contexts_list.append([])
+                        ground_truths.append(q["ground_truth"])
+                        metadata_list.append({})
+
+        # Error summary
+        if failed_questions:
+            logger.warning(f"\n{'=' * 80}")
+            logger.warning(f"⚠️  {len(failed_questions)} questions failed after retries (total retries: {retry_count})")
+            logger.warning(f"{'=' * 80}")
+            for idx, question, error in failed_questions[:5]:  # Show first 5
+                logger.warning(f"  [{idx+1}] {question[:60]}... → {error}")
+            if len(failed_questions) > 5:
+                logger.warning(f"  ... and {len(failed_questions) - 5} more")
+            logger.warning(f"{'=' * 80}\n")
 
         # Evaluate with RAGAS
         logger.info(f"Evaluating with RAGAS...")

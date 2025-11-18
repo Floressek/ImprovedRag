@@ -5,6 +5,12 @@ PIP = pip
 DOCKER_COMPOSE = docker-compose
 PIPELINE = $(PY) -m src.ragx.ingestion.pipelines.pipeline
 
+# Evaluation settings (can override: make eval-run NUM_QUESTIONS=50)
+NUM_QUESTIONS ?= 100
+RUN_ID ?= study_$(shell powershell -Command "Get-Date -Format 'yyyyMMdd_HHmmss'")
+CHECKPOINT_DIR ?= checkpoints
+EVAL_OUTPUT ?= results/ablation_$(shell powershell -Command "Get-Date -Format 'yyyyMMdd_HHmmss'").json
+
 
 help:
 	@echo "RAGx Makefile Commands:"
@@ -20,6 +26,15 @@ help:
 	@echo "  make ingest-test      - Test ingestion (1k articles)"
 	@echo "  make ingest-full      - Full ingestion (10k articles)"
 	@echo "  make ingest-custom    - Custom ingestion (set MAX_ARTICLES=N)"
+	@echo ""
+	@echo "RAGAS Evaluation (NEW!):"
+	@echo "  make eval-help        - Show detailed evaluation help"
+	@echo "  make eval-generate    - Generate test questions (default: 100)"
+	@echo "  make eval-api         - Start RAG API server"
+	@echo "  make eval-run         - Run ablation study with checkpointing"
+	@echo "  make eval-resume      - Resume from checkpoint (set RUN_ID=...)"
+	@echo "  make eval-quick       - Quick test (10 questions, 3 configs)"
+	@echo "  make eval-clean       - Clean checkpoints and results"
 	@echo ""
 	@echo "Search & Status:"
 	@echo "  make search QUERY='...' - Search (example: make search QUERY='python')"
@@ -294,4 +309,191 @@ examples:
 	@echo ""
 	@echo "6. Check Status:"
 	@echo "   make status"
+	@echo ""
+
+# ============================================================================
+# RAGAS Evaluation & Ablation Study
+# ============================================================================
+
+eval-help:
+	@echo "RAGAS Evaluation Commands - Detailed Help"
+	@echo ""
+	@echo "============================================================================"
+	@echo "1. GENERATE TEST QUESTIONS"
+	@echo "============================================================================"
+	@echo "Generate questions from Wikipedia for RAGAS evaluation."
+	@echo ""
+	@echo "Usage:"
+	@echo "  make eval-generate                  # Default: 100 questions"
+	@echo "  make eval-generate NUM_QUESTIONS=50 # Custom: 50 questions"
+	@echo ""
+	@echo "Output:"
+	@echo "  data/eval/questions_100.jsonl"
+	@echo ""
+	@echo "============================================================================"
+	@echo "2. START API SERVER"
+	@echo "============================================================================"
+	@echo "Start FastAPI server for ablation study to test against."
+	@echo ""
+	@echo "Usage:"
+	@echo "  make eval-api    # Runs on http://localhost:8000"
+	@echo ""
+	@echo "Leave this running in a separate terminal!"
+	@echo ""
+	@echo "============================================================================"
+	@echo "3. RUN ABLATION STUDY (WITH CHECKPOINT)"
+	@echo "============================================================================"
+	@echo "Run full ablation study with automatic checkpoint saving."
+	@echo ""
+	@echo "Usage:"
+	@echo "  make eval-run                        # Default: 100 questions, all configs"
+	@echo "  make eval-run NUM_QUESTIONS=50       # Custom: 50 questions"
+	@echo "  make eval-run RUN_ID=my_test_001     # Custom run ID"
+	@echo ""
+	@echo "Features:"
+	@echo "  - Auto-saves checkpoint after each config"
+	@echo "  - Can resume with Ctrl+C"
+	@echo "  - Progress bars with tqdm"
+	@echo "  - Retry logic for failed questions"
+	@echo ""
+	@echo "Output:"
+	@echo "  results/ablation_YYYYMMDD_HHMMSS.json"
+	@echo "  checkpoints/checkpoint_RUNID.json"
+	@echo ""
+	@echo "============================================================================"
+	@echo "4. RESUME FROM CHECKPOINT"
+	@echo "============================================================================"
+	@echo "Resume interrupted test from checkpoint."
+	@echo ""
+	@echo "Usage:"
+	@echo "  make eval-resume RUN_ID=study_20250118_153045"
+	@echo ""
+	@echo "Required:"
+	@echo "  - RUN_ID must match original test"
+	@echo "  - Checkpoint file must exist in checkpoints/"
+	@echo ""
+	@echo "============================================================================"
+	@echo "5. QUICK TEST"
+	@echo "============================================================================"
+	@echo "Fast test with minimal questions and configs (for debugging)."
+	@echo ""
+	@echo "Usage:"
+	@echo "  make eval-quick    # 10 questions, 3 configs (~2-5 min)"
+	@echo ""
+	@echo "Configs tested:"
+	@echo "  - baseline"
+	@echo "  - full_no_cove"
+	@echo "  - full_cove_auto"
+	@echo ""
+	@echo "============================================================================"
+	@echo "6. CLEAN EVALUATION DATA"
+	@echo "============================================================================"
+	@echo "Remove checkpoints and results."
+	@echo ""
+	@echo "Usage:"
+	@echo "  make eval-clean    # Removes checkpoints/ and results/"
+	@echo ""
+	@echo "============================================================================"
+	@echo ""
+	@echo "TYPICAL WORKFLOW:"
+	@echo ""
+	@echo "  # Terminal 1: Generate questions"
+	@echo "  make eval-generate NUM_QUESTIONS=100"
+	@echo ""
+	@echo "  # Terminal 2: Start API"
+	@echo "  make eval-api"
+	@echo ""
+	@echo "  # Terminal 1: Run tests"
+	@echo "  make eval-run"
+	@echo ""
+	@echo "  # If interrupted, resume:"
+	@echo "  make eval-resume RUN_ID=study_20250118_153045"
+	@echo ""
+	@echo "VARIABLES YOU CAN OVERRIDE:"
+	@echo "  NUM_QUESTIONS     Number of questions to generate/test (default: 100)"
+	@echo "  RUN_ID            Unique identifier for checkpoint (auto-generated)"
+	@echo "  CHECKPOINT_DIR    Directory for checkpoints (default: checkpoints)"
+	@echo "  EVAL_OUTPUT       Output path for results (auto-generated)"
+	@echo ""
+
+eval-generate:
+	@echo "Generating $(NUM_QUESTIONS) test questions..."
+	@if not exist "data\eval" mkdir data\eval
+	$(PY) scripts/generate_questions.py \
+		--num-questions $(NUM_QUESTIONS) \
+		--data-dir data/processed/wiki_extracted \
+		--output data/eval/questions_$(NUM_QUESTIONS).jsonl \
+		--show-samples 3
+	@echo ""
+	@echo "Questions generated!"
+	@echo "Output: data/eval/questions_$(NUM_QUESTIONS).jsonl"
+	@echo ""
+
+eval-api:
+	@echo "Starting RAG API server..."
+	@echo "API will be available at: http://localhost:8000"
+	@echo "Docs: http://localhost:8000/docs"
+	@echo ""
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	$(PY) -m src.ragx.api.main
+
+eval-run:
+	@echo "Running ablation study..."
+	@echo "Questions: $(NUM_QUESTIONS)"
+	@echo "Run ID: $(RUN_ID)"
+	@echo "Checkpoint dir: $(CHECKPOINT_DIR)"
+	@echo ""
+	@if not exist "$(CHECKPOINT_DIR)" mkdir $(CHECKPOINT_DIR)
+	@if not exist "results" mkdir results
+	$(PY) scripts/run_ablation_study.py \
+		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
+		--output $(EVAL_OUTPUT) \
+		--checkpoint-dir $(CHECKPOINT_DIR) \
+		--run-id $(RUN_ID) \
+		--api-url http://localhost:8000
+	@echo ""
+	@echo "Ablation study complete!"
+	@echo "Results: $(EVAL_OUTPUT)"
+	@echo "Checkpoint: $(CHECKPOINT_DIR)/checkpoint_$(RUN_ID).json"
+	@echo ""
+
+eval-resume:
+	@echo "Resuming ablation study..."
+	@echo "Run ID: $(RUN_ID)"
+	@echo ""
+	@if not exist "$(CHECKPOINT_DIR)\checkpoint_$(RUN_ID).json" (echo ERROR: Checkpoint not found! && exit 1)
+	$(PY) scripts/run_ablation_study.py \
+		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
+		--output $(EVAL_OUTPUT) \
+		--checkpoint-dir $(CHECKPOINT_DIR) \
+		--run-id $(RUN_ID) \
+		--resume \
+		--api-url http://localhost:8000
+	@echo ""
+	@echo "Ablation study complete!"
+	@echo ""
+
+eval-quick:
+	@echo "Running QUICK test (10 questions, 3 configs)..."
+	@echo "This should take ~2-5 minutes"
+	@echo ""
+	@if not exist "results" mkdir results
+	$(PY) scripts/run_ablation_study.py \
+		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
+		--output results/quick_test.json \
+		--configs baseline full_no_cove full_cove_auto \
+		--max-questions 10 \
+		--api-url http://localhost:8000
+	@echo ""
+	@echo "Quick test complete!"
+	@echo "Results: results/quick_test.json"
+	@echo ""
+
+eval-clean:
+	@echo "Cleaning evaluation data..."
+	@if exist "$(CHECKPOINT_DIR)" rmdir /s /q $(CHECKPOINT_DIR)
+	@if exist "results" rmdir /s /q results
+	@if exist "data\eval" rmdir /s /q data\eval
+	@echo "Evaluation data cleaned!"
 	@echo ""

@@ -146,6 +146,23 @@ def main():
         default="gpt-4o-mini",
         help="OpenAI model for RAGAS evaluation (default: gpt-4o-mini)",
     )
+    parser.add_argument(
+        "--checkpoint-dir",
+        type=Path,
+        default=None,
+        help="Directory for checkpoint files (enables auto-save/resume)",
+    )
+    parser.add_argument(
+        "--run-id",
+        type=str,
+        default=None,
+        help="Unique run ID for checkpointing (auto-generated if not provided)",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from checkpoint if available (requires --checkpoint-dir and --run-id)",
+    )
 
     args = parser.parse_args()
 
@@ -162,6 +179,7 @@ def main():
     ablation = AblationStudy(
         api_base_url=args.api_url,
         ragas_evaluator=ragas_evaluator,
+        checkpoint_dir=args.checkpoint_dir,
     )
 
     # Select configs
@@ -183,11 +201,18 @@ def main():
     logger.info("Starting ablation study...")
     logger.info(f"Questions: {args.questions}")
     logger.info(f"Max questions: {args.max_questions or 'all'}")
+    if args.checkpoint_dir:
+        logger.info(f"Checkpoint dir: {args.checkpoint_dir}")
+        logger.info(f"Resume: {args.resume}")
+        if args.run_id:
+            logger.info(f"Run ID: {args.run_id}")
 
     result = ablation.run(
         questions_path=args.questions,
         configs=configs,
         max_questions=args.max_questions,
+        run_id=args.run_id,
+        resume=args.resume,
     )
 
     # Save results
