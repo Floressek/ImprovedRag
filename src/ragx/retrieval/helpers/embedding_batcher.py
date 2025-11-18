@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 
 import numpy as np
-from src.ragx.retrieval.embedder import Embedder
+from src.ragx.retrieval.embedder.embedder import Embedder
 
 
 logger = logging.getLogger(__name__)

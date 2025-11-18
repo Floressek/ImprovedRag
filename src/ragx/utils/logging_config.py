@@ -1,6 +1,9 @@
 from __future__ import annotations
 import logging
 import sys
+import warnings
+
+warnings.filterwarnings("ignore", message=".*flash_attn is not installed.*")
 
 
 class ColoredFormatter(logging.Formatter):
@@ -47,6 +50,9 @@ def setup_logging(level: str = "INFO") -> None:
     root = logging.getLogger()
     root.addHandler(handler)
     root.setLevel(level.upper() if isinstance(level, str) else level)
+
+    for logger_name in ["transformers", "transformers_modules", "sentence_transformers"]:
+        logging.getLogger(logger_name).setLevel(logging.ERROR)
 
     # Silence noisy libraries
     logging.getLogger("httpx").setLevel(logging.WARNING)

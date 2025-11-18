@@ -142,7 +142,7 @@ class TextChunker:
         # Use model registry to cache tokenizer
         tokenizer_cache_key = f"tokenizer:{model_name_tokenizer}"
 
-        def _create_tokenizer():
+        def _create_tokenizer() -> AutoTokenizer:
             return AutoTokenizer.from_pretrained(
                 model_name_tokenizer,
                 trust_remote_code=trust_remote_code,
@@ -182,7 +182,7 @@ class TextChunker:
             # Use model registry to cache HuggingFaceEmbedding
             embed_cache_key = f"hf_embedding:{model_name_embedder}"
 
-            def _create_embedding():
+            def _create_embedding() -> HuggingFaceEmbedding:
                 return HuggingFaceEmbedding(
                     model_name=chunking_model,
                     trust_remote_code=trust_remote_code,
