@@ -5,25 +5,43 @@ from pydantic import BaseModel, Field
 
 
 class PipelineAblationRequest(BaseModel):
-    """Request for pipeline ablation study."""
+    """Request for pipeline ablation study with 5 independent toggles."""
     query: str = Field(..., description="Query to process")
 
-    # Toggles
-    use_query_analysis: bool = Field(
+    # 5 Independent Toggles = 32 base permutations
+    # Toggle 1: Query Analysis - multihop detection + template choice
+    query_analysis_enabled: bool = Field(
         True,
-        description="Enable query analysis and multihop decomposition"
+        alias="use_query_analysis",
+        description="Toggle 1: Enable query analysis (OFF = always single query, template 'enhanced')"
     )
-    use_reranker: bool = Field(
+
+    # Toggle 2: Enhanced Features - metadata, quality checks
+    enhanced_features_enabled: bool = Field(
         True,
-        description="Enable reranking (multihop or standard)"
+        alias="use_enhanced_features",
+        description="Toggle 2: Enable enhanced features (metadata, quality checks, contradictions)"
     )
-    use_cove: bool = Field(
-        False,
-        description="Enable CoVe verification"
-    )
-    use_cot: bool = Field(
+
+    # Toggle 3: Chain of Thought
+    cot_enabled: bool = Field(
         True,
-        description="Enable Chain-of-Thought for Ollama models"
+        alias="use_cot",
+        description="Toggle 3: Enable Chain-of-Thought reasoning"
+    )
+
+    # Toggle 4: Reranking - 3-stage (multihop) or standard (single)
+    reranker_enabled: bool = Field(
+        True,
+        alias="use_reranker",
+        description="Toggle 4: Enable reranking (type auto-selected: multihop → 3-stage, single → standard)"
+    )
+
+    # Toggle 5: CoVe mode - "off", "auto", "metadata", "suggest"
+    cove_mode: str = Field(
+        "off",
+        alias="cove",
+        description="Toggle 5: CoVe mode ('off', 'auto', 'metadata', 'suggest')"
     )
 
     # Prompt engineering
@@ -46,12 +64,30 @@ class PipelineAblationRequest(BaseModel):
         le=50
     )
 
+    class Config:
+        populate_by_name = True  # Allow both field name and alias
+
 
 class PipelineAblationResponse(BaseModel):
     """Response from pipeline ablation."""
     answer: str
-    sources: list[Dict[str, Any]]
+    # contexts: list[str] = Field(
+    #     ...,
+    #     description="Retrieved context chunks (text only)"
+    # )
+    # context_details: list[Dict[str, Any]] = Field(
+    #     ...,
+    #     description="Full context details with URLs, scores, etc."
+    # )
+    # sub_queries: list[str] = Field(
+    #     default_factory=list,
+    #     description="Sub-queries from multihop decomposition"
+    # )
+    sources: list[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Unique sources with citations"
+    )
     metadata: Dict[str, Any] = Field(
         ...,
-        description="Detailed metadata about each stage and what was enabled/disabled"
+        description="Metrics and config details (total_time_ms, is_multihop, query_type, etc.)"
     )
