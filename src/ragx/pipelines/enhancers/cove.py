@@ -82,6 +82,7 @@ class CoVeEnhancer:
             query: str,
             answer: str,
             contexts: List[Dict[str, Any]],
+            correction_mode: Optional[str] = None,
     ) -> CoVeResult:
         """
         Main CoVe verification pipeline.
@@ -90,10 +91,12 @@ class CoVeEnhancer:
             query: Original query
             answer: Generated answer to verify
             contexts: Retrieved contexts (sources)
+            correction_mode: Override correction mode ("off", "metadata", "suggest", "auto")
 
         Returns:
             CoVeResult with verification results
         """
+        mode = correction_mode if correction_mode is not None else settings.cove.correction_mode
         if not settings.cove.enabled:
             return CoVeResult(
                 original_answer=answer,
@@ -246,13 +249,14 @@ class CoVeEnhancer:
         # Works wonderfully on API, and is shitty af on local idk why
         correction_metadata = {}
         if needs_correction:
-            logger.info(f"Correcting answer (status: {status}), mode: {settings.cove.correction_mode}")
+            logger.info(f"Correcting answer (status: {status}), mode: {mode}")
             corrected_answer, correction_metadata = self.corrector.correct(
                 query=query,
                 original_answer=enriched_answer if enrichment_applied else answer,
                 verifications=verifications,
                 contexts=contexts,
-                provider=None
+                provider=None,
+                correction_mode=mode,
             )
 
         elif status == CoVeStatus.MISSING_CITATIONS:
