@@ -1,0 +1,112 @@
+generate_simple:
+  system: |
+    Based on this Wikipedia article, generate a SIMPLE factual question.
+    Each question must be verifiable against a knowledge base.
+    CRITICAL: Extract question in the SAME language as the article!
+
+  template: |
+    ARTICLE TITLE: { article[ 'title' ] }
+  
+    ARTICLE TEXT:
+    { text }
+  
+    Generate a clear, answerable question that requires information from this article.
+  
+    IMPORTANT:
+      - Question must be answerable from the text above
+      - ground_truth should be concise (1-3 sentences)
+      - PRESERVE THE LANGUAGE: if article is in Polish, question MUST be in Polish
+      - RESPOND IN JSON ONLY
+  
+    Response format (JSON only):
+    { {
+      "question": "What is...?",
+      "ground_truth": "Concise answer based on the text"
+    } }
+
+generate_comparison:
+  system: |
+    Based on these two Wikipedia articles, generate a COMPARISON question.
+    Each question must be verifiable against a knowledge base.
+    CRITICAL: Extract question in the SAME language as the article!
+
+  template: |
+    ARTICLE 1 TITLE: {article1['title']}
+    ARTICLE 1 TEXT:
+      {text1}
+    
+    ARTICLE 2 TITLE: {article2['title']}
+    ARTICLE 2 TEXT:
+      {text2}
+      
+      Generate a question that compares or contrasts these two topics.
+    Use patterns like: "X vs Y", "Compare X and Y", "Difference between X and Y"
+    
+    IMPORTANT:
+      - Question must be answerable from both texts
+      - ground_truth should compare/contrast both topics (2-4 sentences)
+      - PRESERVE THE LANGUAGE: if article is in Polish, question MUST be in Polish
+      - RESPOND IN JSON ONLY
+    
+    Response format (JSON only):
+      {{
+        "question": "Compare X and Y in terms of...?",
+        "ground_truth": "X has... while Y has... The main difference is..."
+      }}
+
+generate_multihop:
+  system: |
+    Based on these two Wikipedia articles, generate a MULTIHOP question.
+    Each question must be verifiable against a knowledge base.
+    CRITICAL: Extract question in the SAME language as the article!
+
+  template: |
+    ARTICLES:
+    {articles_text}
+      
+    Generate a question that requires connecting information from MULTIPLE articles.
+    The question should need information from at least 3 different articles to answer fully.
+    
+    Example patterns:
+      - "How did X influence Y, and what impact did that have on Z?"
+      - "What was X's contribution to Y? And why is sky blue?"
+      - "Connect A and B through their relationship with C. Also what about D in this context?"
+    
+    IMPORTANT:
+      - Question must require reasoning across multiple articles
+      - ground_truth should synthesize info from all relevant articles (3-6 sentences)
+      - PRESERVE THE LANGUAGE: if article is in Polish, question MUST be in Polish
+      - RESPOND IN JSON ONLY
+    
+    Response format (JSON only):
+      {{
+        "question": "How did X relate to Y and influence Z?",
+        "ground_truth": "X contributed to Y by... This influenced Z because..."
+      }}
+
+generate_temporal:
+  system: |
+    Based on this Wikipedia article, generate a TEMPORAL/CHRONOLOGICAL question.
+    Each question must be verifiable against a knowledge base.
+    CRITICAL: Extract question in the SAME language as the article!
+
+  template: |
+    ARTICLE TITLE: {article['title']}
+
+    ARTICLE TEXT:
+    {text}
+
+    Generate a question about time, sequence, dates, or chronology.
+    Examples: "When did X occur?", "What happened between X and Y?", "Timeline of X"
+
+    IMPORTANT:
+    - Question must involve time/dates/chronology
+    - ground_truth should mention specific dates/periods (2-4 sentences)
+    - PRESERVE THE LANGUAGE: if article is in Polish, question MUST be in Polish
+    - RESPOND IN JSON ONLY
+
+    Response format (JSON):
+    {{
+      "question": "When did X happen?",
+      "ground_truth": "X occurred in YYYY when..."
+    }}
