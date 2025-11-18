@@ -23,7 +23,7 @@ formatter = ColoredFormatter(
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 
-logging.basicConfig(level=logging.DEBUG, handlers=[handler])
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 logger = logging.getLogger(__name__)
 
 
