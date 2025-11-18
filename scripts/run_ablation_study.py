@@ -157,7 +157,7 @@ def main():
     parser.add_argument(
         "--checkpoint-dir",
         type=Path,
-        default=None,
+        default=Path("results/checkpoint/ablation_study.json"),
         help="Directory for checkpoint files (enables auto-save/resume)",
     )
     parser.add_argument(
