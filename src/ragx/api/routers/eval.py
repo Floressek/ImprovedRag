@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 from fastapi import APIRouter, Depends
 
@@ -64,28 +64,32 @@ def _perform_retrieval(
         top_k: int,
         embedder: Embedder,
         vector_store: QdrantStore,
+        reranker_enabled: bool,
 ) -> Tuple[List[Any], Dict[str, List[Any]], int]:
     """Perform retrieval for single or multihop queries."""
+    if reranker_enabled:
+        retrieve_k = settings.retrieval.top_k_retrieve  # np. 200 z configu
+    else:
+        retrieve_k = top_k * 2
     if is_multihop and len(queries) > 1:
         results_by_subquery = {}
         for sub_query in queries:
             qvec = embedder.embed_query(sub_query)
             results = vector_store.search(
                 vector=qvec,
-                top_k=top_k * 2,
+                top_k=retrieve_k,
                 hnsw_ef=settings.hnsw.search_ef
             )
             results_by_subquery[sub_query] = results
 
         num_retrieved = sum(len(v) for v in results_by_subquery.values())
-        all_results = []
-        return all_results, results_by_subquery, num_retrieved
+        return [], results_by_subquery, num_retrieved
     else:
         query_singular = queries[0]
         qvec = embedder.embed_query(query_singular)
         results = vector_store.search(
             vector=qvec,
-            top_k=top_k * 2,
+            top_k=retrieve_k,
             hnsw_ef=settings.hnsw.search_ef
         )
         results_by_subquery = {query_singular: results}
@@ -122,7 +126,7 @@ def _perform_reranking(
 
         query_for_rerank = queries[0] if queries else original_query
         all_results = results_by_subquery.get(query_for_rerank, [])
-        results = reranker_enhancer.process(original_query, all_results)
+        results = reranker_enhancer.process(original_query, all_results, top_k)
 
         reranker_enhancer.top_k = original_top_k
         return results
@@ -133,21 +137,24 @@ def _format_contexts(results: List[Any], is_multihop: bool) -> List[Dict[str, An
     contexts = []
     for idx, payload, score in results:
         payload_metadata = payload.get("metadata", {})
+        retrieval_score = payload.get("retrieval_score")
+        if retrieval_score is None:
+            retrieval_score = float(score)
         context_dict = {
             "id": idx,
             "text": payload.get("text", ""),
             "doc_title": payload.get("doc_title", "Unknown"),
             "position": payload.get("position", 0),
             "total_chunks": payload.get("total_chunks", 1),
-            "retrieval_score": payload.get("retrieval_score"),
+            "retrieval_score": retrieval_score,
             "url": payload_metadata.get("url"),
         }
 
         if is_multihop:
-            context_dict["local_rerank_score"] = payload.get("local_rerank_score")
-            context_dict["fused_score"] = payload.get("fused_score")
-            context_dict["global_rerank_score"] = payload.get("global_rerank_score")
-            context_dict["final_score"] = payload.get("final_score")
+            context_dict["local_rerank_score"] = payload.get("local_rerank_score") or 0.0
+            context_dict["fused_score"] = payload.get("fused_score") or 0.0
+            context_dict["global_rerank_score"] = payload.get("global_rerank_score") or 0.0
+            context_dict["final_score"] = payload.get("final_score") or 0.0
             context_dict["fusion_metadata"] = payload.get("fusion_metadata")
 
             fusion_meta = payload.get("fusion_metadata", {})
@@ -155,11 +162,31 @@ def _format_contexts(results: List[Any], is_multihop: bool) -> List[Dict[str, An
             if source_subqueries:
                 context_dict["source_subquery"] = source_subqueries[0]
         else:
-            context_dict["rerank_score"] = payload.get("rerank_score")
+            if payload.get("rerank_score") is not None:
+                context_dict["rerank_score"] = payload.get("rerank_score")
 
         contexts.append(context_dict)
 
     return contexts
+
+
+def _select_template(
+        prompt_template: str,
+        is_multihop: bool,
+        query_analysis_enabled: bool,
+) -> str:
+    """Select appropriate template based on configuration."""
+    if is_multihop:
+        return "multihop"
+
+    if prompt_template in ["basic", "enhanced"]:
+        return prompt_template
+
+    # Auto: query_analysis ON = enhanced, OFF = basic
+    if prompt_template == "auto":
+        return "enhanced" if query_analysis_enabled else "basic"
+
+    return "enhanced"
 
 
 def _generate_answer(
@@ -168,17 +195,28 @@ def _generate_answer(
         contexts: List[Dict[str, Any]],
         is_multihop: bool,
         cot_enabled: bool,
-        enhanced_features_enabled: bool,
+        query_analysis_enabled: bool,
+        prompt_template: str,
         provider: str,
-) -> Tuple[str, Any]:
-    """Generate answer using LLM."""
+) -> Tuple[str, Any, str]:
+    """Generate answer using LLM.
+
+    Returns:
+        Tuple of (answer, citation_mapping, template_used)
+    """
+    # Select template
+    template_name = _select_template(prompt_template, is_multihop, query_analysis_enabled)
+
+    # Enhanced features are enabled for enhanced/multihop templates
+    use_enhanced = template_name in ["enhanced", "multihop"]
+
     prompt_config = PromptConfig(
         use_cot=cot_enabled,
-        include_metadata=enhanced_features_enabled,
-        strict_citations=enhanced_features_enabled,
-        detect_language=enhanced_features_enabled,
-        check_contradictions=enhanced_features_enabled,
-        confidence_scoring=enhanced_features_enabled,
+        include_metadata=use_enhanced,
+        strict_citations=use_enhanced,
+        detect_language=use_enhanced,
+        check_contradictions=use_enhanced,
+        confidence_scoring=use_enhanced,
         think_tag_style="qwen" if cot_enabled else "none",
     )
 
@@ -189,7 +227,7 @@ def _generate_answer(
         prompt, citation_mapping = prompt_builder.build(
             query=query,
             contexts=contexts,
-            template_name="enhanced",
+            template_name=template_name,
             config=prompt_config,
             is_multihop=True,
             sub_queries=queries,
@@ -198,7 +236,7 @@ def _generate_answer(
         prompt = prompt_builder.build(
             query=query,
             contexts=contexts,
-            template_name="enhanced",
+            template_name=template_name,
             config=prompt_config,
             is_multihop=False,
             sub_queries=None,
@@ -207,7 +245,7 @@ def _generate_answer(
 
     # answer = llm.generate(prompt, temperature=0.1, max_new_tokens=500)
     answer = llm.generate(prompt)
-    return answer, citation_mapping
+    return answer, citation_mapping, template_name
 
 
 def _apply_cove(
@@ -267,6 +305,93 @@ def _apply_cove(
 
     return final_answer, sources, cove_metadata
 
+def _validate_config(
+        query_analysis_enabled: bool,
+        reranker_enabled: bool,
+        cove_mode: str,
+        prompt_template: str,
+        top_k: int,
+        is_multihop: bool,
+        num_queries: int,
+) -> Optional[Dict[str, Any]]:
+    """
+    Validate ablation configuration for incompatible toggle combinations.
+
+    Args:
+        query_analysis_enabled: Whether query analysis is enabled
+        reranker_enabled: Whether reranker is enabled
+        is_multihop: Whether query was detected as multihop
+        num_queries: Number of sub-queries
+
+    Returns:
+        Error message if invalid, None if valid
+    """
+    warnings = []
+    # Rule 1: Multihop requires reranker (3-stage: local→fusion→global)
+    if is_multihop and num_queries > 1 and not reranker_enabled:
+        return {
+            "error": "Invalid Configuration",
+            "message": (
+                "Multihop queries require reranker to be enabled. "
+                "The multihop flow uses 3-stage reranking (local→fusion→global) which is "
+                "an integral part of the pipeline and cannot be disabled separately."
+            ),
+            "detected": {
+                "is_multihop": True,
+                "num_sub_queries": num_queries,
+                "reranker_enabled": False,
+            },
+            "solutions": [
+                "Set 'use_reranker': true to enable multihop flow",
+                "Set 'use_query_analysis': false to force single-query mode",
+            ],
+        }
+
+    if cove_mode != "off" and top_k == 0:
+        return {
+            "error": "Invalid Configuration",
+            "message": "CoVe verification requires contexts (top_k > 0)",
+            "detected": {
+                "cove_mode": cove_mode,
+                "top_k": top_k,
+            },
+            "solutions": [
+                "Set 'top_k' > 0 to retrieve contexts for CoVe",
+                "Set 'cove': 'off' to disable verification",
+            ],
+        }
+
+    # Warning 1: Multihop ignores prompt_template
+    if is_multihop and prompt_template == "basic":
+        warnings.append({
+            "type": "ignored_parameter",
+            "message": (
+                "prompt_template='basic' is IGNORED for multihop queries. "
+                "Multihop always uses 'multihop' template (hardcoded)."
+            ),
+            "actual_template": "multihop",
+        })
+
+    # Warning 2: Query analysis OFF but multihop prompt requested
+    if not query_analysis_enabled and prompt_template == "multihop":
+        warnings.append({
+            "type": "impossible_request",
+            "message": (
+                "You requested prompt_template='multihop' but 'use_query_analysis' is disabled. "
+                "Without query analysis, there are no sub_queries, so 'enhanced' template will be used instead."
+            ),
+            "actual_template": "enhanced",
+        })
+
+    # Return warnings if any (non-blocking)
+    if warnings:
+        return {
+            "status": "warning",
+            "warnings": warnings,
+            "message": "Configuration has warnings but will proceed",
+        }
+
+    return None
 
 @router.post("/ablation", response_model=PipelineAblationResponse)
 async def pipeline_ablation(
@@ -281,23 +406,24 @@ async def pipeline_ablation(
     """
     Pipeline ablation endpoint - follows enhanced.py flow with toggles.
 
-    5 Independent Toggles:
+    4 Independent Toggles:
     1. query_analysis_enabled: Enable/disable adaptive_rewriter
-    2. enhanced_features_enabled: Enable/disable metadata in prompt
-    3. cot_enabled: Enable/disable Chain-of-Thought
-    4. reranker_enabled: Enable/disable reranking
-    5. cove_mode: "off", "auto", "metadata", "suggest"
+    2. cot_enabled: Enable/disable Chain-of-Thought
+    3. reranker_enabled: Enable/disable reranking
+    4. cove_mode: "off", "auto", "metadata", "suggest"
+
+    Plus prompt_template selection: "basic", "enhanced", "auto"
     """
     start_total = time.time()
 
     # Initialize metadata
     metadata: Dict[str, Any] = {
         "ablation_config": {
-            "query_analysis_enabled": request.query_analysis_enabled,  # type of query / query rewrite + multihop
-            "enhanced_features_enabled": request.enhanced_features_enabled,  # better prompt?
-            "cot_enabled": request.cot_enabled,  # on/off CoT works
-            "reranker_enabled": request.reranker_enabled,  # on/off reranker errors
-            "cove_mode": request.cove_mode,  # works
+            "query_analysis_enabled": request.query_analysis_enabled,
+            "cot_enabled": request.cot_enabled,
+            "reranker_enabled": request.reranker_enabled,
+            "cove_mode": request.cove_mode,
+            "prompt_template": request.prompt_template,
         },
         "timings": {},
     }
@@ -322,10 +448,29 @@ async def pipeline_ablation(
     metadata["query_type"] = query_type
     metadata["reasoning"] = reasoning
 
+    validation_result = _validate_config(
+        query_analysis_enabled=request.query_analysis_enabled,
+        reranker_enabled=request.reranker_enabled,
+        cove_mode=request.cove_mode,
+        prompt_template=request.prompt_template,
+        top_k=request.top_k,
+        is_multihop=is_multihop,
+        num_queries=len(queries),
+    )
+    if validation_result:
+        if validation_result.get("error"):
+            # Hard error - 400
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=validation_result)
+        elif validation_result.get("warnings"):
+            # Soft warnings - log
+            logger.warning(f"Config warnings: {validation_result['warnings']}")
+            metadata["config_warnings"] = validation_result["warnings"]
+
     # STEP 2: Retrieval
     retrieval_start = time.time()
     results, results_by_subquery, num_retrieved = _perform_retrieval(
-        queries, is_multihop, request.top_k, embedder, vector_store
+        queries, is_multihop, request.top_k, embedder, vector_store, request.reranker_enabled
     )
     retrieval_time_ms = round((time.time() - retrieval_start) * 1000, 2)
     metadata["timings"]["retrieval_time_ms"] = retrieval_time_ms
@@ -336,7 +481,7 @@ async def pipeline_ablation(
         total_time_ms = round((time.time() - start_total) * 1000, 2)
 
         # Metadata in 1:1 format as in EnhancedPipeline + extras from ablation
-        metadata["pipeline"] = "enhanced"
+        metadata["pipeline"] = "ablation"
         metadata["phases"] = [
             "linguistic_analysis" if request.query_analysis_enabled else None,
             "adaptive_rewriting" if request.query_analysis_enabled else None,
@@ -353,12 +498,10 @@ async def pipeline_ablation(
         metadata["total_time_ms"] = total_time_ms
         metadata["num_sources"] = 0
         metadata["timings"]["total_time_ms"] = total_time_ms
+        metadata["template_used"] = "none"
 
         return PipelineAblationResponse(
             answer="I couldn't find any relevant information to answer your question.",
-            # contexts=[],
-            # context_details=[],
-            # sub_queries=queries,
             sources=[],
             metadata=metadata,
         )
@@ -385,19 +528,21 @@ async def pipeline_ablation(
     # STEP 5: Generation
     llm_start = time.time()
     provider = request.provider or settings.llm.provider
-    answer, citation_mapping = _generate_answer(
+    answer, citation_mapping, template_used = _generate_answer(
         request.query,
         queries,
         contexts,
         is_multihop,
         request.cot_enabled,
-        request.enhanced_features_enabled,
+        request.query_analysis_enabled,
+        request.prompt_template,
         provider,
     )
     llm_time_ms = round((time.time() - llm_start) * 1000, 2)
     metadata["timings"]["llm_time_ms"] = llm_time_ms
+    metadata["template_used"] = template_used
 
-    # Remap citations (as in EnhancedPipeline)
+    # Remap citations (multihop only)
     if is_multihop and citation_mapping:
         answer, contexts = remap_citations(answer, citation_mapping, contexts)
 
@@ -421,8 +566,7 @@ async def pipeline_ablation(
     total_time_ms = round((time.time() - start_total) * 1000, 2)
     metadata["timings"]["total_time_ms"] = total_time_ms
 
-    # Main fields same as in EnhancedPipeline.answer
-    metadata["pipeline"] = "enhanced"  # exactly the same pipeline tag
+    metadata["pipeline"] = "ablation"
     metadata["is_multihop"] = is_multihop
     metadata["sub_queries"] = queries if is_multihop else None
     metadata["phases"] = [
@@ -445,31 +589,11 @@ async def pipeline_ablation(
     metadata["query_type"] = query_type
     metadata["reasoning"] = reasoning
 
-    # Build response – EXTRA fields from ablation (contexts, context_details) stay
-    contexts_text = [ctx.get("text", "") for ctx in contexts]
-
-    context_details = []
-    for ctx in contexts:
-        detail = {
-            "text": ctx.get("text", ""),
-            "url": ctx.get("url", ""),
-            "title": ctx.get("doc_title", ""),
-            "score": ctx.get("rerank_score")
-                     or ctx.get("final_score")
-                     or ctx.get("retrieval_score", 0.0),
-        }
-        if "citation_id" in ctx:
-            detail["citation_id"] = ctx["citation_id"]
-        context_details.append(detail)
-
     # KEY CHANGE:
     # sources: return WITHOUT processing, exactly as in EnhancedPipeline.answer
     # (full list of contexts + evidences from CoVe)
     return PipelineAblationResponse(
         answer=final_answer,
-        # contexts=contexts_text,            # EXTRA compared to enhanced pipeline
-        # context_details=context_details,   # EXTRA
-        # sub_queries=queries,
-        sources=sources,                   # 1:1 as EnhancedPipeline.answer['sources']
-        metadata=metadata,                 # 1:1 + ablation_config, timings, query_type
+        sources=sources,
+        metadata=metadata,
     )

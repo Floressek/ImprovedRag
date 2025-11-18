@@ -30,12 +30,15 @@ class RerankerEnhancer(Enhancer):
             self,
             query: str,
             results: List[ResultT],
+            top_k: Optional[int] = None,
     ) -> List[ResultT]:
         """Rerank results using cross-encoder."""
         if not results:
             return []
 
-        k = min(self.top_k, len(results))
+        top_k = top_k or self.top_k
+
+        k = min(top_k, len(results))
         logger.debug(f"Reranking {len(results)} results (effective top_k={k})")
 
         # Convert to documents format
@@ -69,7 +72,7 @@ class RerankerEnhancer(Enhancer):
             p["retrieval_score"] = float(doc.get("retrieval_score", 0.0))
             output.append((str(doc["id"]), p, float(rerank_score)))
 
-        logger.info(f"Reranked {len(output)} results")
+        logger.info(f"Reranked {len(output)} results, Original articles for reranking: {len(results)}")
         return output
 
     @property
