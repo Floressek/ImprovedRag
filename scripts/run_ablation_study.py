@@ -14,10 +14,17 @@ import logging
 from src.ragx.evaluation.ablation_study import AblationStudy, PipelineConfig
 from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+from colorlog import ColoredFormatter
+
+formatter = ColoredFormatter(
+    "%(log_color)s%(asctime)s%(reset)s │ %(cyan)s%(name)s%(reset)s │ %(log_color)s%(levelname)-8s%(reset)s │ %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S", reset=True,
+    log_colors={'DEBUG': 'blue', 'INFO': 'green', 'WARNING': 'yellow', 'ERROR': 'red', 'CRITICAL': 'red,bg_white', })
+
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 logger = logging.getLogger(__name__)
 
 
@@ -141,10 +148,11 @@ def main():
         help="Specific configurations to test (default: all)",
     )
     parser.add_argument(
-        "--llm-model",
+        "--llm-provider",
         type=str,
-        default="gpt-4o-mini",
-        help="OpenAI model for RAGAS evaluation (default: gpt-4o-mini)",
+        default="api",
+        choices=["api", "ollama", "huggingface"],
+        help="LLM provider for RAGAS evaluation (default: api)",
     )
     parser.add_argument(
         "--checkpoint-dir",
@@ -172,8 +180,8 @@ def main():
         sys.exit(1)
 
     # Initialize RAGAS evaluator
-    logger.info(f"Initializing RAGAS evaluator with model: {args.llm_model}")
-    ragas_evaluator = RAGASEvaluator(llm_model=args.llm_model)
+    logger.info(f"Initializing RAGAS evaluator with provider: {args.llm_provider}")
+    ragas_evaluator = RAGASEvaluator(llm_provider=args.llm_provider)
 
     # Initialize ablation study
     ablation = AblationStudy(
