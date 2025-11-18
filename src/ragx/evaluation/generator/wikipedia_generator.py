@@ -370,6 +370,7 @@ class WikipediaQuestionGenerator:
         """
         Extract key terms (words, numbers, dates) from text.
         Used for ground truth validation.
+        POLISH corpus - using Polish stopwords.
         """
         # Remove punctuation and convert to lowercase
         text_clean = re.sub(r'[^\w\s]', ' ', text.lower())
@@ -377,14 +378,21 @@ class WikipediaQuestionGenerator:
         # Split into tokens
         tokens = text_clean.split()
 
-        # Filter stopwords (basic list)
+        # Filter Polish stopwords
         stopwords = {
-            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-            'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
-            'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-            'should', 'could', 'can', 'may', 'might', 'must', 'i', 'you', 'he',
-            'she', 'it', 'we', 'they', 'this', 'that', 'these', 'those', 'what',
-            'which', 'who', 'when', 'where', 'why', 'how', 'if', 'then', 'than',
+            # Polish stopwords (najpopularniejsze)
+            'i', 'w', 'z', 'na', 'do', 'o', 'a', 'ale', 'od', 'po', 'że', 'ze',
+            'się', 'to', 'jest', 'są', 'był', 'była', 'było', 'były', 'być',
+            'może', 'można', 'ma', 'mają', 'miał', 'miała', 'miało', 'miały',
+            'został', 'została', 'zostało', 'zostały', 'będzie', 'będą',
+            'dla', 'przez', 'przy', 'bez', 'pod', 'nad', 'za', 'przed', 'między',
+            'ja', 'ty', 'on', 'ona', 'ono', 'my', 'wy', 'oni', 'one',
+            'ten', 'ta', 'to', 'ci', 'te', 'tego', 'tej', 'tym', 'tych',
+            'który', 'która', 'które', 'którzy', 'którego', 'której', 'którym', 'których',
+            'co', 'kto', 'gdzie', 'kiedy', 'jak', 'dlaczego', 'czy', 'jeśli', 'jeżeli',
+            'więc', 'więcej', 'mniej', 'tylko', 'także', 'również', 'lub', 'ani',
+            'bardzo', 'jeszcze', 'już', 'nie', 'nigdy', 'zawsze', 'często',
+            'jego', 'jej', 'ich', 'swój', 'swoja', 'swoje', 'swoich',
         }
 
         # Keep tokens that are:
