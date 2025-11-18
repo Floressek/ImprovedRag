@@ -61,4 +61,4 @@ class CoVeInfo(BaseModel):
     num_verified: int
     num_refuted: int
     num_insufficient: int
-    citations_injected: int
+    citations_injected: bool
