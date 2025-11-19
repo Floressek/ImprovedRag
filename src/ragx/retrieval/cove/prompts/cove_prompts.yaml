@@ -46,6 +46,12 @@ batch_nli_verdict:
   system: |
     You are a natural language inference classifier.
     Evaluate multiple claims against provided evidence.
+    
+    CRITICAL: For claims about SPECIFIC PEOPLE or ENTITIES:
+    - Evidence MUST mention THE EXACT SAME person/entity by name
+    - Similar descriptions of DIFFERENT people = "insufficient"
+    - Example: Evidence about "John Smith" does NOT support claims about "Jane Doe"
+      even if both are teachers
 
   template: |
     Evidence:
@@ -68,38 +74,54 @@ batch_nli_verdict:
 
 correct_answer:
   system: |
-    You are an answer corrector. Your task is to FIX incorrect information in the answer.
+    You are an answer corrector. Your task is to REMOVE false information from the answer.
     ANSWER IN THE SAME LANGUAGE AS THE QUESTION!
 
     CRITICAL RULES:
-    1. ANSWER ONLY THE ORIGINAL QUESTION
-    2. Remove/correct ONLY false statements (marked as "refutes" or "insufficient")
-    3. Preserve the language and style of the original answer
-    4. DO NOT add new information unrelated to the question
-    5. Preserve citations [N]
+    1. COMPLETELY DELETE all sentences containing false statements
+    2. DO NOT preserve citations [N] for false statements - they are wrong!
+    3. Handle false statements based on their type:
+       - "insufficient" (no evidence): DELETE entire claim → write "Brak informacji o [entity] w dostępnych źródłach."
+       - "refutes" (contradicted): DELETE false claim → write ONLY facts from CORRECT SOURCES
+    4. DO NOT add speculation, inference, or new information beyond sources
+    5. Keep ONLY verified parts with their citations
 
   template: |
-    ORIGINAL QUESTION (THIS IS WHAT WE'RE ANSWERING):
+    ORIGINAL QUESTION:
     {query}
 
-    ORIGINAL ANSWER (contains errors):
+    ORIGINAL ANSWER (contains FALSE information):
     {answer}
 
-    FALSE STATEMENTS (remove or correct ONLY THESE, the rest of the answer stays the same):
+    FALSE STATEMENTS (MUST BE DELETED):
     {failed_verifications_with_evidence}
 
-    CORRECT SOURCES (use ONLY to correct errors):
+    CORRECT SOURCES (use ONLY for "refutes" replacements):
     {original_contexts}
 
-    INSTRUCTION:
-    - Read the original question
-    - Find false statements in the answer
-    - Correct THEM using the sources
-    - Keep the rest of the answer unchanged, do not modify correct parts
-    - DO NOT write about things unrelated to the question
+    STEP-BY-STEP PROCESS:
 
-    IF ORIGINAL ANSWER IS CORRECT, ONLY RETURN THE ORIGINAL ANSWER WITHOUT CHANGES.
-    CORRECTED ANSWER (no labels, just new ANSWER. Dont write to me about what to correct, just correct it and show fixed ORIGINAL ANSWER):
+    Step 1: IDENTIFY which sentences/paragraphs contain the false statements above
+    Step 2: DELETE those sentences completely (ignore their citations - they're wrong!)
+    Step 3: REPLACE based on type:
+
+    A) For "insufficient" (no evidence exists):
+       → Write: "Brak informacji o [entity/topic] w dostępnych źródłach."
+       → DO NOT try to salvage or rephrase the original claim
+       → Example: "Maja Popielarska była działaczką..." (insufficient)
+         ✗ WRONG: Keep any part of the original paragraph
+         ✓ CORRECT: "Brak informacji o Maji Popielarskiej w dostępnych źródłach."
+
+    B) For "refutes" (contradicted by evidence):
+       → Write ONLY facts from CORRECT SOURCES that answer the question
+       → DO NOT add speculation like "mógł mieć znaczenie" or "symbolem stylu"
+       → If sources lack relevant info: "Brak szczegółowych informacji w dostępnych źródłach."
+
+    Step 4: Keep verified parts with their citations
+
+    CRITICAL: If false statements cover entire answer, output ONLY "Brak informacji" statement!
+
+    CORRECTED ANSWER (just the fixed answer, no explanations):
 
 correct_answer_simplified:
   system: |
