@@ -17,6 +17,8 @@ from ragas.metrics import (
 )
 from datasets import Dataset
 from openai import RateLimitError, APIError, APIConnectionError
+
+from src.ragx.utils.settings import settings
 from src.ragx.evaluation.langchain_adapters import LLMInferenceAdapter, EmbedderAdapter
 
 logger = logging.getLogger(__name__)
@@ -34,7 +36,8 @@ class EvaluationResult:
 
     # Custom metrics
     latency_ms: float
-    sources_count: int
+    sources_count: int  # Final sources in response (after reranking/CoVe)
+    num_candidates: float  # Retrieved candidates (avg per sub-query for multihop, total for single)
     multihop_coverage: float  # Ratio of sub-queries with at least 1 retrieved doc
 
     # Additional stats
@@ -55,6 +58,7 @@ class EvaluationResult:
             "ragas_context_recall": self.context_recall,
             "custom_latency_ms": self.latency_ms,
             "custom_sources_count": self.sources_count,
+            "custom_num_candidates": self.num_candidates,
             "custom_multihop_coverage": self.multihop_coverage,
             "num_contexts": self.num_contexts,
             "query_type": self.query_type,
@@ -76,6 +80,7 @@ class BatchEvaluationResult:
     # Aggregated custom metrics (mean)
     mean_latency_ms: float
     mean_sources_count: float
+    mean_num_candidates: float
     mean_multihop_coverage: float
 
     # Confidence intervals (95% CI) - (lower, upper)
@@ -107,6 +112,7 @@ class BatchEvaluationResult:
             "mean_context_recall": self.mean_context_recall,
             "mean_latency_ms": self.mean_latency_ms,
             "mean_sources_count": self.mean_sources_count,
+            "mean_num_candidates": self.mean_num_candidates,
             "mean_multihop_coverage": self.mean_multihop_coverage,
             "ci_faithfulness": self.ci_faithfulness,
             "ci_answer_relevancy": self.ci_answer_relevancy,
@@ -253,12 +259,25 @@ class RAGASEvaluator:
 
         # Calculate custom metrics
         latency_ms = metadata.get("latency_ms", 0.0)
-        sources = metadata.get("sources") or []
 
-        sources_count = self._count_sources(sources)
+        # Use num_sources from API metadata (includes CoVe evidences)
+        sources_count = metadata.get("num_sources", 0)
+        # Fallback: count unique URLs if num_sources not provided
+        if sources_count == 0:
+            sources = metadata.get("sources") or []
+            sources_count = self._count_sources(sources)
 
+        # Retrieved candidates before reranking
+        # For multihop: show average per sub-query instead of total sum
         sub_queries = metadata.get("sub_queries") or []
         results_by_subquery = metadata.get("results_by_subquery") or {}
+
+        num_candidates = metadata.get("num_candidates", 0)
+        if len(sub_queries) > 1 and results_by_subquery:
+            # Multihop: calculate average candidates per sub-query
+            total_candidates = sum(len(results) for results in results_by_subquery.values())
+            num_candidates = total_candidates / len(sub_queries) if sub_queries else num_candidates
+
         multihop_coverage = self._calculate_multihop_coverage(
             sub_queries,
             results_by_subquery,
@@ -279,6 +298,7 @@ class RAGASEvaluator:
             context_recall=safe_float(ragas_scores["context_recall"]),
             latency_ms=latency_ms,
             sources_count=sources_count,
+            num_candidates=num_candidates,
             multihop_coverage=multihop_coverage,
             num_contexts=len(contexts),
             query_type=metadata.get("query_type"),
@@ -294,6 +314,8 @@ class RAGASEvaluator:
             contexts_list: List[List[str]],
             ground_truths: List[str],
             metadata_list: Optional[List[Dict[str, Any]]] = None,
+            mini_batch_size: int = 2,
+            delay_between_batches: float = 2.0,
     ) -> BatchEvaluationResult:
         """
         Evaluate multiple question-answer pairs.
@@ -304,6 +326,8 @@ class RAGASEvaluator:
             contexts_list: List of retrieved contexts (per question)
             ground_truths: List of expected correct answers
             metadata_list: Optional metadata per question
+            mini_batch_size: Number of questions per mini-batch (default: 2) to avoid rate limits
+            delay_between_batches: Delay in seconds between mini-batches (default: 2.0)
 
         Returns:
             BatchEvaluationResult with aggregated metrics
@@ -324,35 +348,53 @@ class RAGASEvaluator:
                 f"questions length ({len(questions)})"
             )
 
-        logger.info(f"Evaluating batch of {len(questions)} questions...")
+        logger.info(f"Evaluating batch of {len(questions)} questions with mini-batch size {mini_batch_size}...")
 
-        # Prepare dataset for RAGAS
-        dataset = Dataset.from_dict({
-            "question": questions,
-            "answer": answers,
-            "contexts": contexts_list,
-            "ground_truth": ground_truths,
-        })
+        # Process in mini-batches to avoid rate limits
+        all_ragas_results = []
+        num_batches = (len(questions) + mini_batch_size - 1) // mini_batch_size
 
-        # Run RAGAS evaluation (batch)
-        # Limit parallel execution to avoid rate limits
-        start_time = time.time()
-        ragas_result = evaluate(
-            dataset,
-            metrics=[
-                faithfulness,
-                answer_relevancy,
-                context_precision,
-                context_recall,
-            ],
-            llm=self.llm,
-            embeddings=self.embeddings,
-        )
-        eval_time = (time.time() - start_time) * 1000
-        logger.info(f"RAGAS evaluation completed in {eval_time:.0f}ms")
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * mini_batch_size
+            end_idx = min(start_idx + mini_batch_size, len(questions))
 
-        # Convert to pandas for easier access
-        ragas_df = ragas_result.to_pandas()
+            logger.info(f"Processing mini-batch {batch_idx + 1}/{num_batches} (questions {start_idx + 1}-{end_idx})...")
+
+            # Prepare dataset for this mini-batch
+            batch_dataset = Dataset.from_dict({
+                "question": questions[start_idx:end_idx],
+                "answer": answers[start_idx:end_idx],
+                "contexts": contexts_list[start_idx:end_idx],
+                "ground_truth": ground_truths[start_idx:end_idx],
+            })
+
+            # Run RAGAS evaluation on mini-batch
+            start_time = time.time()
+            batch_result = evaluate(
+                batch_dataset,
+                metrics=[
+                    faithfulness,
+                    answer_relevancy,
+                    context_precision,
+                    context_recall,
+                ],
+                llm=self.llm,
+                embeddings=self.embeddings,
+            )
+            eval_time = (time.time() - start_time) * 1000
+            logger.info(f"Mini-batch {batch_idx + 1} completed in {eval_time:.0f}ms")
+
+            all_ragas_results.append(batch_result.to_pandas())
+
+            # Delay between batches (except after last batch)
+            if batch_idx < num_batches - 1:
+                logger.debug(f"Waiting {delay_between_batches}s before next mini-batch...")
+                time.sleep(delay_between_batches)
+
+        # Combine all mini-batch results
+        import pandas as pd
+        ragas_df = pd.concat(all_ragas_results, ignore_index=True)
+        logger.info(f"All mini-batches completed. Total questions evaluated: {len(ragas_df)}")
 
         # Helper to handle NaN
         def safe_float(value, default=0.0):
@@ -366,11 +408,25 @@ class RAGASEvaluator:
         results = []
         for i in range(len(questions)):
             latency_ms = metadata_list[i].get("latency_ms", 0.0)
-            sources = metadata_list[i].get("sources") or []
-            sources_count = self._count_sources(sources)
 
+            # Use num_sources from API metadata (includes CoVe evidences)
+            sources_count = metadata_list[i].get("num_sources", 0)
+            # Fallback: count unique URLs if num_sources not provided
+            if sources_count == 0:
+                sources = metadata_list[i].get("sources") or []
+                sources_count = self._count_sources(sources)
+
+            # Retrieved candidates before reranking
+            # For multihop: show average per sub-query instead of total sum
             sub_queries = metadata_list[i].get("sub_queries") or []
             results_by_subquery = metadata_list[i].get("results_by_subquery") or {}
+
+            num_candidates = metadata_list[i].get("num_candidates", 0)
+            if len(sub_queries) > 1 and results_by_subquery:
+                # Multihop: calculate average candidates per sub-query
+                total_candidates = sum(len(results) for results in results_by_subquery.values())
+                num_candidates = total_candidates / len(sub_queries) if sub_queries else num_candidates
+
             multihop_coverage = self._calculate_multihop_coverage(
                 sub_queries,
                 results_by_subquery,
@@ -383,6 +439,7 @@ class RAGASEvaluator:
                 context_recall=safe_float(ragas_df.iloc[i]["context_recall"]),
                 latency_ms=latency_ms,
                 sources_count=sources_count,
+                num_candidates=num_candidates,
                 multihop_coverage=multihop_coverage,
                 num_contexts=len(contexts_list[i]),
                 query_type=metadata_list[i].get("query_type"),
@@ -412,6 +469,7 @@ class RAGASEvaluator:
             mean_context_recall=safe_float(ragas_df["context_recall"].mean()),
             mean_latency_ms=sum(r.latency_ms for r in results) / num_results if results else 0.0,
             mean_sources_count=sum(r.sources_count for r in results) / num_results if results else 0.0,
+            mean_num_candidates=sum(r.num_candidates for r in results) / num_results if results else 0.0,
             mean_multihop_coverage=sum(r.multihop_coverage for r in results) / num_results if results else 0.0,
             ci_faithfulness=self._calculate_ci(faithfulness_vals),
             ci_answer_relevancy=self._calculate_ci(answer_rel_vals),
@@ -448,11 +506,11 @@ class RAGASEvaluator:
             results_by_subquery: Dict mapping sub-query → retrieved results
 
         Returns:
-            Coverage ratio (0.0 to 1.0)
+            Coverage ratio (0.0 to 1.0), or 0.0 for non-multihop queries
         """
         if not sub_queries or len(sub_queries) <= 1:
-            # Single query or no decomposition → N/A
-            return 1.0
+            # Single query or no decomposition → not applicable
+            return 0.0  # Changed from 1.0 - coverage is N/A for non-multihop
 
         covered = 0
         for sq in sub_queries:

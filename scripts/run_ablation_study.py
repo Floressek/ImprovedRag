@@ -39,8 +39,8 @@ def print_summary(result):
     print(f"Configurations Tested: {len(result.config_results)}\n")
 
     # Table header
-    print(f"{'Configuration':<20} {'Faith':>7} {'Rel':>7} {'Prec':>7} {'Recall':>7} {'Latency':>9} {'Sources':>8} {'Coverage':>8}")
-    print(f"{'-' * 20} {'-' * 7} {'-' * 7} {'-' * 7} {'-' * 7} {'-' * 9} {'-' * 8} {'-' * 8}")
+    print(f"{'Configuration':<20} {'Faith':>7} {'Rel':>7} {'Prec':>7} {'Recall':>7} {'Latency':>9} {'Cands':>7} {'Srcs':>6} {'Cov':>6}")
+    print(f"{'-' * 20} {'-' * 7} {'-' * 7} {'-' * 7} {'-' * 7} {'-' * 9} {'-' * 7} {'-' * 6} {'-' * 6}")
 
     # Results per config
     for cr in result.config_results:
@@ -52,9 +52,41 @@ def print_summary(result):
             f"{ev.mean_context_precision:>7.3f} "
             f"{ev.mean_context_recall:>7.3f} "
             f"{ev.mean_latency_ms:>8.0f}ms "
-            f"{ev.mean_sources_count:>8.1f} "
-            f"{ev.mean_multihop_coverage:>8.3f}"
+            f"{ev.mean_num_candidates:>7.1f} "
+            f"{ev.mean_sources_count:>6.1f} "
+            f"{ev.mean_multihop_coverage:>6.3f}"
         )
+
+    # Pipeline details
+    print(f"\n{'=' * 80}")
+    print("PIPELINE DETAILS")
+    print(f"{'=' * 80}\n")
+
+    for cr in result.config_results:
+        ev = cr.evaluation
+        cfg = cr.config
+
+        print(f"Configuration: {cr.config.name}")
+        print(f"  Description: {cr.config.description}")
+        print(f"  Query Analysis: {'✓' if cfg.query_analysis_enabled else '✗'} | "
+              f"Reranker: {'✓' if cfg.reranker_enabled else '✗'} | "
+              f"CoT: {'✓' if cfg.cot_enabled else '✗'} | "
+              f"CoVe: {cfg.cove_mode}")
+        print(f"  Questions: {ev.num_questions} ({ev.num_multihop} multihop, {ev.num_simple} simple)")
+        print(f"  Retrieval: {ev.mean_num_candidates:.1f} candidates → {ev.mean_sources_count:.1f} final sources")
+
+        if ev.num_multihop > 0:
+            print(f"  Multihop Coverage: {ev.mean_multihop_coverage:.1%} of sub-queries retrieved docs")
+
+        # Show pipeline flow
+        if cfg.reranker_enabled and ev.num_multihop > 0:
+            print(f"  Pipeline: Retrieve ({ev.mean_num_candidates:.0f}) → Local Rerank → Fusion → Global Rerank → Top-K ({ev.mean_sources_count:.0f})")
+        elif cfg.reranker_enabled:
+            print(f"  Pipeline: Retrieve ({ev.mean_num_candidates:.0f}) → Rerank → Top-K ({ev.mean_sources_count:.0f})")
+        else:
+            print(f"  Pipeline: Retrieve ({ev.mean_num_candidates:.0f}) → Top-K ({ev.mean_sources_count:.0f})")
+
+        print()
 
     # Best configs
     print(f"\n{'=' * 80}")
@@ -78,29 +110,45 @@ def print_summary(result):
     print("STATISTICAL COMPARISONS (t-tests)")
     print(f"{'=' * 80}\n")
 
+    # Metrics to compare
+    comparison_metrics = [
+        ("mean_faithfulness", "Faithfulness"),
+        ("mean_answer_relevancy", "Answer Relevancy"),
+        ("mean_context_precision", "Context Precision"),
+        ("mean_context_recall", "Context Recall"),
+    ]
+
     # Compare full_cove_auto vs baseline
     if any(cr.config.name == "full_cove_auto" for cr in result.config_results) and \
             any(cr.config.name == "baseline" for cr in result.config_results):
 
-        comparison = result.compare_configs("full_cove_auto", "baseline", "mean_faithfulness")
-        print(f"Full (CoVe Auto) vs Baseline (Faithfulness):")
-        print(f"  Full (CoVe Auto): {comparison['mean_a']:.3f}")
-        print(f"  Baseline:         {comparison['mean_b']:.3f}")
-        print(f"  Diff:             {comparison['mean_diff']:+.3f}")
-        print(f"  p-value:          {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
-        print(f"  Effect:           {comparison['effect_size']} (d={comparison['cohens_d']:.2f})\n")
+        print("Full (CoVe Auto) vs Baseline:")
+        print("-" * 80)
+        for metric_key, metric_name in comparison_metrics:
+            comparison = result.compare_configs("full_cove_auto", "baseline", metric_key)
+            print(f"\n{metric_name}:")
+            print(f"  Full (CoVe Auto): {comparison['mean_a']:.3f}")
+            print(f"  Baseline:         {comparison['mean_b']:.3f}")
+            print(f"  Diff:             {comparison['mean_diff']:+.3f}")
+            print(f"  p-value:          {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
+            print(f"  Effect:           {comparison['effect_size']} (d={comparison['cohens_d']:.2f})")
+        print()
 
     # Compare full_cove_auto vs full_no_cove
     if any(cr.config.name == "full_cove_auto" for cr in result.config_results) and \
             any(cr.config.name == "full_no_cove" for cr in result.config_results):
 
-        comparison = result.compare_configs("full_cove_auto", "full_no_cove", "mean_faithfulness")
-        print(f"Full (CoVe Auto) vs Full (No CoVe) (Faithfulness):")
-        print(f"  With CoVe:    {comparison['mean_a']:.3f}")
-        print(f"  Without CoVe: {comparison['mean_b']:.3f}")
-        print(f"  Diff:         {comparison['mean_diff']:+.3f}")
-        print(f"  p-value:      {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
-        print(f"  Effect:       {comparison['effect_size']} (d={comparison['cohens_d']:.2f})\n")
+        print("Full (CoVe Auto) vs Full (No CoVe):")
+        print("-" * 80)
+        for metric_key, metric_name in comparison_metrics:
+            comparison = result.compare_configs("full_cove_auto", "full_no_cove", metric_key)
+            print(f"\n{metric_name}:")
+            print(f"  With CoVe:    {comparison['mean_a']:.3f}")
+            print(f"  Without CoVe: {comparison['mean_b']:.3f}")
+            print(f"  Diff:         {comparison['mean_diff']:+.3f}")
+            print(f"  p-value:      {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
+            print(f"  Effect:       {comparison['effect_size']} (d={comparison['cohens_d']:.2f})")
+        print()
 
 
 def main():
@@ -155,6 +203,18 @@ def main():
         help="LLM provider for RAGAS evaluation (default: api)",
     )
     parser.add_argument(
+        "--ragas-batch-size",
+        type=int,
+        default=2,
+        help="Mini-batch size for RAGAS evaluation (default: 2 for API, use 10+ for local H100)",
+    )
+    parser.add_argument(
+        "--ragas-delay",
+        type=float,
+        default=2.0,
+        help="Delay in seconds between RAGAS mini-batches (default: 2.0 for API, use 0 for local)",
+    )
+    parser.add_argument(
         "--checkpoint-dir",
         type=Path,
         default=Path("results/checkpoint/ablation_study.json"),
@@ -188,6 +248,8 @@ def main():
         api_base_url=args.api_url,
         ragas_evaluator=ragas_evaluator,
         checkpoint_dir=args.checkpoint_dir,
+        ragas_batch_size=args.ragas_batch_size,
+        ragas_delay=args.ragas_delay,
     )
 
     # Select configs

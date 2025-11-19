@@ -81,6 +81,14 @@ class LLMInferenceAdapter(LLM):
             max_new_tokens=kwargs.get("max_tokens", self.max_tokens),
             chain_of_thought_enabled=False,  # RAGAS doesn't need CoT
         )
+        response = response.strip()
+        if response.startswith("```json"):
+            response = response[7:]  # Remove ```json
+        elif response.startswith("```"):
+            response = response[3:]  # Remove ```
+        if response.endswith("```"):
+            response = response[:-3]  # Remove trailing ```
+        response = response.strip()
         return response
 
 

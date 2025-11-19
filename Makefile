@@ -482,8 +482,8 @@ eval-quick:
 	$(PY) scripts/run_ablation_study.py \
 		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
 		--output results/quick_test.json \
-		--configs baseline full_no_cove \
-		--max-questions 2 \
+		--configs baseline full_no_cove full_cove_auto \
+		--max-questions 5 \
 		--api-url http://localhost:8080
 	@echo ""
 	@echo "Quick test complete!"

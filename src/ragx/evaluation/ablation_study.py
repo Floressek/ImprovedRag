@@ -382,6 +382,8 @@ class AblationStudy:
             retry_backoff: int = 2,
             checkpoint_dir: Optional[Path] = None,
             save_every_n_questions: int = 10,
+            ragas_batch_size: int = 2,
+            ragas_delay: float = 2.0,
     ):
         """
         Initialize ablation study.
@@ -394,12 +396,16 @@ class AblationStudy:
             retry_backoff: Backoff factor for retries in seconds (default: 2)
             checkpoint_dir: Directory for checkpoint files (default: None = disabled)
             save_every_n_questions: Save partial results every N questions (default: 10)
+            ragas_batch_size: Mini-batch size for RAGAS evaluation (default: 2)
+            ragas_delay: Delay in seconds between RAGAS mini-batches (default: 2.0)
         """
         self.api_base_url = api_base_url.rstrip("/")
         self.ragas_evaluator = ragas_evaluator or RAGASEvaluator()
         self.api_timeout = api_timeout
         self.checkpoint_dir = Path(checkpoint_dir) if checkpoint_dir else None
         self.save_every_n_questions = save_every_n_questions
+        self.ragas_batch_size = ragas_batch_size
+        self.ragas_delay = ragas_delay
 
         # Create checkpoint directory if specified
         if self.checkpoint_dir:
@@ -420,7 +426,8 @@ class AblationStudy:
 
         logger.info(
             f"Initialized ablation study with API: {self.api_base_url} "
-            f"(timeout: {api_timeout}s, retry: {retry_total}x with backoff {retry_backoff}s)"
+            f"(timeout: {api_timeout}s, retry: {retry_total}x with backoff {retry_backoff}s, "
+            f"RAGAS: batch_size={ragas_batch_size}, delay={ragas_delay}s)"
         )
 
     def __del__(self):
@@ -519,8 +526,7 @@ class AblationStudy:
         if resume and self.checkpoint_dir:
             checkpoint = self._load_checkpoint(run_id)
             if checkpoint:
-                logger.info(
-                    f"🔄 Resuming from checkpoint ({len(checkpoint.completed_configs)}/{checkpoint.total_configs} configs completed)")
+                logger.info(f"🔄 Resuming from checkpoint ({len(checkpoint.completed_configs)}/{checkpoint.total_configs} configs completed)")
                 questions = checkpoint.questions
             else:
                 logger.info("No checkpoint found, starting fresh")
@@ -591,14 +597,12 @@ class AblationStudy:
 
         # Progress bar for configs
         configs_iterator = (
-            tqdm(configs[start_config_idx:], desc="Configs", unit="config", initial=start_config_idx,
-                 total=len(configs))
+            tqdm(configs[start_config_idx:], desc="Configs", unit="config", initial=start_config_idx, total=len(configs))
             if TQDM_AVAILABLE
             else configs[start_config_idx:]
         )
 
-        for config_idx, config in enumerate(configs_iterator if TQDM_AVAILABLE else configs[start_config_idx:],
-                                            start=start_config_idx):
+        for config_idx, config in enumerate(configs_iterator if TQDM_AVAILABLE else configs[start_config_idx:], start=start_config_idx):
             logger.info(f"\n{'=' * 80}")
             logger.info(f"Running configuration [{config_idx + 1}/{len(configs)}]: {config.name}")
             logger.info(f"Description: {config.description}")
@@ -694,14 +698,17 @@ class AblationStudy:
                     # Metadata for custom metrics
                     # Use response["sources"] which includes merged CoVe evidences
                     sources_urls = [s.get("url") for s in sources if s.get("url")]
+                    response_metadata = response.get("metadata", {})
 
                     metadata = {
-                        "latency_ms": response.get("metadata", {}).get("total_time_ms", 0.0),
+                        "latency_ms": response_metadata.get("total_time_ms", 0.0),
                         "sources": sources_urls,  # Use merged sources (includes CoVe recovery)
-                        "is_multihop": response.get("metadata", {}).get("is_multihop", False),
-                        "sub_queries": response.get("metadata", {}).get("sub_queries", []),
-                        "query_type": response.get("metadata", {}).get("query_type"),
-                        "results_by_subquery": response.get("metadata", {}).get("results_by_subquery", {}),
+                        "num_candidates": response_metadata.get("num_candidates", 0),  # Retrieved before reranking
+                        "num_sources": response_metadata.get("num_sources", len(sources)),  # Final sources count
+                        "is_multihop": response_metadata.get("is_multihop", False),
+                        "sub_queries": response_metadata.get("sub_queries", []),
+                        "query_type": response_metadata.get("query_type"),
+                        "results_by_subquery": response_metadata.get("results_by_subquery", {}),
                     }
                     metadata_list.append(metadata)
 
@@ -711,11 +718,11 @@ class AblationStudy:
                 except Exception as e:
                     retry_count += 1
                     if attempt < max_retries - 1:
-                        logger.warning(f"Question {i + 1} failed (attempt {attempt + 1}/{max_retries}): {e}")
+                        logger.warning(f"Question {i+1} failed (attempt {attempt+1}/{max_retries}): {e}")
                         logger.warning(f"Retrying in {retry_delay}s...")
                         time.sleep(retry_delay)
                     else:
-                        logger.error(f"Question {i + 1} failed after {max_retries} attempts: {e}")
+                        logger.error(f"Question {i+1} failed after {max_retries} attempts: {e}")
                         failed_questions.append((i, q["question"], str(e)))
                         # Add placeholder to maintain alignment
                         rag_questions.append(q["question"])
@@ -730,19 +737,21 @@ class AblationStudy:
             logger.warning(f"⚠️  {len(failed_questions)} questions failed after retries (total retries: {retry_count})")
             logger.warning(f"{'=' * 80}")
             for idx, question, error in failed_questions[:5]:  # Show first 5
-                logger.warning(f"  [{idx + 1}] {question[:60]}... → {error}")
+                logger.warning(f"  [{idx+1}] {question[:60]}... → {error}")
             if len(failed_questions) > 5:
                 logger.warning(f"  ... and {len(failed_questions) - 5} more")
             logger.warning(f"{'=' * 80}\n")
 
         # Evaluate with RAGAS
-        logger.info("Evaluating with RAGAS...")
+        logger.info(f"Evaluating with RAGAS...")
         evaluation = self.ragas_evaluator.evaluate_batch(
             questions=rag_questions,
             answers=rag_answers,
             contexts_list=rag_contexts_list,
             ground_truths=ground_truths,
             metadata_list=metadata_list,
+            mini_batch_size=self.ragas_batch_size,
+            delay_between_batches=self.ragas_delay,
         )
 
         run_time_ms = (time.time() - start_time) * 1000
