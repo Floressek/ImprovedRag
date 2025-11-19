@@ -1,6 +1,6 @@
 {
-  "num_questions": 2,
-  "total_time_ms": 225175.13966560364,
+  "num_questions": 5,
+  "total_time_ms": 731824.6729373932,
   "configs": [
     {
       "name": "baseline",
@@ -11,41 +11,42 @@
         "use_reranker": false,
         "cove": "off",
         "prompt_template": "basic",
-        "top_k": 8
+        "top_k": 10
       },
       "evaluation": {
-        "mean_faithfulness": 1.0,
-        "mean_answer_relevancy": 0.7777476200326283,
-        "mean_context_precision": 0.2880952380725,
-        "mean_context_recall": 1.0,
-        "mean_latency_ms": 6470.125,
-        "mean_sources_count": 7.0,
-        "mean_multihop_coverage": 1.0,
+        "mean_faithfulness": 0.9391304347826086,
+        "mean_answer_relevancy": 0.6949099851082532,
+        "mean_context_precision": 0.3961111110927963,
+        "mean_context_recall": 0.8,
+        "mean_latency_ms": 6575.42,
+        "mean_sources_count": 10.0,
+        "mean_num_candidates": 20.0,
+        "mean_multihop_coverage": 0.0,
         "ci_faithfulness": [
-          1.0,
-          1.0
+          0.8198260869565218,
+          1.0584347826086957
         ],
         "ci_answer_relevancy": [
-          0.5310341250707279,
-          1.0244611149945286
+          0.35054589709186074,
+          1.0392740731246457
         ],
         "ci_context_precision": [
-          0.1994285714266,
-          0.3767619047184
+          0.11104049909897845,
+          0.6811817230866142
         ],
         "ci_context_recall": [
-          1.0,
-          1.0
+          0.4080000000000001,
+          1.192
         ],
-        "std_faithfulness": 0.0,
-        "std_answer_relevancy": 0.17801304622223768,
-        "std_context_precision": 0.06397632780665607,
-        "std_context_recall": 0.0,
-        "num_questions": 2,
+        "std_faithfulness": 0.13610848558694372,
+        "std_answer_relevancy": 0.3928681172522318,
+        "std_context_precision": 0.32522309530900184,
+        "std_context_recall": 0.4472135954999579,
+        "num_questions": 5,
         "num_multihop": 0,
-        "num_simple": 2
+        "num_simple": 5
       },
-      "run_time_ms": 48240.875244140625
+      "run_time_ms": 186526.25513076782
     },
     {
       "name": "full_no_cove",
@@ -56,41 +57,42 @@
         "use_reranker": true,
         "cove": "off",
         "prompt_template": "multihop",
-        "top_k": 8
+        "top_k": 10
       },
       "evaluation": {
-        "mean_faithfulness": 0.9444444444444444,
-        "mean_answer_relevancy": 0.8433562223329649,
-        "mean_context_precision": 0.6147619047296096,
-        "mean_context_recall": 1.0,
-        "mean_latency_ms": 13531.555,
-        "mean_sources_count": 6.0,
-        "mean_multihop_coverage": 1.0,
+        "mean_faithfulness": 0.8400000000000001,
+        "mean_answer_relevancy": 0.856506990027257,
+        "mean_context_precision": 0.6369047618746726,
+        "mean_context_recall": 0.8400000000000001,
+        "mean_latency_ms": 12719.376,
+        "mean_sources_count": 8.4,
+        "mean_num_candidates": 280.0,
+        "mean_multihop_coverage": 0.0,
         "ci_faithfulness": [
-          0.8355555555555555,
-          1.0533333333333335
+          0.7095876549053487,
+          0.9704123450946512
         ],
         "ci_answer_relevancy": [
-          0.7038690432771206,
-          0.9828434013888092
+          0.786262007142839,
+          0.9267519729116751
         ],
         "ci_context_precision": [
-          0.38982857136157495,
-          0.8396952380976441
+          0.27276269559402827,
+          1.0010468281553169
         ],
         "ci_context_recall": [
-          1.0,
-          1.0
+          0.5264,
+          1.1536
         ],
-        "std_faithfulness": 0.07856742013183865,
-        "std_answer_relevancy": 0.10064523489690783,
-        "std_context_precision": 0.16229784218309348,
-        "std_context_recall": 0.0,
-        "num_questions": 2,
-        "num_multihop": 0,
-        "num_simple": 2
+        "std_faithfulness": 0.14878105547795997,
+        "std_answer_relevancy": 0.08013905959585102,
+        "std_context_precision": 0.41543184370956876,
+        "std_context_recall": 0.35777087639996635,
+        "num_questions": 5,
+        "num_multihop": 2,
+        "num_simple": 3
       },
-      "run_time_ms": 80851.01199150085
+      "run_time_ms": 219794.30866241455
     },
     {
       "name": "full_cove_auto",
@@ -101,41 +103,42 @@
         "use_reranker": true,
         "cove": "auto",
         "prompt_template": "multihop",
-        "top_k": 8
+        "top_k": 10
       },
       "evaluation": {
-        "mean_faithfulness": 0.975,
-        "mean_answer_relevancy": 0.8431762008515351,
-        "mean_context_precision": 0.6147619047296096,
-        "mean_context_recall": 1.0,
-        "mean_latency_ms": 23088.285,
-        "mean_sources_count": 6.0,
-        "mean_multihop_coverage": 1.0,
+        "mean_faithfulness": 0.8815384615384616,
+        "mean_answer_relevancy": 0.6773760921559842,
+        "mean_context_precision": 0.5959047618776772,
+        "mean_context_recall": 0.85,
+        "mean_latency_ms": 25559.218,
+        "mean_sources_count": 12.8,
+        "mean_num_candidates": 280.0,
+        "mean_multihop_coverage": 0.0,
         "ci_faithfulness": [
-          0.9259999999999999,
-          1.024
+          0.6930641918830083,
+          1.0700127311939147
         ],
         "ci_answer_relevancy": [
-          0.7033361796920882,
-          0.983016222010982
+          0.33580650861884737,
+          1.0189456756931212
         ],
         "ci_context_precision": [
-          0.38982857136157495,
-          0.8396952380976441
+          0.2652531213683997,
+          0.9265564023869546
         ],
         "ci_context_recall": [
-          1.0,
-          1.0
+          0.556,
+          1.144
         ],
-        "std_faithfulness": 0.03535533905932741,
-        "std_answer_relevancy": 0.10089982371746452,
-        "std_context_precision": 0.16229784218309348,
-        "std_context_recall": 0.0,
-        "num_questions": 2,
-        "num_multihop": 0,
-        "num_simple": 2
+        "std_faithfulness": 0.21502106069347915,
+        "std_answer_relevancy": 0.389680003997618,
+        "std_context_precision": 0.3772242576788611,
+        "std_context_recall": 0.33541019662496846,
+        "num_questions": 5,
+        "num_multihop": 2,
+        "num_simple": 3
       },
-      "run_time_ms": 96074.56183433533
+      "run_time_ms": 325496.3481426239
     }
   ]
 }
