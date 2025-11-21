@@ -275,16 +275,63 @@ for message in st.session_state.messages:
             if "sources" in message and message["sources"]:
                 with st.expander(f"📚 Sources ({len(message['sources'])})", expanded=False):
                     for i, source in enumerate(message["sources"], 1):
-                        st.markdown(f"**[{i}] {source.get('doc_title', 'Unknown')}**")
-                        st.caption(source.get('text', '')[:200] + "...")
+                        # Source header with title
+                        st.markdown(f"### [{i}] {source.get('doc_title', 'Unknown')}")
+
+                        # Metadata badges
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            if source.get('position') is not None:
+                                st.caption(f"📄 Chunk {source.get('position', 0) + 1}/{source.get('total_chunks', '?')}")
+                        with col2:
+                            if source.get('retrieval_score') is not None:
+                                st.caption(f"🎯 Score: {source.get('retrieval_score', 0):.3f}")
+                        with col3:
+                            if source.get('rerank_score') is not None:
+                                st.caption(f"📊 Rerank: {source.get('rerank_score', 0):.3f}")
+
+                        # Full text with expandable view
+                        source_text = source.get('text', '')
+                        if len(source_text) > 300:
+                            with st.expander("📖 View full text"):
+                                st.text_area(
+                                    "Source text",
+                                    source_text,
+                                    height=200,
+                                    disabled=True,
+                                    label_visibility="collapsed",
+                                    key=f"source_{i}_{message.get('timestamp', '')}"
+                                )
+                                # Copy button
+                                if st.button("📋 Copy text", key=f"copy_{i}_{message.get('timestamp', '')}"):
+                                    st.code(source_text, language=None)
+                                    st.success("✓ Text displayed above - use browser copy")
+                            st.caption(source_text[:300] + "...")
+                        else:
+                            st.info(source_text)
+
+                        # Clickable URL link
                         if source.get('url'):
-                            st.caption(f"🔗 {source['url']}")
+                            st.markdown(f"🔗 [Open Wikipedia article]({source['url']})")
+
+                        # Additional metadata for multihop
+                        if source.get('source_subquery'):
+                            st.caption(f"💡 From sub-query: _{source.get('source_subquery')}_")
+
+                        # CoVe evidence marker
+                        if source.get('source') == "EVIDENCE FROM COVE":
+                            st.success("✅ Additional evidence from CoVe verification")
+
                         st.divider()
 
 # Chat input
 if prompt := st.chat_input("Ask a question..."):
     # Add user message to chat
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.messages.append({
+        "role": "user",
+        "content": prompt,
+        "timestamp": time.time()
+    })
 
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -372,6 +419,7 @@ if prompt := st.chat_input("Ask a question..."):
             "content": answer,
             "sources": sources,
             "metadata": metadata,
+            "timestamp": time.time()
         })
 
         st.rerun()
