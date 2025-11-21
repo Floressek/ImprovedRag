@@ -21,6 +21,13 @@ from dataclasses import dataclass
 import time
 from datetime import datetime
 
+try:
+    import plotly.express as px
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+    px = None
+
 # Page config
 st.set_page_config(
     page_title="RAGx Chat",
@@ -147,6 +154,9 @@ if "session_stats" not in st.session_state:
         "total_time_ms": 0,
         "configs_used": {},
     }
+
+if "example_query" not in st.session_state:
+    st.session_state.example_query = None
 
 # ============================================================================
 # SIDEBAR - CONFIGURATION
@@ -408,8 +418,7 @@ for message in st.session_state.messages:
                 # Filter out zero values
                 timing_data = {k: v for k, v in timing_data.items() if v > 0}
 
-                if timing_data:
-                    import plotly.express as px
+                if timing_data and PLOTLY_AVAILABLE:
                     fig = px.bar(
                         x=list(timing_data.values()),
                         y=list(timing_data.keys()),
@@ -419,6 +428,10 @@ for message in st.session_state.messages:
                     )
                     fig.update_layout(height=250, showlegend=False)
                     st.plotly_chart(fig, use_container_width=True)
+                elif timing_data and not PLOTLY_AVAILABLE:
+                    # Fallback: show as text
+                    for phase, ms in timing_data.items():
+                        st.write(f"  • {phase}: {ms:.0f}ms")
 
             # Pipeline info
             with st.expander("🔧 Pipeline Info"):
