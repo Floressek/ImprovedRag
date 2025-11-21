@@ -6,8 +6,12 @@ Beautiful, interactive chat interface for RAGx with **real-time pipeline status 
 
 - 🎯 **Live Status Display** - See each pipeline step as it happens
 - ⚙️ **Configuration Presets** - Quick access to baseline, enhanced, and custom configs
-- 📊 **Detailed Metrics** - Timing breakdown for each pipeline phase
-- 🔍 **Source Citations** - Expandable source details with scores
+- 📊 **Timing Visualization** - Interactive charts for pipeline phase breakdown
+- 🔍 **Source Citations** - Expandable source details with scores and Wikipedia links
+- 🔀 **A/B Comparison Mode** - Compare baseline vs enhanced side-by-side
+- 💡 **Example Queries** - Pre-built questions for different scenarios
+- 📈 **Session Statistics** - Track queries, timing, and config usage
+- 💾 **Export Sessions** - Save chat as JSON or Markdown
 - 🎨 **Modern UI** - Clean, responsive Streamlit interface
 
 ## Quick Start
@@ -73,11 +77,44 @@ Watch your query flow through the pipeline:
 ### Detailed Metrics
 
 Expand the timing and pipeline info sections to see:
-- **Timing breakdown** - ms spent in each phase
+- **Timing breakdown** - ms spent in each phase + interactive chart
 - **Query analysis** - Detected type, sub-queries, reasoning
 - **Retrieval stats** - Candidates retrieved, final sources
 - **Template used** - Which prompt template was selected
-- **Source details** - Full text, scores, URLs
+- **Source details** - Full text, scores, Wikipedia URLs
+
+### A/B Comparison Mode
+
+Enable comparison mode in sidebar to test the same query with different configs:
+
+1. ✅ Enable "🔀 A/B Comparison Mode" checkbox
+2. Enter your question
+3. See baseline vs enhanced results side-by-side
+4. Compare timing, sources, and answer quality
+
+Perfect for ablation study analysis!
+
+### Example Queries
+
+Click example queries in sidebar to quick-test:
+- **🔵 Simple** - Basic factual questions
+- **🟣 Multihop** - Comparison and multi-part questions
+- **🟢 Complex** - Advanced reasoning queries
+
+### Session Statistics & Export
+
+**View Stats:**
+- Click "📊 View Session Stats" to see:
+  - Total queries processed
+  - Average response time
+  - Config usage breakdown
+
+**Export Session:**
+- Click "💾 Export Session"
+- Choose format:
+  - **JSON** - Full metadata, sources, timings
+  - **Markdown** - Clean readable format
+- Download timestamped file
 
 ## Architecture
 
