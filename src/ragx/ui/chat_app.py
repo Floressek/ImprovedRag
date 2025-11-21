@@ -6,6 +6,9 @@ Features:
 - Pipeline configuration selector (baseline/enhanced/custom)
 - Detailed timing and metadata display
 - Source citations with expandable details
+- A/B comparison mode
+- Timing charts and session statistics
+- Export functionality
 """
 
 from __future__ import annotations
@@ -16,6 +19,7 @@ import json
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import time
+from datetime import datetime
 
 # Page config
 st.set_page_config(
@@ -90,6 +94,41 @@ PRESETS = {
 }
 
 # ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def call_rag_api(query: str, config: PipelineConfig, api_url: str) -> Dict[str, Any]:
+    """Call RAG API with given config."""
+    request_data = {
+        "query": query,
+        "use_query_analysis": config.query_analysis_enabled,
+        "use_cot": config.cot_enabled,
+        "use_reranker": config.reranker_enabled,
+        "cove": config.cove_mode,
+        "prompt_template": config.prompt_template,
+        "top_k": config.top_k,
+    }
+
+    response = requests.post(
+        f"{api_url}/eval/ablation",
+        json=request_data,
+        timeout=120,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def update_session_stats(config_name: str, total_time_ms: float):
+    """Update session statistics."""
+    stats = st.session_state.session_stats
+    stats["total_queries"] += 1
+    stats["total_time_ms"] += total_time_ms
+
+    if config_name not in stats["configs_used"]:
+        stats["configs_used"][config_name] = 0
+    stats["configs_used"][config_name] += 1
+
+# ============================================================================
 # SESSION STATE
 # ============================================================================
 
@@ -98,6 +137,16 @@ if "messages" not in st.session_state:
 
 if "api_url" not in st.session_state:
     st.session_state.api_url = "http://localhost:8000"
+
+if "comparison_mode" not in st.session_state:
+    st.session_state.comparison_mode = False
+
+if "session_stats" not in st.session_state:
+    st.session_state.session_stats = {
+        "total_queries": 0,
+        "total_time_ms": 0,
+        "configs_used": {},
+    }
 
 # ============================================================================
 # SIDEBAR - CONFIGURATION
@@ -200,9 +249,104 @@ with st.sidebar:
 
     st.divider()
 
+    # === ADVANCED FEATURES ===
+    st.markdown("### 🔬 Advanced Features")
+
+    # A/B Comparison Mode
+    st.session_state.comparison_mode = st.checkbox(
+        "🔀 A/B Comparison Mode",
+        value=st.session_state.comparison_mode,
+        help="Send query to 2 configs and compare side-by-side"
+    )
+
+    if st.session_state.comparison_mode:
+        st.info("💡 Next query will be sent to both Baseline and Enhanced configs")
+
+    # Session Statistics
+    if st.button("📊 View Session Stats"):
+        stats = st.session_state.session_stats
+        if stats["total_queries"] > 0:
+            st.metric("Total Queries", stats["total_queries"])
+            st.metric("Avg Time", f"{stats['total_time_ms'] / stats['total_queries']:.0f}ms")
+
+            if stats["configs_used"]:
+                st.write("**Configs Used:**")
+                for cfg, count in stats["configs_used"].items():
+                    st.write(f"- {cfg}: {count}x")
+        else:
+            st.info("No queries yet")
+
+    # Export Session
+    if st.button("💾 Export Session"):
+        if st.session_state.messages:
+            export_data = {
+                "timestamp": datetime.now().isoformat(),
+                "stats": st.session_state.session_stats,
+                "messages": st.session_state.messages,
+            }
+
+            # JSON download
+            st.download_button(
+                label="📥 Download JSON",
+                data=json.dumps(export_data, indent=2, ensure_ascii=False),
+                file_name=f"ragx_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json",
+            )
+
+            # Markdown download
+            md_content = f"# RAGx Chat Session\n\n**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            for msg in st.session_state.messages:
+                role = "**User:**" if msg["role"] == "user" else "**Assistant:**"
+                md_content += f"{role}\n{msg['content']}\n\n"
+                if msg["role"] == "assistant" and "sources" in msg:
+                    md_content += f"*Sources: {len(msg['sources'])} documents*\n\n"
+
+            st.download_button(
+                label="📥 Download Markdown",
+                data=md_content,
+                file_name=f"ragx_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                mime="text/markdown",
+            )
+        else:
+            st.info("No messages to export")
+
+    st.divider()
+
+    # Example Queries
+    st.markdown("### 💡 Example Queries")
+
+    example_queries = {
+        "🔵 Simple": [
+            "Czym jest sztuczna inteligencja?",
+            "Kiedy powstała Wikipedia?",
+        ],
+        "🟣 Multihop": [
+            "Porównaj mitologię słowiańską i nordycką",
+            "Ziemniaki vs pomidory - który ma więcej błonnika?",
+            "Jakie są podobieństwa między kwantową mechaniką a teorią względności?",
+        ],
+        "🟢 Complex": [
+            "Jak rozwój AI wpływa na rynek pracy i które zawody są najbardziej zagrożone?",
+        ],
+    }
+
+    for category, queries in example_queries.items():
+        with st.expander(category):
+            for q in queries:
+                if st.button(q, key=f"example_{hash(q)}"):
+                    st.session_state.example_query = q
+                    st.rerun()
+
+    st.divider()
+
     # Clear chat button
     if st.button("🗑️ Clear Chat"):
         st.session_state.messages = []
+        st.session_state.session_stats = {
+            "total_queries": 0,
+            "total_time_ms": 0,
+            "configs_used": {},
+        }
         st.rerun()
 
     # Connection status
@@ -232,9 +376,11 @@ for message in st.session_state.messages:
         if message["role"] == "assistant" and "metadata" in message:
             metadata = message["metadata"]
 
-            # Timing summary
+            # Timing summary with chart
             with st.expander("⏱️ Timing Details"):
                 timings = metadata.get("timings", {})
+
+                # Metrics row
                 col1, col2, col3 = st.columns(3)
 
                 with col1:
@@ -249,6 +395,30 @@ for message in st.session_state.messages:
                     st.metric("Query Analysis", f"{timings.get('rewrite_time_ms', 0):.0f}ms")
                     if timings.get('cove_time_ms', 0) > 0:
                         st.metric("CoVe", f"{timings.get('cove_time_ms', 0):.0f}ms")
+
+                # Timing breakdown chart
+                st.markdown("**Breakdown:**")
+                timing_data = {
+                    "Query Analysis": timings.get('rewrite_time_ms', 0),
+                    "Retrieval": timings.get('retrieval_time_ms', 0),
+                    "Reranking": timings.get('rerank_time_ms', 0),
+                    "Generation": timings.get('llm_time_ms', 0),
+                    "CoVe": timings.get('cove_time_ms', 0),
+                }
+                # Filter out zero values
+                timing_data = {k: v for k, v in timing_data.items() if v > 0}
+
+                if timing_data:
+                    import plotly.express as px
+                    fig = px.bar(
+                        x=list(timing_data.values()),
+                        y=list(timing_data.keys()),
+                        orientation='h',
+                        labels={'x': 'Time (ms)', 'y': 'Phase'},
+                        title='Pipeline Phase Timings'
+                    )
+                    fig.update_layout(height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
 
             # Pipeline info
             with st.expander("🔧 Pipeline Info"):
@@ -324,8 +494,16 @@ for message in st.session_state.messages:
 
                         st.divider()
 
-# Chat input
-if prompt := st.chat_input("Ask a question..."):
+# Handle example query click
+if "example_query" in st.session_state and st.session_state.example_query:
+    prompt = st.session_state.example_query
+    st.session_state.example_query = None  # Clear it
+elif prompt := st.chat_input("Ask a question..."):
+    pass  # Use the input prompt
+else:
+    prompt = None
+
+if prompt:
     # Add user message to chat
     st.session_state.messages.append({
         "role": "user",
@@ -336,93 +514,143 @@ if prompt := st.chat_input("Ask a question..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Process with RAG pipeline
-    with st.chat_message("assistant"):
-        # Live status display
-        status_container = st.status("🔄 Processing query...", expanded=True)
+    # Check if comparison mode is enabled
+    if st.session_state.comparison_mode:
+        # A/B Comparison Mode: Run both baseline and enhanced
+        col1, col2 = st.columns(2)
 
-        with status_container:
-            try:
-                # Prepare request
-                request_data = {
-                    "query": prompt,
-                    "use_query_analysis": preset.query_analysis_enabled,
-                    "use_cot": preset.cot_enabled,
-                    "use_reranker": preset.reranker_enabled,
-                    "cove": preset.cove_mode,
-                    "prompt_template": preset.prompt_template,
-                    "top_k": preset.top_k,
-                }
+        configs_to_compare = [
+            ("baseline", PRESETS["baseline"]),
+            ("enhanced_full", PRESETS["enhanced_full"]),
+        ]
 
-                # Track timing
-                start_time = time.time()
+        results = []
 
-                # Step 1: Query Analysis
-                if preset.query_analysis_enabled:
-                    st.write("🔍 **Step 1/5:** Analyzing query...")
-                else:
-                    st.write("🔍 **Step 1/5:** Skipped (disabled)")
+        for col, (config_key, config) in zip([col1, col2], configs_to_compare):
+            with col:
+                with st.chat_message("assistant"):
+                    st.caption(f"**{config.name}**")
+                    status = st.status(f"🔄 Processing...", expanded=True)
 
-                # Step 2: Retrieval
-                st.write("📥 **Step 2/5:** Retrieving candidates...")
+                    with status:
+                        try:
+                            st.write("📡 Calling API...")
+                            result = call_rag_api(prompt, config, api_url)
+                            st.write(f"✨ Done! {result.get('metadata', {}).get('total_time_ms', 0):.0f}ms")
+                            results.append((config, result))
+                        except Exception as e:
+                            st.error(f"❌ Error: {str(e)}")
+                            status.update(label="❌ Failed", state="error")
+                            results.append((config, None))
 
-                # Make API request
-                response = requests.post(
-                    f"{api_url}/eval/ablation",
-                    json=request_data,
-                    timeout=120,
-                )
+                    status.update(label="✅ Complete", state="complete", expanded=False)
 
-                response.raise_for_status()
-                result = response.json()
+                    if results[-1][1]:  # If result is not None
+                        answer = results[-1][1].get("answer", "")
+                        metadata = results[-1][1].get("metadata", {})
 
-                # Step 3: Reranking
-                if preset.reranker_enabled:
-                    st.write("📊 **Step 3/5:** Reranking results...")
-                else:
-                    st.write("📊 **Step 3/5:** Skipped (disabled)")
+                        st.markdown(answer)
 
-                # Step 4: Generation
-                st.write("💭 **Step 4/5:** Generating answer...")
+                        # Quick stats
+                        st.caption(f"⏱️ {metadata.get('total_time_ms', 0):.0f}ms | "
+                                   f"📚 {metadata.get('num_sources', 0)} sources | "
+                                   f"{'🔀 Multihop' if metadata.get('is_multihop') else '📄 Single'}")
 
-                # Step 5: CoVe
-                if preset.cove_mode != "off":
-                    st.write("✅ **Step 5/5:** Verifying with CoVe...")
-                else:
-                    st.write("✅ **Step 5/5:** Skipped (disabled)")
+        # Add comparison to chat history
+        if all(r[1] for r in results):
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": f"**🔀 A/B Comparison Results**\n\n"
+                           f"**Baseline:** {results[0][1].get('answer', '')[:100]}...\n\n"
+                           f"**Enhanced:** {results[1][1].get('answer', '')[:100]}...",
+                "comparison": True,
+                "results": results,
+                "timestamp": time.time()
+            })
 
-                total_time = (time.time() - start_time) * 1000
-                st.write(f"✨ **Complete!** Total: {total_time:.0f}ms")
-
-            except requests.exceptions.RequestException as e:
-                st.error(f"❌ API Error: {str(e)}")
-                status_container.update(label="❌ Request failed", state="error")
-                st.stop()
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
-                status_container.update(label="❌ Processing failed", state="error")
-                st.stop()
-
-        # Update status to complete
-        status_container.update(label="✅ Processing complete", state="complete", expanded=False)
-
-        # Display answer
-        answer = result.get("answer", "")
-        sources = result.get("sources", [])
-        metadata = result.get("metadata", {})
-
-        st.markdown(answer)
-
-        # Add to chat history
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": answer,
-            "sources": sources,
-            "metadata": metadata,
-            "timestamp": time.time()
-        })
+            # Update stats for both
+            for config, result in results:
+                if result:
+                    update_session_stats(
+                        config.name,
+                        result.get("metadata", {}).get("total_time_ms", 0)
+                    )
 
         st.rerun()
+
+    else:
+        # Normal single config mode
+        with st.chat_message("assistant"):
+            # Live status display
+            status_container = st.status("🔄 Processing query...", expanded=True)
+
+            with status_container:
+                try:
+                    # Track timing
+                    start_time = time.time()
+
+                    # Step 1: Query Analysis
+                    if preset.query_analysis_enabled:
+                        st.write("🔍 **Step 1/5:** Analyzing query...")
+                    else:
+                        st.write("🔍 **Step 1/5:** Skipped (disabled)")
+
+                    # Step 2: Retrieval
+                    st.write("📥 **Step 2/5:** Retrieving candidates...")
+
+                    # Step 3: Reranking
+                    if preset.reranker_enabled:
+                        st.write("📊 **Step 3/5:** Reranking results...")
+                    else:
+                        st.write("📊 **Step 3/5:** Skipped (disabled)")
+
+                    # Step 4: Generation
+                    st.write("💭 **Step 4/5:** Generating answer...")
+
+                    # Make API request
+                    result = call_rag_api(prompt, preset, api_url)
+
+                    # Step 5: CoVe
+                    if preset.cove_mode != "off":
+                        st.write("✅ **Step 5/5:** Verifying with CoVe...")
+                    else:
+                        st.write("✅ **Step 5/5:** Skipped (disabled)")
+
+                    total_time = (time.time() - start_time) * 1000
+                    st.write(f"✨ **Complete!** Total: {total_time:.0f}ms")
+
+                except requests.exceptions.RequestException as e:
+                    st.error(f"❌ API Error: {str(e)}")
+                    status_container.update(label="❌ Request failed", state="error")
+                    st.stop()
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    status_container.update(label="❌ Processing failed", state="error")
+                    st.stop()
+
+            # Update status to complete
+            status_container.update(label="✅ Processing complete", state="complete", expanded=False)
+
+            # Display answer
+            answer = result.get("answer", "")
+            sources = result.get("sources", [])
+            metadata = result.get("metadata", {})
+
+            st.markdown(answer)
+
+            # Update session stats
+            update_session_stats(preset.name, metadata.get("total_time_ms", 0))
+
+            # Add to chat history
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": answer,
+                "sources": sources,
+                "metadata": metadata,
+                "timestamp": time.time()
+            })
+
+            st.rerun()
 
 # ============================================================================
 # FOOTER
