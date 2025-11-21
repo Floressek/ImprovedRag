@@ -234,6 +234,26 @@ python -m uvicorn src.ragx.api.main:app --host 0.0.0.0 --port 8000
 
 ### 6. Try It Out!
 
+#### Option A: Interactive Chat UI 💬 (Recommended)
+
+```bash
+# Launch the Streamlit chat interface
+./launch_ui.sh
+
+# Or directly:
+streamlit run src/ragx/ui/chat_app.py
+```
+
+**Features:**
+- 🎯 Real-time pipeline status visualization
+- ⚙️ Easy configuration with presets (baseline/enhanced/custom)
+- 📊 Detailed timing and metadata display
+- 🔍 Expandable source citations
+
+See [`src/ragx/ui/README.md`](src/ragx/ui/README.md) for details.
+
+#### Option B: API Calls (curl)
+
 ```bash
 # Simple search
 curl -X POST "http://localhost:8000/ask/baseline" \

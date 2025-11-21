@@ -34,4 +34,5 @@ dependencies = [
     "accelerate>=1.10.0",
     "llama-index-embeddings-huggingface>=0.6.0",
     "pylint>=3.3.8",
+    "streamlit>=1.38.0",
 ]
