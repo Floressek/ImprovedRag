@@ -282,7 +282,9 @@ def _apply_cove(
         **cove_result.metadata,
     }
 
-    # Merge evidences
+    # Merge evidences - ONLY verified claims (supports), NOT refuted
+    # IMPORTANT: For RAGAS evaluation, we MUST filter evidences by verification_label
+    # to avoid adding refuted/contradictory evidences that would lower faithfulness scores
     all_evidences = cove_result.metadata.get("all_evidences", [])
     if all_evidences:
         existing_ids = {ctx.get("id") for ctx in sources if ctx.get("id") is not None}
@@ -290,6 +292,13 @@ def _apply_cove(
         for ev in all_evidences:
             ev_id = ev.get("id")
             if not ev_id or ev_id in existing_ids or str(ev_id).startswith("unknown_"):
+                continue
+
+            # Filter: only add evidences from verified claims (label="supports")
+            # Skip refuted/insufficient evidences - they contradict the answer and hurt RAGAS scores
+            verification_label = ev.get("verification_label", "unknown")
+            if verification_label != "supports":
+                logger.debug(f"Skipping CoVe evidence with label '{verification_label}': {ev_id}")
                 continue
 
             sources.append({
@@ -588,6 +597,14 @@ async def pipeline_ablation(
     metadata["num_sources"] = len(sources)
     metadata["query_type"] = query_type
     metadata["reasoning"] = reasoning
+
+    # Add results_by_subquery for multihop coverage calculation
+    # Format: {sub_query: num_results} - simplified, only need count for coverage
+    if results_by_subquery:
+        metadata["results_by_subquery"] = {
+            sq: len(sq_results)
+            for sq, sq_results in results_by_subquery.items()
+        }
 
     # KEY CHANGE:
     # sources: return WITHOUT processing, exactly as in EnhancedPipeline.answer

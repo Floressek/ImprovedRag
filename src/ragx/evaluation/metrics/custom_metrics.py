@@ -39,8 +39,12 @@ def calculate_multihop_coverage(
 
     covered = 0
     for sq in sub_queries:
-        results = results_by_subquery.get(sq, [])
-        if results and len(results) > 0:
-            covered += 1
+        results = results_by_subquery.get(sq)
+        # Handle both formats: int (count) or list (legacy)
+        if isinstance(results, int):
+            if results > 0:
+                covered += 1
 
+        elif results and len(results) > 0:
+            covered += 1
     return covered / len(sub_queries)
