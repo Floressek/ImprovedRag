@@ -88,6 +88,7 @@ class CitationInjector:
     ) -> tuple[str, bool]:
         """
         Enrich answer by adding citations sentence-by-sentence.
+        PRESERVES paragraph breaks (\n\n) in the original answer.
 
         Args:
             answer: The input answer to be enriched with citations.
@@ -96,19 +97,33 @@ class CitationInjector:
         Returns:
             (enriched_answer, enrichment_applied)
         """
-        sentences = split_sentences(answer)
+        # Split by sentences but PRESERVE separators (space vs \n\n)
+        # Capture group (\s+) returns separators in the split result
+        parts = re.split(r'(?<=[.!?])(\s+)', answer)
 
-        if not sentences:
+        if not parts:
             return answer, False
 
-        enriched_sentences = []
+        enriched_parts = []
         any_injected = False
 
-        for sentence in sentences:
+        for i, part in enumerate(parts):
+            # Even indices are sentences, odd indices are separators
+            if i % 2 == 1:
+                # This is a separator (space or \n\n) - keep as-is
+                enriched_parts.append(part)
+                continue
+
+            # This is a sentence - check for citations
+            sentence = part.strip()
+            if not sentence:
+                enriched_parts.append(part)
+                continue
+
             has_citation = bool(re.search(r'\[\d+\]', sentence))
 
             if has_citation:
-                enriched_sentences.append(sentence)
+                enriched_parts.append(part)
                 continue
 
             dummy_claim = Claim(
@@ -121,18 +136,21 @@ class CitationInjector:
             injected = self.inject(dummy_claim, contexts)
 
             if injected:
-                # add at the end
+                # Add citation at the end of sentence
+                # Preserve original spacing/newlines by only modifying the sentence part
                 enriched_sentence = f"{sentence} [{','.join(map(str, injected))}]"
-                enriched_sentences.append(enriched_sentence)
+                enriched_parts.append(enriched_sentence)
                 any_injected = True
                 logger.debug(f"Enriched: {sentence[:50]}... → added {injected}")
             else:
-                # didnt work leave as it is
-                enriched_sentences.append(sentence)
+                # Leave as-is
+                enriched_parts.append(part)
 
         if any_injected:
-            enriched_answer = " ".join(enriched_sentences)
-            logger.info(f"Citation enrichment applied to {len(sentences)} sentences")
+            # Join all parts (sentences + original separators) - preserves \n\n!
+            enriched_answer = "".join(enriched_parts)
+            sentence_count = len([p for i, p in enumerate(parts) if i % 2 == 0 and p.strip()])
+            logger.info(f"Citation enrichment applied to {sentence_count} sentences")
             return enriched_answer, True
 
         return answer, False
