@@ -473,23 +473,29 @@ for message in st.session_state.messages:
                             if source.get('rerank_score') is not None:
                                 st.caption(f"📊 Rerank: {source.get('rerank_score', 0):.3f}")
 
-                        # Full text with expandable view
+                        # Full text display
                         source_text = source.get('text', '')
                         if len(source_text) > 300:
-                            with st.expander("📖 View full text"):
+                            # Show preview
+                            st.caption(source_text[:300] + "...")
+
+                            # Full text in collapsible text area with unique key
+                            show_full = st.checkbox(
+                                "📖 Show full text",
+                                key=f"show_full_{i}_{message.get('timestamp', '')}"
+                            )
+
+                            if show_full:
                                 st.text_area(
-                                    "Source text",
+                                    "Full source text",
                                     source_text,
                                     height=200,
                                     disabled=True,
                                     label_visibility="collapsed",
                                     key=f"source_{i}_{message.get('timestamp', '')}"
                                 )
-                                # Copy button
-                                if st.button("📋 Copy text", key=f"copy_{i}_{message.get('timestamp', '')}"):
-                                    st.code(source_text, language=None)
-                                    st.success("✓ Text displayed above - use browser copy")
-                            st.caption(source_text[:300] + "...")
+                                # Copy helper
+                                st.caption("💡 Tip: Select text above and Ctrl+C to copy")
                         else:
                             st.info(source_text)
 
