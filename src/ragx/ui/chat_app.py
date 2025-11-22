@@ -68,7 +68,7 @@ PRESETS = {
         query_analysis_enabled=True,
         cot_enabled=True,
         reranker_enabled=True,
-        cove_mode="off",
+        cove_mode="auto",
         prompt_template="auto",
     ),
     "enhanced_cove": PipelineConfig(
@@ -157,6 +157,13 @@ if "session_stats" not in st.session_state:
 
 if "example_query" not in st.session_state:
     st.session_state.example_query = None
+
+# stan połączenia – tylko do wyświetlania ostatniego wyniku health checka
+if "connection_status" not in st.session_state:
+    st.session_state.connection_status = {
+        "status": None,   # "ok", "error", "unknown"
+        "message": "Not checked yet",
+    }
 
 # ============================================================================
 # SIDEBAR - CONFIGURATION
@@ -359,16 +366,37 @@ with st.sidebar:
         }
         st.rerun()
 
-    # Connection status
+    st.divider()
+
+    # Connection status – tylko na żądanie, bez ciągłego health checka
     st.markdown("### Connection Status")
-    try:
-        response = requests.get(f"{api_url}/info/health", timeout=2)
-        if response.ok:
-            st.success("✅ Connected")
-        else:
-            st.error("❌ API Error")
-    except Exception as e:
-        st.error(f"❌ Not Connected")
+    if st.button("🔄 Check connection"):
+        try:
+            response = requests.get(f"{api_url}/info/health", timeout=2)
+            if response.ok:
+                st.session_state.connection_status = {
+                    "status": "ok",
+                    "message": "Connected",
+                }
+            else:
+                st.session_state.connection_status = {
+                    "status": "error",
+                    "message": f"API Error (status {response.status_code})",
+                }
+        except Exception:
+            st.session_state.connection_status = {
+                "status": "error",
+                "message": "Not Connected",
+            }
+
+    # Wyświetl ostatni znany status (bez nowych requestów)
+    status = st.session_state.connection_status
+    if status["status"] == "ok":
+        st.success(f"✅ {status['message']}")
+    elif status["status"] == "error":
+        st.error(f"❌ {status['message']}")
+    else:
+        st.info(status["message"])
 
 # ============================================================================
 # MAIN CHAT INTERFACE
