@@ -109,7 +109,7 @@ class CitationInjector:
 
         # Split by sentences but PRESERVE separators (space vs \n\n)
         # Capture group (\s+) returns separators in the split result
-        parts = re.split(r'(?<=[.!?])(\\s+)', answer)
+        parts = re.split(r'(?<=[.!?])(\s+)', answer)
 
         if not parts:
             return answer, False
