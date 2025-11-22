@@ -1,9 +1,12 @@
-"""RAGAS-based evaluator for RAG pipelines."""
 from __future__ import annotations
 
 import logging
+import math
+import os
+import statistics
 import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
+from dataclasses import dataclass, field
 
 from ragas import evaluate
 from ragas.metrics import (
@@ -17,15 +20,112 @@ from openai import RateLimitError, APIError, APIConnectionError
 
 from src.ragx.utils.settings import settings
 from src.ragx.evaluation.langchain_adapters import LLMInferenceAdapter, EmbedderAdapter
-from src.ragx.evaluation.models import EvaluationResult, BatchEvaluationResult
-from src.ragx.evaluation.metrics import (
-    count_sources,
-    calculate_multihop_coverage,
-    safe_std,
-    calculate_ci,
-)
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class EvaluationResult:
+    """Results from RAGAS evaluation with custom metrics."""
+
+    # RAGAS metrics
+    faithfulness: float
+    answer_relevancy: float
+    context_precision: float
+    context_recall: float
+
+    # Custom metrics
+    latency_ms: float
+    sources_count: int  # Final sources in response (after reranking/CoVe)
+    num_candidates: float  # Retrieved candidates (avg per sub-query for multihop, total for single)
+    multihop_coverage: float  # Ratio of sub-queries with at least 1 retrieved doc
+
+    # Additional stats
+    num_contexts: int
+    query_type: Optional[str] = None
+    is_multihop: bool = False
+    num_sub_queries: int = 1
+
+    # Per-question details (optional)
+    details: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "ragas_faithfulness": self.faithfulness,
+            "ragas_answer_relevancy": self.answer_relevancy,
+            "ragas_context_precision": self.context_precision,
+            "ragas_context_recall": self.context_recall,
+            "custom_latency_ms": self.latency_ms,
+            "custom_sources_count": self.sources_count,
+            "custom_num_candidates": self.num_candidates,
+            "custom_multihop_coverage": self.multihop_coverage,
+            "num_contexts": self.num_contexts,
+            "query_type": self.query_type,
+            "is_multihop": self.is_multihop,
+            "num_sub_queries": self.num_sub_queries,
+        }
+
+
+@dataclass
+class BatchEvaluationResult:
+    """Aggregated results from evaluating multiple questions."""
+
+    # Aggregated RAGAS metrics (mean)
+    mean_faithfulness: float
+    mean_answer_relevancy: float
+    mean_context_precision: float
+    mean_context_recall: float
+
+    # Aggregated custom metrics (mean)
+    mean_latency_ms: float
+    mean_sources_count: float
+    mean_num_candidates: float
+    mean_multihop_coverage: float
+
+    # Confidence intervals (95% CI) - (lower, upper)
+    ci_faithfulness: Tuple[float, float] = field(default_factory=lambda: (0.0, 0.0))
+    ci_answer_relevancy: Tuple[float, float] = field(default_factory=lambda: (0.0, 0.0))
+    ci_context_precision: Tuple[float, float] = field(default_factory=lambda: (0.0, 0.0))
+    ci_context_recall: Tuple[float, float] = field(default_factory=lambda: (0.0, 0.0))
+
+    # Standard deviations
+    std_faithfulness: float = 0.0
+    std_answer_relevancy: float = 0.0
+    std_context_precision: float = 0.0
+    std_context_recall: float = 0.0
+
+    # Per-question results
+    results: List[EvaluationResult] = field(default_factory=list)
+
+    # Statistics
+    num_questions: int = 0
+    num_multihop: int = 0
+    num_simple: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "mean_faithfulness": self.mean_faithfulness,
+            "mean_answer_relevancy": self.mean_answer_relevancy,
+            "mean_context_precision": self.mean_context_precision,
+            "mean_context_recall": self.mean_context_recall,
+            "mean_latency_ms": self.mean_latency_ms,
+            "mean_sources_count": self.mean_sources_count,
+            "mean_num_candidates": self.mean_num_candidates,
+            "mean_multihop_coverage": self.mean_multihop_coverage,
+            "ci_faithfulness": self.ci_faithfulness,
+            "ci_answer_relevancy": self.ci_answer_relevancy,
+            "ci_context_precision": self.ci_context_precision,
+            "ci_context_recall": self.ci_context_recall,
+            "std_faithfulness": self.std_faithfulness,
+            "std_answer_relevancy": self.std_answer_relevancy,
+            "std_context_precision": self.std_context_precision,
+            "std_context_recall": self.std_context_recall,
+            "num_questions": self.num_questions,
+            "num_multihop": self.num_multihop,
+            "num_simple": self.num_simple,
+        }
 
 
 class RAGASEvaluator:
@@ -165,7 +265,7 @@ class RAGASEvaluator:
         # Fallback: count unique URLs if num_sources not provided
         if sources_count == 0:
             sources = metadata.get("sources") or []
-            sources_count = count_sources(sources)
+            sources_count = self._count_sources(sources)
 
         # Retrieved candidates before reranking
         # For multihop: show average per sub-query instead of total sum
@@ -178,7 +278,7 @@ class RAGASEvaluator:
             total_candidates = sum(len(results) for results in results_by_subquery.values())
             num_candidates = total_candidates / len(sub_queries) if sub_queries else num_candidates
 
-        multihop_coverage = calculate_multihop_coverage(
+        multihop_coverage = self._calculate_multihop_coverage(
             sub_queries,
             results_by_subquery,
         )
@@ -314,7 +414,7 @@ class RAGASEvaluator:
             # Fallback: count unique URLs if num_sources not provided
             if sources_count == 0:
                 sources = metadata_list[i].get("sources") or []
-                sources_count = count_sources(sources)
+                sources_count = self._count_sources(sources)
 
             # Retrieved candidates before reranking
             # For multihop: show average per sub-query instead of total sum
@@ -327,7 +427,7 @@ class RAGASEvaluator:
                 total_candidates = sum(len(results) for results in results_by_subquery.values())
                 num_candidates = total_candidates / len(sub_queries) if sub_queries else num_candidates
 
-            multihop_coverage = calculate_multihop_coverage(
+            multihop_coverage = self._calculate_multihop_coverage(
                 sub_queries,
                 results_by_subquery,
             )
@@ -359,7 +459,7 @@ class RAGASEvaluator:
         context_prec_vals = [r.context_precision for r in results]
         context_rec_vals = [r.context_recall for r in results]
 
-        # Defensive division (results is never empty due to validation above, but be safe)
+        # Defensive division (results is never empty due to line 299, but be safe)
         num_results = len(results) if results else 1
 
         return BatchEvaluationResult(
@@ -371,16 +471,101 @@ class RAGASEvaluator:
             mean_sources_count=sum(r.sources_count for r in results) / num_results if results else 0.0,
             mean_num_candidates=sum(r.num_candidates for r in results) / num_results if results else 0.0,
             mean_multihop_coverage=sum(r.multihop_coverage for r in results) / num_results if results else 0.0,
-            ci_faithfulness=calculate_ci(faithfulness_vals),
-            ci_answer_relevancy=calculate_ci(answer_rel_vals),
-            ci_context_precision=calculate_ci(context_prec_vals),
-            ci_context_recall=calculate_ci(context_rec_vals),
-            std_faithfulness=safe_std(faithfulness_vals),
-            std_answer_relevancy=safe_std(answer_rel_vals),
-            std_context_precision=safe_std(context_prec_vals),
-            std_context_recall=safe_std(context_rec_vals),
+            ci_faithfulness=self._calculate_ci(faithfulness_vals),
+            ci_answer_relevancy=self._calculate_ci(answer_rel_vals),
+            ci_context_precision=self._calculate_ci(context_prec_vals),
+            ci_context_recall=self._calculate_ci(context_rec_vals),
+            std_faithfulness=self._safe_std(faithfulness_vals),
+            std_answer_relevancy=self._safe_std(answer_rel_vals),
+            std_context_precision=self._safe_std(context_prec_vals),
+            std_context_recall=self._safe_std(context_rec_vals),
             results=results,
             num_questions=len(results),
             num_multihop=num_multihop,
             num_simple=num_simple,
         )
+
+    def _count_sources(self, sources: List[str]) -> int:
+        """Count unique sources (URLs, doc IDs, etc.)."""
+        return len(set(sources)) if sources else 0
+
+    def _calculate_multihop_coverage(
+            self,
+            sub_queries: List[str],
+            results_by_subquery: Dict[str, List[Any]],
+    ) -> float:
+        """
+        Calculate multihop coverage: ratio of sub-queries with ≥1 retrieved doc.
+
+        For multihop queries, this shows how well the retrieval covers all sub-queries.
+        A score of 1.0 means every sub-query got at least one document.
+        A score of 0.5 means only half the sub-queries got documents.
+
+        Args:
+            sub_queries: List of sub-queries from decomposition
+            results_by_subquery: Dict mapping sub-query → retrieved results
+
+        Returns:
+            Coverage ratio (0.0 to 1.0), or 0.0 for non-multihop queries
+        """
+        if not sub_queries or len(sub_queries) <= 1:
+            # Single query or no decomposition → not applicable
+            return 0.0  # Changed from 1.0 - coverage is N/A for non-multihop
+
+        covered = 0
+        for sq in sub_queries:
+            results = results_by_subquery.get(sq, [])
+            if results and len(results) > 0:
+                covered += 1
+
+        return covered / len(sub_queries)
+
+    def _safe_std(self, values: List[float]) -> float:
+        """Calculate standard deviation, handling edge cases."""
+        if len(values) < 2:
+            return 0.0
+        try:
+            return statistics.stdev(values)
+        except statistics.StatisticsError:
+            return 0.0
+
+    def _calculate_ci(
+            self,
+            values: List[float],
+            confidence: float = 0.95,
+    ) -> Tuple[float, float]:
+        """
+        Calculate confidence interval.
+
+        Uses formula: CI = mean ± z * (std / sqrt(n))
+        For 95% CI, z = 1.96
+
+        Args:
+            values: List of metric values
+            confidence: Confidence level (default 0.95 for 95% CI)
+
+        Returns:
+            Tuple of (lower_bound, upper_bound)
+        """
+        if len(values) < 2:
+            # Not enough data for CI - need at least 2 samples
+            # Return (0, 0) to indicate invalid CI rather than misleading equal bounds
+            logger.warning(f"Cannot calculate CI with n={len(values)} samples (need n>=2)")
+            return (0.0, 0.0)
+
+        try:
+            mean_val = statistics.mean(values)
+            std_val = statistics.stdev(values)
+            n = len(values)
+
+            # Z-score for 95% CI
+            z_score = 1.96
+
+            # Margin of error
+            margin = z_score * (std_val / math.sqrt(n))
+
+            return (mean_val - margin, mean_val + margin)
+
+        except (statistics.StatisticsError, ZeroDivisionError):
+            mean_val = statistics.mean(values) if values else 0.0
+            return (mean_val, mean_val)
