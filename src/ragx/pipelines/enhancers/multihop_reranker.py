@@ -84,6 +84,8 @@ class MultihopRerankerEnhancer(Enhancer):
         else:
             effective_top_k = override_top_k if override_top_k is not None else self.final_top_k
 
+        logger.info(f"Multihop processing: {num_subqueries} subqueries, top_k={effective_top_k}")
+
         # Stage 1: Local reranking per subquery
         local_reranked = self._local_rerank(results_by_subquery, override_top_k)
 
@@ -121,6 +123,9 @@ class MultihopRerankerEnhancer(Enhancer):
     ) -> Dict[str, List[ResultT]]:
         """Stage 1: Rerank each sub-query independently."""
         reranked_by_subquery = {}  # maybe defaultdict?
+        logger.info(f"LOCAL RERANK - Starting with {len(results_by_subquery)} sub-queries:")
+        for sub_query, results in results_by_subquery.items():
+            logger.info(f"  Sub-query '{sub_query[:60]}...' has {len(results)} retrieved docs BEFORE local rerank")
 
         for sub_query, results in results_by_subquery.items():
             if not results:

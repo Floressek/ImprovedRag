@@ -130,7 +130,7 @@ class EnhancedPipeline(BasePipeline):
                     hnsw_ef=settings.hnsw.search_ef
                 )
                 results_by_subquery[sub_query] = results
-                logger.debug(f"Retrieved {len(results)} for sub-query: {sub_query[:50]}...")
+                logger.info(f"Retrieved {len(results)} for sub-query: {sub_query[:50]}...")
 
             retrieval_time = (time.time() - retrival_start) * 1000
 

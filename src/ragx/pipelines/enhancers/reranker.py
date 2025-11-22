@@ -39,7 +39,7 @@ class RerankerEnhancer(Enhancer):
         top_k = top_k or self.top_k
 
         k = min(top_k, len(results))
-        logger.debug(f"Reranking {len(results)} results (effective top_k={k})")
+        logger.info(f"Reranking {len(results)} results (effective top_k={k})")
 
         # Convert to documents format
         documents: List[Dict[str, Any]] = []
