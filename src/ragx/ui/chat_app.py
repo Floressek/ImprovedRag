@@ -104,6 +104,32 @@ PRESETS = {
 # HELPER FUNCTIONS
 # ============================================================================
 
+def get_pipeline_steps(config: PipelineConfig) -> List[tuple]:
+    """Get list of enabled pipeline steps with their messages."""
+    all_steps = [
+        ("query_analysis", "🔍 Analyzing query", config.query_analysis_enabled),
+        ("retrieval", "📥 Retrieving candidates", True),
+        ("reranking", "📊 Reranking results", config.reranker_enabled),
+        ("generation", "💭 Generating answer", True),
+        ("cove", "✅ Verifying with CoVe", config.cove_mode != "off"),
+    ]
+
+    # Number the enabled steps
+    enabled_steps = [(k, msg, enabled) for k, msg, enabled in all_steps]
+    enabled_count = sum(1 for _, _, enabled in enabled_steps if enabled)
+
+    numbered_steps = []
+    step_num = 1
+    for key, msg, enabled in enabled_steps:
+        if enabled:
+            numbered_steps.append((key, f"**Step {step_num}/{enabled_count}:** {msg}...", True))
+            step_num += 1
+        else:
+            numbered_steps.append((key, f"{msg} (skipped)", False))
+
+    return numbered_steps
+
+
 def call_rag_api(query: str, config: PipelineConfig, api_url: str) -> Dict[str, Any]:
     """Call RAG API with given config."""
     request_data = {
@@ -630,43 +656,76 @@ if prompt:
     else:
         # Normal single config mode
         with st.chat_message("assistant"):
-            # Live status display
+            # Live status display with progress
             status_container = st.status("🔄 Processing query...", expanded=True)
+
+            # Progress tracking
+            steps = get_pipeline_steps(preset)
+            enabled_steps = [s for s in steps if s[2]]  # Only enabled steps
+            total_steps = len(enabled_steps)
 
             with status_container:
                 try:
                     # Track timing
                     start_time = time.time()
 
-                    # Step 1: Query Analysis
-                    if preset.query_analysis_enabled:
-                        st.write("🔍 **Step 1/5:** Analyzing query...")
-                    else:
-                        st.write("🔍 **Step 1/5:** Skipped (disabled)")
+                    # Show progress bar
+                    progress_bar = st.progress(0.0)
+                    status_text = st.empty()
 
-                    # Step 2: Retrieval
-                    st.write("📥 **Step 2/5:** Retrieving candidates...")
+                    # Simulate step progression while API is processing
+                    import threading
 
-                    # Step 3: Reranking
-                    if preset.reranker_enabled:
-                        st.write("📊 **Step 3/5:** Reranking results...")
-                    else:
-                        st.write("📊 **Step 3/5:** Skipped (disabled)")
+                    api_done = threading.Event()
+                    api_result = {}
+                    api_error = {}
 
-                    # Step 4: Generation
-                    st.write("💭 **Step 4/5:** Generating answer...")
+                    def api_call_thread():
+                        try:
+                            result = call_rag_api(prompt, preset, api_url)
+                            api_result['data'] = result
+                        except Exception as e:
+                            api_error['error'] = e
+                        finally:
+                            api_done.set()
 
-                    # Make API request
-                    result = call_rag_api(prompt, preset, api_url)
+                    # Start API call in background
+                    thread = threading.Thread(target=api_call_thread, daemon=True)
+                    thread.start()
 
-                    # Step 5: CoVe
-                    if preset.cove_mode != "off":
-                        st.write("✅ **Step 5/5:** Verifying with CoVe...")
-                    else:
-                        st.write("✅ **Step 5/5:** Skipped (disabled)")
+                    # Show progress while waiting
+                    for idx, (step_key, step_msg, enabled) in enumerate(steps):
+                        if enabled:
+                            # Calculate progress percentage
+                            progress = (idx + 1) / total_steps
+                            progress_bar.progress(progress)
+                            status_text.markdown(step_msg)
 
+                            # Wait a bit for visual feedback (or until API is done)
+                            for _ in range(5):  # Check every 100ms for 500ms max
+                                if api_done.is_set():
+                                    break
+                                time.sleep(0.1)
+
+                            if api_done.is_set():
+                                break
+
+                    # Wait for API to complete
+                    api_done.wait(timeout=120)
+
+                    # Check for errors
+                    if 'error' in api_error:
+                        raise api_error['error']
+
+                    if 'data' not in api_result:
+                        raise TimeoutError("API request timed out")
+
+                    result = api_result['data']
+
+                    # Complete progress
+                    progress_bar.progress(1.0)
                     total_time = (time.time() - start_time) * 1000
-                    st.write(f"✨ **Complete!** Total: {total_time:.0f}ms")
+                    status_text.markdown(f"✨ **Complete!** Total: {total_time:.0f}ms")
 
                 except requests.exceptions.RequestException as e:
                     st.error(f"❌ API Error: {str(e)}")
