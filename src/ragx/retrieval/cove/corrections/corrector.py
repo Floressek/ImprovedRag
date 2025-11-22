@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import List, Dict, Any, Optional
 
 from src.ragx.retrieval.cove.constants.types import Verification
@@ -209,12 +210,22 @@ class AnswerCorrector:
             correction = suggestion.get("suggested_correction", "")
 
             if correction == "REMOVE":
-                corrected = corrected.replace(original_claim, "").strip()
+                corrected = corrected.replace(original_claim, "")
             else:
-                corrected = corrected.replace(original_claim, correction).strip()
+                corrected = corrected.replace(original_claim, correction)
 
-        # Clean up double spaces and newlines
-        corrected = " ".join(corrected.split())
+        # Clean up formatting while preserving paragraph breaks
+        # 1. Normalize paragraph breaks (3+ newlines → 2 newlines)
+        corrected = re.sub(r'\n{3,}', '\n\n', corrected)
+        # 2. Remove trailing/leading spaces on each line
+        corrected = '\n'.join(line.strip() for line in corrected.split('\n'))
+        # 3. Collapse multiple spaces within lines
+        corrected = re.sub(r' {2,}', ' ', corrected)
+        # 4. Remove empty lines between paragraphs (if more than one)
+        corrected = re.sub(r'\n\n+', '\n\n', corrected)
+        # 5. Strip leading/trailing whitespace from entire answer
+        corrected = corrected.strip()
+
         return corrected
 
     def _auto_correct(

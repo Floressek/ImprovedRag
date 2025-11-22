@@ -86,20 +86,24 @@ def _run_comparison_mode(prompt: str, api_url: str):
         with col:
             with st.chat_message("assistant"):
                 st.caption(f"**{config.name}**")
-                status = st.status(f"🔄 Processing...", expanded=True)
+                status_container = st.status(f"🔄 Processing...", expanded=True)
 
-                with status:
+                with status_container:
                     try:
-                        st.write("📡 Calling API...")
-                        result = call_rag_api(prompt, config, api_url)
-                        st.write(f"✨ Done! {result.get('metadata', {}).get('total_time_ms', 0):.0f}ms")
+                        # Show live progress with step-by-step tracking
+                        result = show_progress_with_api_call(
+                            prompt, config, api_url, status_container
+                        )
                         results.append((config, result))
                     except Exception as e:
                         st.error(f"❌ Error: {str(e)}")
-                        status.update(label="❌ Failed", state="error")
+                        status_container.update(label="❌ Failed", state="error")
                         results.append((config, None))
 
-                status.update(label="✅ Complete", state="complete", expanded=False)
+                if results[-1][1]:  # If successful
+                    status_container.update(label="✅ Complete", state="complete", expanded=False)
+                else:
+                    status_container.update(label="❌ Failed", state="error", expanded=False)
 
                 if results[-1][1]:  # If result is not None
                     result = results[-1][1]
