@@ -68,6 +68,21 @@ def _render_comparison_message(message: Dict[str, Any]):
 def _render_message_metadata(metadata: Dict[str, Any]):
     """Render timing and pipeline metadata for a message."""
 
+    # CoVe status alert (if corrections were made)
+    cove_data = metadata.get("cove", {})
+    if cove_data.get("needs_correction"):
+        status = cove_data.get("status", "UNKNOWN")
+        num_refuted = cove_data.get("num_refuted", 0)
+        num_insufficient = cove_data.get("num_insufficient", 0)
+
+        if num_refuted > 0 or num_insufficient > 0:
+            st.warning(
+                f"⚠️ CoVe detected {num_refuted + num_insufficient} issue(s) and applied corrections "
+                f"(Status: {status})"
+            )
+        else:
+            st.info("ℹ️ CoVe made improvements to the answer")
+
     # Timing details with chart
     with st.expander("⏱️ Timing Details"):
         timings = metadata.get("timings", {})
@@ -135,6 +150,36 @@ def _render_message_metadata(metadata: Dict[str, Any]):
             st.markdown("**Sub-queries:**")
             for i, sq in enumerate(metadata.get('sub_queries', []), 1):
                 st.write(f"{i}. {sq}")
+
+    # CoVe verification details (if available)
+    if cove_data:
+        with st.expander("🔍 CoVe Verification Details"):
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.metric("Claims Verified", cove_data.get("num_verified", 0))
+                st.metric("Refuted", cove_data.get("num_refuted", 0))
+
+            with col2:
+                st.metric("Insufficient Evidence", cove_data.get("num_insufficient", 0))
+                st.metric("Missing Citations", cove_data.get("missing_citations", 0))
+
+            with col3:
+                recovery_attempted = cove_data.get("recovery_attempted", False)
+                recovery_helped = cove_data.get("recovery_helped", False)
+                st.write(f"**Recovery:** {'✅ Helped' if recovery_helped else ('⚠️ Tried' if recovery_attempted else '➖ N/A')}")
+                st.write(f"**Status:** {cove_data.get('status', 'N/A')}")
+
+            # Show corrections if made
+            correction_meta = cove_data.get("correction_metadata", {})
+            if correction_meta:
+                st.markdown("**Corrections Applied:**")
+                if correction_meta.get("citations_injected"):
+                    st.success("✅ Citations injected for verified claims")
+                if correction_meta.get("post_correction_citations_injected"):
+                    st.success("✅ Post-correction citations added")
+                if correction_meta.get("applied"):
+                    st.warning(f"⚠️ {correction_meta.get('applied_count', 0)} suggestions applied")
 
 
 def _render_sources(sources: List[Dict[str, Any]], timestamp: str):
