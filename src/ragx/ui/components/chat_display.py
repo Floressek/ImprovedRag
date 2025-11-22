@@ -11,16 +11,58 @@ except ImportError:
 def render_message_history():
     """Render all messages in chat history."""
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        # Special rendering for comparison messages
+        if message.get("comparison"):
+            _render_comparison_message(message)
+        else:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-            # Show metadata for assistant messages
-            if message["role"] == "assistant" and "metadata" in message:
-                _render_message_metadata(message["metadata"])
+                # Show metadata for assistant messages
+                if message["role"] == "assistant" and "metadata" in message:
+                    _render_message_metadata(message["metadata"])
 
-            # Show sources for assistant messages
-            if message["role"] == "assistant" and "sources" in message:
-                _render_sources(message["sources"], message.get("timestamp", ""))
+                # Show sources for assistant messages
+                if message["role"] == "assistant" and "sources" in message:
+                    _render_sources(message["sources"], message.get("timestamp", ""))
+
+
+def _render_comparison_message(message: Dict[str, Any]):
+    """Render A/B comparison results side-by-side with full formatting."""
+    st.markdown("### 🔀 A/B Comparison Results")
+
+    results = message.get("results", [])
+    if not results or len(results) != 2:
+        st.error("Invalid comparison data")
+        return
+
+    col1, col2 = st.columns(2)
+
+    for col, (config, result) in zip([col1, col2], results):
+        with col:
+            with st.chat_message("assistant"):
+                st.caption(f"**{config.name}**")
+
+                if result is None:
+                    st.error("❌ Failed to process")
+                    continue
+
+                # Display answer
+                answer = result.get("answer", "")
+                st.markdown(answer)
+
+                # Display metadata
+                metadata = result.get("metadata", {})
+                if metadata:
+                    _render_message_metadata(metadata)
+
+                # Display sources
+                sources = result.get("sources", [])
+                if sources:
+                    timestamp = message.get("timestamp", "")
+                    # Add config name to timestamp to ensure unique keys
+                    unique_timestamp = f"{timestamp}_{config.name}"
+                    _render_sources(sources, unique_timestamp)
 
 
 def _render_message_metadata(metadata: Dict[str, Any]):

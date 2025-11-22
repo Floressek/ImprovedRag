@@ -6,6 +6,8 @@ from src.ragx.ui.components import (
     render_sidebar,
     render_message_history,
     show_progress_with_api_call,
+    _render_message_metadata,
+    _render_sources,
 )
 from src.ragx.ui.helpers.helpers import call_rag_api, update_session_stats
 
@@ -100,17 +102,23 @@ def _run_comparison_mode(prompt: str, api_url: str):
                 status.update(label="✅ Complete", state="complete", expanded=False)
 
                 if results[-1][1]:  # If result is not None
-                    answer = results[-1][1].get("answer", "")
-                    metadata = results[-1][1].get("metadata", {})
+                    result = results[-1][1]
+                    answer = result.get("answer", "")
+                    metadata = result.get("metadata", {})
+                    sources = result.get("sources", [])
 
+                    # Display answer
                     st.markdown(answer)
 
-                    # Quick stats
-                    st.caption(
-                        f"⏱️ {metadata.get('total_time_ms', 0):.0f}ms | "
-                        f"📚 {metadata.get('num_sources', 0)} sources | "
-                        f"{'🔀 Multihop' if metadata.get('is_multihop') else '📄 Single'}"
-                    )
+                    # Display full metadata with expanders
+                    if metadata:
+                        _render_message_metadata(metadata)
+
+                    # Display sources with full formatting
+                    if sources:
+                        # Use unique timestamp for each config
+                        unique_timestamp = f"{time.time()}_{config.name}"
+                        _render_sources(sources, unique_timestamp)
 
     # Add comparison to chat history
     if all(r[1] for r in results):
