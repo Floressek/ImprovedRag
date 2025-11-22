@@ -16,7 +16,7 @@ def render_message_history():
             _render_comparison_message(message)
         else:
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+                st.markdown(message["content"], unsafe_allow_html=False)
 
                 # Show metadata for assistant messages
                 if message["role"] == "assistant" and "metadata" in message:
@@ -49,7 +49,7 @@ def _render_comparison_message(message: Dict[str, Any]):
 
                 # Display answer
                 answer = result.get("answer", "")
-                st.markdown(answer)
+                st.markdown(answer, unsafe_allow_html=False)
 
                 # Display metadata
                 metadata = result.get("metadata", {})

@@ -29,6 +29,16 @@ initialize_session_state()
 # HELPER FUNCTIONS FOR QUERY PROCESSING
 # ============================================================================
 
+def _reset_chat():
+    """Reset chat messages and session statistics."""
+    st.session_state.messages = []
+    st.session_state.session_stats = {
+        "total_queries": 0,
+        "total_time_ms": 0,
+        "configs_used": {},
+    }
+
+
 def _run_single_query(prompt: str, preset, api_url: str):
     """Process single query with progress tracking."""
     with st.chat_message("assistant"):
@@ -58,7 +68,7 @@ def _run_single_query(prompt: str, preset, api_url: str):
         sources = result.get("sources", [])
         metadata = result.get("metadata", {})
 
-        st.markdown(answer)
+        st.markdown(answer, unsafe_allow_html=False)
 
         # Update session stats
         update_session_stats(preset.name, metadata.get("total_time_ms", 0))
@@ -114,7 +124,7 @@ def _run_comparison_mode(prompt: str, api_url: str):
                     sources = result.get("sources", [])
 
                     # Display answer
-                    st.markdown(answer)
+                    st.markdown(answer, unsafe_allow_html=False)
 
                     # Display full metadata with expanders
                     if metadata:
@@ -127,7 +137,7 @@ def _run_comparison_mode(prompt: str, api_url: str):
                         _render_sources(sources, unique_timestamp)
 
     # Add comparison to chat history
-    if all(r[1] for r in results):
+    if results and all(r[1] for r in results):
         st.session_state.messages.append({
             "role": "assistant",
             "content": f"**🔀 A/B Comparison Results**\n\n"
@@ -173,22 +183,12 @@ with header_col2:
 
     with btn_col1:
         if st.button("🆕", help="New chat", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.session_stats = {
-                "total_queries": 0,
-                "total_time_ms": 0,
-                "configs_used": {},
-            }
+            _reset_chat()
             st.rerun()
 
     with btn_col2:
         if st.button("🗑️", help="Delete chat", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.session_stats = {
-                "total_queries": 0,
-                "total_time_ms": 0,
-                "configs_used": {},
-            }
+            _reset_chat()
             st.rerun()
 
     with btn_col3:
@@ -271,7 +271,7 @@ if prompt:
     })
 
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(prompt, unsafe_allow_html=False)
 
     # Check if A/B comparison mode is enabled
     if st.session_state.comparison_mode:
