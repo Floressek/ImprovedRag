@@ -361,14 +361,28 @@ with st.sidebar:
 
     # Connection status
     st.markdown("### Connection Status")
-    try:
-        response = requests.get(f"{api_url}/health", timeout=2)
-        if response.ok:
+
+    # Check connection only when button is clicked to avoid spam
+    if st.button("🔌 Check Connection", key="check_connection"):
+        try:
+            response = requests.get(f"{api_url}/health", timeout=2)
+            if response.ok:
+                st.success("✅ Connected")
+            else:
+                st.error("❌ API Error")
+        except Exception as e:
+            st.error(f"❌ Not Connected")
+    else:
+        # Show last known status from session state
+        if "connection_status" not in st.session_state:
+            st.session_state.connection_status = "unknown"
+
+        if st.session_state.connection_status == "connected":
             st.success("✅ Connected")
+        elif st.session_state.connection_status == "error":
+            st.error("❌ Not Connected")
         else:
-            st.error("❌ API Error")
-    except Exception as e:
-        st.error(f"❌ Not Connected")
+            st.info("🔌 Click to check connection")
 
 # ============================================================================
 # MAIN CHAT INTERFACE
