@@ -73,6 +73,13 @@ class CitationInjector:
                 logger.info(
                     f"Assigned NEW citation_id={citation_id} to contexts[{best_match_idx}]"
                 )
+
+            # Check if this citation already exists in the claim
+            existing_citations = claim.citations if hasattr(claim, 'citations') and claim.citations else []
+            if citation_id in existing_citations:
+                logger.debug(f"Citation [{citation_id}] already exists for this claim, skipping")
+                return None
+
             logger.info(
                 f"Injected citation [{citation_id}] for claim: {claim_clean[:50]}..."
             )
@@ -102,7 +109,7 @@ class CitationInjector:
 
         # Split by sentences but PRESERVE separators (space vs \n\n)
         # Capture group (\s+) returns separators in the split result
-        parts = re.split(r'(?<=[.!?])(\s+)', answer)
+        parts = re.split(r'(?<=[.!?])(\\s+)', answer)
 
         if not parts:
             return answer, False
@@ -123,9 +130,11 @@ class CitationInjector:
                 enriched_parts.append(part)
                 continue
 
-            # CRITICAL: Check for citations in ORIGINAL part, not stripped
-            # This prevents overwriting existing citations like [4][8][10]
-            has_citation = bool(re.search(r'\[\d+\]', part))
+            # Extract existing citations from the sentence
+            existing_citations = re.findall(r'\[(\d+)\]', sentence)
+            existing_citation_ids = set(int(c) for c in existing_citations)
+
+            has_citation = bool(existing_citations)
 
             if has_citation:
                 # Already has citations - preserve original completely
@@ -137,33 +146,26 @@ class CitationInjector:
                 text=sentence,
                 claim_id=0,
                 has_citations=False,
-                citations=[],
+                citations=list(existing_citation_ids),  # Pass existing citations
             )
 
             injected = self.inject(dummy_claim, contexts)
 
             if injected:
-                # Extract existing citations from this sentence (shouldn't happen due to has_citation check above, but be safe)
-                existing_citations = re.findall(r'\[(\d+)\]', sentence)
-                existing_ids = [int(cid) for cid in existing_citations]
-
-                # Only add NEW citations (avoid duplicates like [3][3])
-                new_citations = [c for c in injected if c not in existing_ids]
+                # Filter out citations that already exist in the sentence
+                new_citations = [cid for cid in injected if cid not in existing_citation_ids]
 
                 if new_citations:
-                    # Remove duplicates within new citations and sort
-                    unique_new = sorted(set(new_citations))
-                    # Add citation at the end of sentence
-                    enriched_sentence = f"{sentence} [{','.join(map(str, unique_new))}]"
+                    # Add only new, unique citations at the end of sentence
+                    enriched_sentence = f"{sentence} [{','.join(map(str, new_citations))}]"
                     enriched_parts.append(enriched_sentence)
                     any_injected = True
-                    logger.debug(f"Enriched: {sentence[:50]}... → added {unique_new} (filtered from {injected})")
+                    logger.debug(f"Enriched: {sentence[:50]}... → added {new_citations}")
                 else:
-                    # All citations already exist - don't add duplicates
-                    logger.debug(f"Skipped: {sentence[:50]}... → all citations {injected} already present")
+                    # All citations already exist
                     enriched_parts.append(part)
             else:
-                # No citation match found - leave as-is
+                # Leave as-is
                 enriched_parts.append(part)
 
         if any_injected:
