@@ -139,20 +139,93 @@ Pipeline Steps (with toggles):
 
 ### Project Structure
 
+Modular architecture with clean separation of concerns:
+
 ```
 src/ragx/ui/
 ├── __init__.py
-├── chat_app.py       # Main Streamlit app
-└── README.md         # This file
+├── chat_app.py              # Main entry point (202 lines)
+├── types.py                 # Type definitions (47 lines)
+├── helpers.py               # Helper functions (145 lines)
+├── config/
+│   ├── __init__.py
+│   ├── presets.py          # Pipeline configurations
+│   └── session_state.py    # State initialization
+├── components/
+│   ├── __init__.py
+│   ├── sidebar.py          # Config & features (264 lines)
+│   ├── chat_display.py     # Message rendering (158 lines)
+│   └── progress.py         # Progress tracking (115 lines)
+└── README.md               # This file
 ```
+
+### Code Architecture
+
+**Core Types** (`types.py`):
+- `PipelineConfig` - Configuration dataclass
+- `PipelineStep` - Step with message and timing
+- `StepTiming` - Duration estimates per phase
+
+**Helpers** (`helpers.py`):
+- `estimate_step_timings()` - Realistic timing calculation
+- `get_pipeline_steps()` - Step list with numbering
+- `call_rag_api()` - API communication
+- `update_session_stats()` - Statistics tracking
+
+**Configuration** (`config/`):
+- `presets.py` - Predefined pipeline configs (baseline, enhanced, etc.)
+- `session_state.py` - Centralized session state initialization
+
+**UI Components** (`components/`):
+- `sidebar.py` - Configuration panel, features, stats, export
+- `chat_display.py` - Message history, metadata, sources, charts
+- `progress.py` - Threading-based real-time progress tracking
+
+**Main App** (`chat_app.py`):
+- Page configuration and layout
+- Chat loop and message handling
+- Query processing with progress display
+- A/B comparison mode logic
+
+### Realistic Timing Estimates
+
+Based on actual Enhanced pipeline performance (~30-32 seconds):
+
+| Phase | Duration | Notes |
+|-------|----------|-------|
+| Query Analysis | 1.5s | Multihop detection + rewriting |
+| Retrieval | 6.0s | Vector search + embeddings |
+| Reranking | 4.0s | 3-stage for multihop queries |
+| Generation | 14.0s (CoT) / 8.0s | LLM inference (longest step) |
+| CoVe | 6.5s | Verification queries |
+
+Total: ~32s for full Enhanced pipeline
 
 ### Extending the UI
 
-To add new features:
+**Add New Presets:**
+1. Edit `PRESETS` dict in `config/presets.py`
+2. Create new `PipelineConfig` instance
+3. Available in dropdown automatically
 
-1. **New Presets**: Edit `PRESETS` dict in `chat_app.py`
-2. **Custom Metrics**: Add to the metadata expanders
-3. **Styling**: Use Streamlit theming in `.streamlit/config.toml`
+**Add New Components:**
+1. Create module in `components/`
+2. Import in `components/__init__.py`
+3. Call from `chat_app.py` main loop
+
+**Modify Timing Estimates:**
+1. Edit `estimate_step_timings()` in `helpers.py`
+2. Adjust `StepTiming` values based on profiling
+
+**Custom Visualizations:**
+1. Add to `chat_display.py` in `_render_message_metadata()`
+2. Use Plotly (with fallback) for charts
+3. Wrap in expanders to keep UI clean
+
+**Styling:**
+- Use Streamlit theming in `.streamlit/config.toml`
+- Consistent emoji prefixes for visual hierarchy
+- Plotly theme customization in chart creation
 
 ## Troubleshooting
 
