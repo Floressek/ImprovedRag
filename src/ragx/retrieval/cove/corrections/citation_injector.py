@@ -89,6 +89,7 @@ class CitationInjector:
         """
         Enrich answer by adding citations sentence-by-sentence.
         PRESERVES paragraph breaks (\n\n) in the original answer.
+        PREVENTS overwriting existing citations and removes duplicates.
 
         Args:
             answer: The input answer to be enriched with citations.
@@ -97,6 +98,8 @@ class CitationInjector:
         Returns:
             (enriched_answer, enrichment_applied)
         """
+        logger.debug(f"Input answer for citation enrichment (first 200 chars): {answer[:200]}...")
+
         # Split by sentences but PRESERVE separators (space vs \n\n)
         # Capture group (\s+) returns separators in the split result
         parts = re.split(r'(?<=[.!?])(\s+)', answer)
@@ -120,9 +123,13 @@ class CitationInjector:
                 enriched_parts.append(part)
                 continue
 
-            has_citation = bool(re.search(r'\[\d+\]', sentence))
+            # CRITICAL: Check for citations in ORIGINAL part, not stripped
+            # This prevents overwriting existing citations like [4][8][10]
+            has_citation = bool(re.search(r'\[\d+\]', part))
 
             if has_citation:
+                # Already has citations - preserve original completely
+                logger.debug(f"Skipping sentence with existing citations: {sentence[:50]}...")
                 enriched_parts.append(part)
                 continue
 
@@ -136,14 +143,27 @@ class CitationInjector:
             injected = self.inject(dummy_claim, contexts)
 
             if injected:
-                # Add citation at the end of sentence
-                # Preserve original spacing/newlines by only modifying the sentence part
-                enriched_sentence = f"{sentence} [{','.join(map(str, injected))}]"
-                enriched_parts.append(enriched_sentence)
-                any_injected = True
-                logger.debug(f"Enriched: {sentence[:50]}... → added {injected}")
+                # Extract existing citations from this sentence (shouldn't happen due to has_citation check above, but be safe)
+                existing_citations = re.findall(r'\[(\d+)\]', sentence)
+                existing_ids = [int(cid) for cid in existing_citations]
+
+                # Only add NEW citations (avoid duplicates like [3][3])
+                new_citations = [c for c in injected if c not in existing_ids]
+
+                if new_citations:
+                    # Remove duplicates within new citations and sort
+                    unique_new = sorted(set(new_citations))
+                    # Add citation at the end of sentence
+                    enriched_sentence = f"{sentence} [{','.join(map(str, unique_new))}]"
+                    enriched_parts.append(enriched_sentence)
+                    any_injected = True
+                    logger.debug(f"Enriched: {sentence[:50]}... → added {unique_new} (filtered from {injected})")
+                else:
+                    # All citations already exist - don't add duplicates
+                    logger.debug(f"Skipped: {sentence[:50]}... → all citations {injected} already present")
+                    enriched_parts.append(part)
             else:
-                # Leave as-is
+                # No citation match found - leave as-is
                 enriched_parts.append(part)
 
         if any_injected:
@@ -151,6 +171,8 @@ class CitationInjector:
             enriched_answer = "".join(enriched_parts)
             sentence_count = len([p for i, p in enumerate(parts) if i % 2 == 0 and p.strip()])
             logger.info(f"Citation enrichment applied to {sentence_count} sentences")
+            logger.debug(f"Output answer (first 200 chars): {enriched_answer[:200]}...")
             return enriched_answer, True
 
+        logger.debug("No citations were injected - returning original answer")
         return answer, False
