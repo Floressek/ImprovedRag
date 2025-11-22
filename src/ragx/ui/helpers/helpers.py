@@ -1,8 +1,60 @@
 import requests
 import streamlit as st
 from typing import Dict, Any, List
+from urllib.parse import urlparse
 
 from src.ragx.ui.constants.types import PipelineConfig, PipelineStep, StepTiming
+
+
+def validate_api_url(url: str) -> bool:
+    """
+    Validate API URL to prevent SSRF attacks.
+
+    Args:
+        url: The URL to validate
+
+    Returns:
+        True if URL is valid and safe
+
+    Raises:
+        ValueError: If URL is invalid or potentially malicious
+    """
+    try:
+        parsed = urlparse(url)
+
+        # Must have scheme (http/https)
+        if parsed.scheme not in ['http', 'https']:
+            raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.")
+
+        # Must have netloc (hostname)
+        if not parsed.netloc:
+            raise ValueError("Invalid URL: missing hostname")
+
+        # Block common SSRF targets
+        blocked_hosts = [
+            'localhost',
+            '127.0.0.1',
+            '0.0.0.0',
+            '169.254.169.254',  # AWS metadata
+            '::1',  # IPv6 localhost
+        ]
+
+        hostname = parsed.hostname
+        if not hostname:
+            raise ValueError("Invalid URL: could not extract hostname")
+
+        # Check if hostname is in blocked list
+        if hostname.lower() in blocked_hosts:
+            raise ValueError(f"Access to {hostname} is not allowed for security reasons")
+
+        # Block local IP ranges (basic check)
+        if hostname.startswith('192.168.') or hostname.startswith('10.') or hostname.startswith('172.'):
+            raise ValueError(f"Access to local IP {hostname} is not allowed")
+
+        return True
+
+    except Exception as e:
+        raise ValueError(f"Invalid API URL: {str(e)}")
 
 
 def estimate_step_timings(config: PipelineConfig) -> StepTiming:
@@ -110,9 +162,13 @@ def call_rag_api(query: str, config: PipelineConfig, api_url: str) -> Dict[str, 
     Call RAG API with given config.
 
     Raises:
+        ValueError: If API URL is invalid or potentially malicious
         requests.exceptions.RequestException: On API errors
         TimeoutError: If request times out
     """
+    # Validate URL to prevent SSRF
+    validate_api_url(api_url)
+
     request_data = {
         "query": query,
         "use_query_analysis": config.query_analysis_enabled,

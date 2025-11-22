@@ -5,6 +5,7 @@ from datetime import datetime
 
 from src.ragx.ui.constants.types import PipelineConfig
 from ..config import PRESETS
+from ..helpers.helpers import validate_api_url
 
 def render_sidebar(api_url: str) -> PipelineConfig:
     """
@@ -187,6 +188,9 @@ def _render_connection_status(api_url: str):
     # Only check on button click (avoid spam)
     if st.button("🔄 Check connection"):
         try:
+            # Validate URL first to prevent SSRF
+            validate_api_url(api_url)
+
             response = requests.get(f"{api_url}/info/health", timeout=2)
             if response.ok:
                 st.session_state.connection_status = {
@@ -198,6 +202,12 @@ def _render_connection_status(api_url: str):
                     "status": "error",
                     "message": f"API Error (status {response.status_code})",
                 }
+        except ValueError as e:
+            # URL validation failed
+            st.session_state.connection_status = {
+                "status": "error",
+                "message": f"Invalid URL: {str(e)}",
+            }
         except Exception:
             st.session_state.connection_status = {
                 "status": "error",

@@ -2,6 +2,7 @@ import time
 import threading
 import streamlit as st
 from typing import Dict, Any
+from queue import Queue
 
 from src.ragx.ui.constants.types import PipelineConfig
 from src.ragx.ui.helpers.helpers import get_pipeline_steps, call_rag_api
@@ -45,18 +46,17 @@ def show_progress_with_api_call(
     status_text = st.empty()
     timing_text = st.empty()
 
-    # Thread communication
+    # Thread communication using Queue for thread-safety
     api_done = threading.Event()
-    api_result = {}
-    api_error = {}
+    result_queue = Queue()
 
     def api_call_thread():
         """Background thread for API call."""
         try:
             result = call_rag_api(prompt, config, api_url)
-            api_result['data'] = result
+            result_queue.put(('success', result))
         except Exception as e:
-            api_error['error'] = e
+            result_queue.put(('error', e))
         finally:
             api_done.set()
 
@@ -93,16 +93,20 @@ def show_progress_with_api_call(
                 break
 
     # Wait for API to complete (with timeout)
-    api_done.wait(timeout=120)
-
-    # Check for errors
-    if 'error' in api_error:
-        raise api_error['error']
-
-    if 'data' not in api_result:
+    if not api_done.wait(timeout=120):
         raise TimeoutError("API request timed out after 120 seconds")
 
-    result = api_result['data']
+    # Retrieve result from queue (thread-safe)
+    try:
+        status, data = result_queue.get(timeout=1)
+        if status == 'error':
+            raise data
+        result = data
+    except Exception as e:
+        # If queue is empty or other issue, re-raise
+        if isinstance(e, TimeoutError):
+            raise TimeoutError("Failed to retrieve API result from queue")
+        raise
 
     # Complete progress
     progress_bar.progress(1.0)
