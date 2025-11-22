@@ -36,6 +36,7 @@ template: |
   
   <coverage_gate>
   - Ensure each major aspect of the final answer has at least one supporting source.
+  - In summary, if present, link most important facts together with citations.
   - Omit or mark as uncertain any part without evidence.
   </coverage_gate>
   
