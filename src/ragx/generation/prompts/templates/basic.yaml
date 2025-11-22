@@ -18,5 +18,6 @@ template: |
   QUESTION:
   {query}
   
+  No formatting needed, plain text only.
   Based on the contexts above, provide a complete answer to:
   ANSWER:
