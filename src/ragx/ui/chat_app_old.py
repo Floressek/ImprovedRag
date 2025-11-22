@@ -1,16 +1,3 @@
-"""
-RAGx Interactive Chat UI with Live Status Display
-
-Features:
-- Real-time pipeline step visualization
-- Pipeline configuration selector (baseline/enhanced/custom)
-- Detailed timing and metadata display
-- Source citations with expandable details
-- A/B comparison mode
-- Timing charts and session statistics
-- Export functionality
-"""
-
 from __future__ import annotations
 
 import streamlit as st

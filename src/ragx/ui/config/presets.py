@@ -1,6 +1,4 @@
-"""Pipeline configuration presets."""
-
-from src.ragx.ui.types import PipelineConfig
+from src.ragx.ui.constants.types import PipelineConfig
 
 PRESETS = {
     "baseline": PipelineConfig(

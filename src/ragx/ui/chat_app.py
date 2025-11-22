@@ -1,17 +1,3 @@
-"""
-RAGx Interactive Chat UI - Main Entry Point
-
-A beautiful, interactive chat interface for RAGx with real-time pipeline visualization.
-Built with modular components for maintainability and extensibility.
-
-Features:
-- Real-time progress tracking with realistic timing estimates
-- Pipeline configuration presets (baseline/enhanced/custom)
-- A/B comparison mode for ablation studies
-- Detailed timing visualization and source citations
-- Session statistics and export functionality
-"""
-
 import streamlit as st
 import time
 
@@ -21,7 +7,7 @@ from src.ragx.ui.components import (
     render_message_history,
     show_progress_with_api_call,
 )
-from src.ragx.ui.helpers import call_rag_api, update_session_stats
+from src.ragx.ui.helpers.helpers import call_rag_api, update_session_stats
 
 # Page configuration
 st.set_page_config(
@@ -33,52 +19,6 @@ st.set_page_config(
 
 # Initialize session state
 initialize_session_state()
-
-# ============================================================================
-# SIDEBAR
-# ============================================================================
-
-with st.sidebar:
-    preset = render_sidebar(st.session_state.api_url)
-
-# ============================================================================
-# MAIN CHAT INTERFACE
-# ============================================================================
-
-st.title("💬 RAGx Interactive Chat")
-st.caption(f"Using pipeline: **{preset.name}**")
-
-# Display chat history
-render_message_history()
-
-# Handle example query or user input
-if "example_query" in st.session_state and st.session_state.example_query:
-    prompt = st.session_state.example_query
-    st.session_state.example_query = None
-elif prompt := st.chat_input("Ask a question..."):
-    pass
-else:
-    prompt = None
-
-# Process user query
-if prompt:
-    # Add user message
-    st.session_state.messages.append({
-        "role": "user",
-        "content": prompt,
-        "timestamp": time.time()
-    })
-
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    # Check if A/B comparison mode is enabled
-    if st.session_state.comparison_mode:
-        _run_comparison_mode(prompt, st.session_state.api_url)
-    else:
-        _run_single_query(prompt, preset, st.session_state.api_url)
-
-    st.rerun()
 
 
 # ============================================================================
@@ -191,6 +131,54 @@ def _run_comparison_mode(prompt: str, api_url: str):
                     config.name,
                     result.get("metadata", {}).get("total_time_ms", 0)
                 )
+
+
+# ============================================================================
+# SIDEBAR
+# ============================================================================
+
+with st.sidebar:
+    preset = render_sidebar(st.session_state.api_url)
+
+# ============================================================================
+# MAIN CHAT INTERFACE
+# ============================================================================
+
+st.title("💬 RAGx Interactive Chat")
+st.caption(f"Using pipeline: **{preset.name}**")
+
+# Display chat history
+render_message_history()
+
+# Handle example query or user input
+if "example_query" in st.session_state and st.session_state.example_query:
+    prompt = st.session_state.example_query
+    st.session_state.example_query = None
+elif prompt := st.chat_input("Ask a question..."):
+    pass
+else:
+    prompt = None
+
+# Process user query
+if prompt:
+    # Add user message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": prompt,
+        "timestamp": time.time()
+    })
+
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # Check if A/B comparison mode is enabled
+    if st.session_state.comparison_mode:
+        _run_comparison_mode(prompt, st.session_state.api_url)
+    else:
+        _run_single_query(prompt, preset, st.session_state.api_url)
+
+    st.rerun()
+
 
 
 # ============================================================================

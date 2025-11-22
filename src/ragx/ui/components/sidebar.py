@@ -1,14 +1,10 @@
-"""Sidebar component with configuration and features."""
-
 import streamlit as st
 import requests
 import json
 from datetime import datetime
-from typing import Optional
 
-from ..types import PipelineConfig
+from src.ragx.ui.constants.types import PipelineConfig
 from ..config import PRESETS
-
 
 def render_sidebar(api_url: str) -> PipelineConfig:
     """

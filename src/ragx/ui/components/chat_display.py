@@ -1,5 +1,3 @@
-"""Chat display components for messages and sources."""
-
 import streamlit as st
 from typing import Dict, Any, List
 

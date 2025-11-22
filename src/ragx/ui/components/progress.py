@@ -1,12 +1,10 @@
-"""Progress tracking component with realistic timing."""
-
 import time
 import threading
 import streamlit as st
-from typing import Dict, Any, Callable
+from typing import Dict, Any
 
-from ..types import PipelineConfig
-from ..helpers import get_pipeline_steps, call_rag_api
+from src.ragx.ui.constants.types import PipelineConfig
+from src.ragx.ui.helpers.helpers import get_pipeline_steps, call_rag_api
 
 
 def show_progress_with_api_call(
