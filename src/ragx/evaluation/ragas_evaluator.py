@@ -324,7 +324,10 @@ class RAGASEvaluator:
             num_candidates = metadata_list[i].get("num_candidates", 0)
             if len(sub_queries) > 1 and results_by_subquery:
                 # Multihop: calculate average candidates per sub-query
-                total_candidates = sum(len(results) for results in results_by_subquery.values())
+                total_candidates = sum(
+                    r if isinstance(r, int) else len(r)
+                    for r in results_by_subquery.values()
+                )
                 num_candidates = total_candidates / len(sub_queries) if sub_queries else num_candidates
 
             multihop_coverage = calculate_multihop_coverage(

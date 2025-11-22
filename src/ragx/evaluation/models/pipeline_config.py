@@ -134,13 +134,23 @@ class AblationStudyResult:
                 "num_paired_samples": len(paired_scores_a),
             }
 
-        # T-test on paired samples
-        t_stat, p_value = stats.ttest_rel(paired_scores_a, paired_scores_b)
+        # Get overall means from evaluations (includes all questions)
+        mean_a = getattr(result_a.evaluation, metric)
+        mean_b = getattr(result_b.evaluation, metric)
+        mean_diff = mean_a - mean_b
+
+        # Check if scores are identical (variance = 0 → NaN p-value)
+        differences = [a - b for a, b in zip(paired_scores_a, paired_scores_b)]
+        if len(set(differences)) == 1:
+            # All differences are identical → no variance → p-value = 1.0 (no significant difference)
+            t_stat = 0.0
+            p_value = 1.0
+        else:
+            # T-test on paired samples
+            t_stat, p_value = stats.ttest_rel(paired_scores_a, paired_scores_b)
 
         # Effect size (Cohen's d for paired samples)
         # For paired t-test, use standard deviation of differences
-        mean_diff = statistics.mean(paired_scores_a) - statistics.mean(paired_scores_b)
-        differences = [a - b for a, b in zip(paired_scores_a, paired_scores_b)]
         std_diff = statistics.stdev(differences) if len(differences) > 1 else 0.0
         cohens_d = mean_diff / std_diff if std_diff > 0 else 0.0
 
@@ -148,8 +158,8 @@ class AblationStudyResult:
             "config_a": config_a,
             "config_b": config_b,
             "metric": metric,
-            "mean_a": getattr(result_a.evaluation, metric),
-            "mean_b": getattr(result_b.evaluation, metric),
+            "mean_a": mean_a,
+            "mean_b": mean_b,
             "mean_diff": mean_diff,
             "t_statistic": t_stat,
             "p_value": p_value,
