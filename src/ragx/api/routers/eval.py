@@ -287,6 +287,7 @@ def _apply_cove(
     # to avoid adding refuted/contradictory evidences that would lower faithfulness scores
     all_evidences = cove_result.metadata.get("all_evidences", [])
     if all_evidences:
+        original_context_ids = {ctx.get("id") for ctx in contexts if ctx.get("id") is not None}
         existing_ids = {ctx.get("id") for ctx in sources if ctx.get("id") is not None}
 
         for ev in all_evidences:
@@ -294,11 +295,16 @@ def _apply_cove(
             if not ev_id or ev_id in existing_ids or str(ev_id).startswith("unknown_"):
                 continue
 
-            # Filter: only add evidences from verified claims (label="supports")
-            # Skip refuted/insufficient evidences - they contradict the answer and hurt RAGAS scores
+            # Filter 1: only verified claims (label="supports")
             verification_label = ev.get("verification_label", "unknown")
             if verification_label != "supports":
                 logger.debug(f"Skipping CoVe evidence with label '{verification_label}': {ev_id}")
+                continue
+
+            # Filter 2: only evidences from ORIGINAL contexts (skip recovery evidences)
+            # Recovery evidences have new doc_ids that weren't in original retrieval
+            if ev_id not in original_context_ids:
+                logger.debug(f"Skipping CoVe recovery evidence (not in original contexts): {ev_id}")
                 continue
 
             sources.append({
@@ -313,6 +319,7 @@ def _apply_cove(
             existing_ids.add(ev_id)
 
     return final_answer, sources, cove_metadata
+
 
 def _validate_config(
         query_analysis_enabled: bool,
@@ -401,6 +408,7 @@ def _validate_config(
         }
 
     return None
+
 
 @router.post("/ablation", response_model=PipelineAblationResponse)
 async def pipeline_ablation(
