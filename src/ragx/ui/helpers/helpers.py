@@ -1,10 +1,8 @@
-"""Helper functions for RAGx Chat UI."""
-
 import requests
 import streamlit as st
 from typing import Dict, Any, List
 
-from .types import PipelineConfig, PipelineStep, StepTiming
+from src.ragx.ui.constants.types import PipelineConfig, PipelineStep, StepTiming
 
 
 def estimate_step_timings(config: PipelineConfig) -> StepTiming:

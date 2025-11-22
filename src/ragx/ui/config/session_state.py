@@ -1,5 +1,3 @@
-"""Session state initialization for Streamlit."""
-
 import streamlit as st
 
 
