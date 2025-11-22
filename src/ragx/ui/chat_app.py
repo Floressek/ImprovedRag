@@ -143,7 +143,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "api_url" not in st.session_state:
-    st.session_state.api_url = "http://localhost:8000"
+    st.session_state.api_url = "http://localhost:8080"
 
 if "comparison_mode" not in st.session_state:
     st.session_state.comparison_mode = False
@@ -362,7 +362,7 @@ with st.sidebar:
     # Connection status
     st.markdown("### Connection Status")
     try:
-        response = requests.get(f"{api_url}/health", timeout=2)
+        response = requests.get(f"{api_url}/info/health", timeout=2)
         if response.ok:
             st.success("✅ Connected")
         else:
@@ -476,7 +476,15 @@ for message in st.session_state.messages:
                         # Full text with expandable view
                         source_text = source.get('text', '')
                         if len(source_text) > 300:
-                            with st.expander("📖 View full text"):
+                            # Skrót
+                            st.caption(source_text[:300] + "...")
+
+                            # Przełącznik do pokazania pełnego tekstu
+                            show_full = st.checkbox(
+                                "📖 View full text",
+                                key=f"show_full_{i}_{message.get('timestamp', '')}"
+                            )
+                            if show_full:
                                 st.text_area(
                                     "Source text",
                                     source_text,
