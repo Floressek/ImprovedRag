@@ -11,8 +11,19 @@ sys.path.insert(0, str(project_root))
 
 import logging
 
-from src.ragx.evaluation.ablation_study import AblationStudy, PipelineConfig
+from src.ragx.evaluation.ablation_study import AblationStudy
 from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator
+from src.ragx.evaluation.models import PipelineConfig
+from src.ragx.evaluation.configs import (
+    BASELINE,
+    QUERY_ONLY,
+    RERANKER_ONLY,
+    COVE_AUTO_ONLY,
+    FULL_NO_COVE,
+    FULL_COVE_AUTO,
+    FULL_COVE_METADATA,
+    FULL_COVE_SUGGEST,
+)
 
 from colorlog import ColoredFormatter
 
@@ -256,14 +267,14 @@ def main():
     configs = None
     if args.configs:
         config_map = {
-            "baseline": AblationStudy.BASELINE,
-            "query_only": AblationStudy.QUERY_ONLY,
-            "reranker_only": AblationStudy.RERANKER_ONLY,
-            "cove_auto_only": AblationStudy.COVE_AUTO_ONLY,
-            "full_no_cove": AblationStudy.FULL_NO_COVE,
-            "full_cove_auto": AblationStudy.FULL_COVE_AUTO,
-            "full_cove_metadata": AblationStudy.FULL_COVE_METADATA,
-            "full_cove_suggest": AblationStudy.FULL_COVE_SUGGEST,
+            "baseline": BASELINE,
+            "query_only": QUERY_ONLY,
+            "reranker_only": RERANKER_ONLY,
+            "cove_auto_only": COVE_AUTO_ONLY,
+            "full_no_cove": FULL_NO_COVE,
+            "full_cove_auto": FULL_COVE_AUTO,
+            "full_cove_metadata": FULL_COVE_METADATA,
+            "full_cove_suggest": FULL_COVE_SUGGEST,
         }
         configs = [config_map[name] for name in args.configs]
 
