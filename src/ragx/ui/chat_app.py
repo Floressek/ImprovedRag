@@ -217,11 +217,25 @@ if save_clicked:
 
         with save_col2:
             md_content = f"# RAGx Chat Session\n\n**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
             for msg in st.session_state.messages:
                 role = "**User:**" if msg["role"] == "user" else "**Assistant:**"
                 md_content += f"{role}\n{msg['content']}\n\n"
-                if msg["role"] == "assistant" and "sources" in msg:
-                    md_content += f"*Sources: {len(msg['sources'])} documents*\n\n"
+
+                if msg["role"] == "assistant":
+                    # Add sources info
+                    if "sources" in msg:
+                        md_content += f"*Sources: {len(msg['sources'])} documents*\n\n"
+
+                    # Add CoVe info if present
+                    if "metadata" in msg:
+                        cove_data = msg["metadata"].get("cove", {})
+                        if cove_data.get("needs_correction"):
+                            md_content += f"*CoVe Status: {cove_data.get('status', 'N/A')} - "
+                            md_content += f"{cove_data.get('num_verified', 0)} verified, "
+                            md_content += f"{cove_data.get('num_refuted', 0)} refuted*\n\n"
+
+                md_content += "---\n\n"
 
             st.download_button(
                 label="📥 Download as Markdown",
