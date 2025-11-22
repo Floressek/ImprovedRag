@@ -108,11 +108,6 @@ def render_sidebar(api_url: str) -> PipelineConfig:
 
     st.divider()
 
-    # Chat Management
-    _render_chat_management()
-
-    st.divider()
-
     # Advanced features
     _render_advanced_features()
 
@@ -127,71 +122,6 @@ def render_sidebar(api_url: str) -> PipelineConfig:
     _render_connection_status(api_url)
 
     return preset
-
-
-def _render_chat_management():
-    """Render chat management section."""
-    st.markdown("### 💬 Chat Management")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        # New Chat button
-        if st.button("🆕 New Chat", use_container_width=True, help="Start a new conversation"):
-            st.session_state.messages = []
-            st.session_state.session_stats = {
-                "total_queries": 0,
-                "total_time_ms": 0,
-                "configs_used": {},
-            }
-            st.rerun()
-
-    with col2:
-        # Delete Chat button (same as New Chat, different label)
-        if st.button("🗑️ Delete Chat", use_container_width=True, help="Clear current conversation"):
-            st.session_state.messages = []
-            st.session_state.session_stats = {
-                "total_queries": 0,
-                "total_time_ms": 0,
-                "configs_used": {},
-            }
-            st.rerun()
-
-    # Save Chat button (full width)
-    if st.button("💾 Save Chat", use_container_width=True, help="Export conversation to file"):
-        if st.session_state.messages:
-            export_data = {
-                "timestamp": datetime.now().isoformat(),
-                "stats": st.session_state.session_stats,
-                "messages": st.session_state.messages,
-            }
-
-            # JSON download
-            st.download_button(
-                label="📥 Download as JSON",
-                data=json.dumps(export_data, indent=2, ensure_ascii=False),
-                file_name=f"ragx_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json",
-                use_container_width=True,
-            )
-
-            # Markdown download
-            md_content = f"# RAGx Chat Session\n\n**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-            for msg in st.session_state.messages:
-                role = "**User:**" if msg["role"] == "user" else "**Assistant:**"
-                md_content += f"{role}\n{msg['content']}\n\n"
-                if msg["role"] == "assistant" and "sources" in msg:
-                    md_content += f"*Sources: {len(msg['sources'])} documents*\n\n"
-
-            st.download_button(
-                label="📥 Download as Markdown",
-                data=md_content,
-                file_name=f"ragx_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                mime="text/markdown",
-                use_container_width=True,
-            )
-        else:
-            st.info("💡 No messages to save yet")
 
 
 def _render_advanced_features():

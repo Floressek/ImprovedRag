@@ -1,5 +1,7 @@
 import streamlit as st
 import time
+import json
+from datetime import datetime
 
 from src.ragx.ui.config import PRESETS, initialize_session_state
 from src.ragx.ui.components import (
@@ -153,11 +155,85 @@ with st.sidebar:
     preset = render_sidebar(st.session_state.api_url)
 
 # ============================================================================
-# MAIN CHAT INTERFACE
+# MAIN CHAT INTERFACE - HEADER
 # ============================================================================
 
-st.title("💬 RAGx Interactive Chat")
-st.caption(f"Using pipeline: **{preset.name}**")
+# Header with title and chat controls (ChatGPT style)
+header_col1, header_col2 = st.columns([3, 1])
+
+with header_col1:
+    st.title("💬 RAGx Interactive Chat")
+    st.caption(f"Using pipeline: **{preset.name}**")
+
+with header_col2:
+    # Chat controls in header (like ChatGPT)
+    st.write("")  # Spacing
+
+    btn_col1, btn_col2, btn_col3 = st.columns(3)
+
+    with btn_col1:
+        if st.button("🆕", help="New chat", use_container_width=True):
+            st.session_state.messages = []
+            st.session_state.session_stats = {
+                "total_queries": 0,
+                "total_time_ms": 0,
+                "configs_used": {},
+            }
+            st.rerun()
+
+    with btn_col2:
+        if st.button("🗑️", help="Delete chat", use_container_width=True):
+            st.session_state.messages = []
+            st.session_state.session_stats = {
+                "total_queries": 0,
+                "total_time_ms": 0,
+                "configs_used": {},
+            }
+            st.rerun()
+
+    with btn_col3:
+        # Save button with popup
+        save_clicked = st.button("💾", help="Save chat", use_container_width=True)
+
+# Save dialog (appears below header when clicked)
+if save_clicked:
+    if st.session_state.messages:
+        export_data = {
+            "timestamp": datetime.now().isoformat(),
+            "stats": st.session_state.session_stats,
+            "messages": st.session_state.messages,
+        }
+
+        save_col1, save_col2 = st.columns(2)
+
+        with save_col1:
+            st.download_button(
+                label="📥 Download as JSON",
+                data=json.dumps(export_data, indent=2, ensure_ascii=False),
+                file_name=f"ragx_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json",
+                use_container_width=True,
+            )
+
+        with save_col2:
+            md_content = f"# RAGx Chat Session\n\n**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            for msg in st.session_state.messages:
+                role = "**User:**" if msg["role"] == "user" else "**Assistant:**"
+                md_content += f"{role}\n{msg['content']}\n\n"
+                if msg["role"] == "assistant" and "sources" in msg:
+                    md_content += f"*Sources: {len(msg['sources'])} documents*\n\n"
+
+            st.download_button(
+                label="📥 Download as Markdown",
+                data=md_content,
+                file_name=f"ragx_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                mime="text/markdown",
+                use_container_width=True,
+            )
+    else:
+        st.info("💡 No messages to save yet")
+
+st.divider()
 
 # Display chat history
 render_message_history()
