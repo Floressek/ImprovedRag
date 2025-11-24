@@ -1,0 +1,20 @@
+services:
+  vllm-qwen3-32b:
+    image: vllm/vllm-openai:latest
+    container_name: vllm-qwen3-32b
+    ports:
+      - "8000:8000"
+    volumes:
+      - /home/administrator/w183/huggingface_cache:/root/.cache/huggingface
+    command: >
+      --model Qwen/Qwen3-32B
+      --trust-remote-code
+      --host 0.0.0.0
+      --port 8000
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

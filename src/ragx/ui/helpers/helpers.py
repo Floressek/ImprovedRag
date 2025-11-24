@@ -30,26 +30,26 @@ def validate_api_url(url: str) -> bool:
         if not parsed.netloc:
             raise ValueError("Invalid URL: missing hostname")
 
-        # Block common SSRF targets
-        blocked_hosts = [
-            'localhost',
-            '127.0.0.1',
-            '0.0.0.0',
-            '169.254.169.254',  # AWS metadata
-            '::1',  # IPv6 localhost
-        ]
-
-        hostname = parsed.hostname
-        if not hostname:
-            raise ValueError("Invalid URL: could not extract hostname")
-
-        # Check if hostname is in blocked list
-        if hostname.lower() in blocked_hosts:
-            raise ValueError(f"Access to {hostname} is not allowed for security reasons")
-
-        # Block local IP ranges (basic check)
-        if hostname.startswith('192.168.') or hostname.startswith('10.') or hostname.startswith('172.'):
-            raise ValueError(f"Access to local IP {hostname} is not allowed")
+        # # Block common SSRF targets
+        # blocked_hosts = [
+        #     'localhost',
+        #     '127.0.0.1',
+        #     '0.0.0.0',
+        #     '169.254.169.254',  # AWS metadata
+        #     '::1',  # IPv6 localhost
+        # ]
+        #
+        # hostname = parsed.hostname
+        # if not hostname:
+        #     raise ValueError("Invalid URL: could not extract hostname")
+        #
+        # # Check if hostname is in blocked list
+        # if hostname.lower() in blocked_hosts:
+        #     raise ValueError(f"Access to {hostname} is not allowed for security reasons")
+        #
+        # # Block local IP ranges (basic check)
+        # if hostname.startswith('192.168.') or hostname.startswith('10.') or hostname.startswith('172.'):
+        #     raise ValueError(f"Access to local IP {hostname} is not allowed")
 
         return True
 
