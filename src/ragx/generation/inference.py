@@ -195,7 +195,6 @@ class LLMInference:
 
         # for HuggingFace
         inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True).to(self.llm_model.device)
-
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,

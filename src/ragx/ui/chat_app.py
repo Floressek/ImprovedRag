@@ -3,6 +3,13 @@ import time
 import json
 from datetime import datetime
 
+import sys
+import os
+
+# Dodaj root projektu do sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
+
+
 from src.ragx.ui.config import PRESETS, initialize_session_state
 from src.ragx.ui.components import (
     render_sidebar,
@@ -72,8 +79,6 @@ def _run_single_query(prompt: str, preset, api_url: str):
 
         # Update session stats
         update_session_stats(preset.name, metadata.get("total_time_ms", 0))
-
-        # Add to chat history
         st.session_state.messages.append({
             "role": "assistant",
             "content": answer,
@@ -124,7 +129,7 @@ def _run_comparison_mode(prompt: str, api_url: str):
                     sources = result.get("sources", [])
 
                     # Display answer
-                    st.markdown(answer, unsafe_allow_html=False)
+                    st.markdown(answer, unsafe_allow_html=True)
 
                     # Display full metadata with expanders
                     if metadata:

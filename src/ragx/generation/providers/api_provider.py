@@ -3,6 +3,7 @@ import logging
 from typing import Optional, Iterator
 import requests
 import json
+import re
 
 from src.ragx.utils.settings import settings
 
@@ -55,8 +56,8 @@ class APIProvider:
             "enable_thinking": False,
         }
 
-        # if chain_of_thought_enabled is not None:
-        #     payload["extra_body"] = {"enable_thinking": chain_of_thought_enabled}
+        if chain_of_thought_enabled is not None:
+            payload["extra_body"] = {"enable_thinking": chain_of_thought_enabled}
 
         url = f"{self.base_url}/chat/completions"
         logger.info(f"🔍 Making request to: {url}")
@@ -81,21 +82,38 @@ class APIProvider:
 
             generated_text = data['choices'][0]['message']['content']
 
-            logger.info(f"Generated text: {generated_text}")
+            # 1. Najpierw próbujemy wyciągnąć thinking z tekstu (dla vLLM/DeepSeek)
+            thinking_content = None
+            patterns = [
+                (r'<think>(.*?)</think>', 'think'),
+                (r'<thinking>(.*?)</thinking>', 'thinking'),
+            ]
 
-            # Extract thinking/reasoning if present
+            for pattern, tag_name in patterns:
+                match = re.search(pattern, generated_text, re.DOTALL)
+                if match:
+                    thinking_content = match.group(1).strip()
+                    # Usuwamy sekcję thinking z głównego tekstu
+                    generated_text = re.sub(pattern, '', generated_text, flags=re.DOTALL).strip()
+                    logger.info(f"Found {tag_name} tag in text response")
+                    break
+
+            logger.info(f"Generated text (cleaned): {generated_text}")
+
+            # 2. Logika CoT
             if chain_of_thought_enabled:
-                thinking = None
-                message = data['choices'][0]['message']
-                if 'thinking' in message:
-                    thinking = message['thinking']
-                elif 'reasoning' in message:
-                    thinking = message['reasoning']
-                elif 'thoughts' in message:
-                    thinking = message['thoughts']
+                # Jeśli nie znaleźliśmy w tekście, sprawdzamy pola JSON (dla innych providerów)
+                if not thinking_content:
+                    message = data['choices'][0]['message']
+                    if 'thinking' in message:
+                        thinking_content = message['thinking']
+                    elif 'reasoning' in message:
+                        thinking_content = message['reasoning']
+                    elif 'thoughts' in message:
+                        thinking_content = message['thoughts']
 
-                if thinking:
-                    logger.info(f"Thinking process: {thinking}")
+                if thinking_content:
+                    logger.info(f"Thinking process: {thinking_content}")
                 else:
                     logger.warning("Chain of thought enabled but no thinking data found in response")
 
