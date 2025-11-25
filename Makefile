@@ -6,10 +6,13 @@ DOCKER_COMPOSE = docker-compose
 PIPELINE = $(PY) -m src.ragx.ingestion.pipelines.pipeline
 
 # Evaluation settings (can override: make eval-run NUM_QUESTIONS=50)
-NUM_QUESTIONS ?= 20
-RUN_ID ?= study_$(shell powershell -Command "Get-Date -Format 'yyyyMMdd_HHmmss'")
+NUM_QUESTIONS ?= 200
+# Linux date command syntax
+RUN_ID ?= study_$(shell date +%Y%m%d_%H%M%S)
 CHECKPOINT_DIR ?= checkpoints
-EVAL_OUTPUT ?= results/ablation_$(shell powershell -Command "Get-Date -Format 'yyyyMMdd_HHmmss'").json
+EVAL_OUTPUT ?= results/ablation_$(shell date +%Y%m%d_%H%M%S).json
+# Get current directory for Docker volumes
+PWD := $(shell pwd)
 
 
 help:
@@ -93,8 +96,12 @@ setup-qdrant:
 	@echo "Starting Qdrant..."
 	$(DOCKER_COMPOSE) up -d qdrant
 	@echo "Waiting for Qdrant to be ready..."
-	@powershell -Command "Start-Sleep -Seconds 3"
-	@powershell -Command "try { $$response = Invoke-RestMethod -Uri 'http://localhost:6333/' -TimeoutSec 10; Write-Host 'Qdrant is running' } catch { Write-Host 'Qdrant failed to start' }"
+	@sleep 3
+	@if curl -s -o /dev/null -w "%{http_code}" http://localhost:6333/collections | grep -q "200"; then \
+		echo "Qdrant is running"; \
+	else \
+		echo "Qdrant failed to start"; \
+	fi
 
 stop-qdrant:
 	@echo "Stopping Qdrant..."
@@ -106,14 +113,23 @@ stop-qdrant:
 
 download-wiki:
 	@echo "Downloading Polish Wikipedia dump..."
-	@if not exist "data\raw" mkdir data\raw
-	@powershell -Command "$$confirm = Read-Host 'This will download ~2-3 GB. Continue? (y/N)'; if ($$confirm -ne 'y') { Write-Host 'Download cancelled'; exit 1 }"
+	@mkdir -p data/raw
+	@read -p "This will download ~2-3 GB. Continue? (y/N) " confirm; \
+	if [ "$$confirm" != "y" ]; then \
+		echo "Download cancelled"; \
+		exit 1; \
+	fi
 	@curl -L "https://dumps.wikimedia.org/plwiki/latest/plwiki-latest-pages-articles-multistream.xml.bz2" -o data/raw/plwiki-latest.xml.bz2
 	@echo "Wikipedia dump downloaded!"
 
 extract-wiki:
 	@echo "Extracting Wikipedia dump using Docker..."
-	@powershell -Command "docker run --rm -v \"$${PWD}/data:/data\".Replace('\', '/') python:3.11-slim bash -c \"apt-get update -qq && apt-get install -y -qq git && pip install -q git+https://github.com/attardi/wikiextractor.git && mkdir -p /data/processed/wiki_extracted && wikiextractor /data/raw/plwiki-latest.xml.bz2 --output /data/processed/wiki_extracted --bytes 1M --processes 8 --json --no-templates\""
+	@docker run --rm -v "$(PWD)/data:/data" python:3.11-slim bash -c \
+		"apt-get update -qq && \
+		apt-get install -y -qq git && \
+		pip install -q git+https://github.com/attardi/wikiextractor.git && \
+		mkdir -p /data/processed/wiki_extracted && \
+		wikiextractor /data/raw/plwiki-latest.xml.bz2 --output /data/processed/wiki_extracted --bytes 1M --processes 8 --json --no-templates"
 	@echo "Wikipedia extraction complete!"
 
 # ============================================================================
@@ -157,12 +173,12 @@ ingest-experiment: setup-qdrant
 # Resume ingestion from last processed file
 ingest-resume: setup-qdrant
 	@echo "Resuming ingestion from last processed file..."
-	python -m src.ragx.ingestion.pipelines.pipeline ingest data/processed/wiki_extracted --resume --max-articles 10000
+	$(PY) -m src.ragx.ingestion.pipelines.pipeline ingest data/processed/wiki_extracted --resume --max-articles 10000
 
 # Start ingestion from specific file (use: make ingest-from FILE=wiki_00)
 ingest-from: setup-qdrant
 	@echo "Starting ingestion from file: $(FILE)"
-	python -m src.ragx.ingestion.pipelines.pipeline ingest data/processed/wiki_extracted --start-from-file $(FILE) --max-articles 10000
+	$(PY) -m src.ragx.ingestion.pipelines.pipeline ingest data/processed/wiki_extracted --start-from-file $(FILE) --max-articles 10000
 
 # ============================================================================
 # Search & Status
@@ -185,12 +201,16 @@ status:
 	@echo ""
 	@echo "System Check:"
 	@echo "Python:   $$($(PY) --version)"
-	@powershell -Command "try { $$null = Invoke-RestMethod -Uri 'http://localhost:6333/' -TimeoutSec 2; Write-Host 'Qdrant:   Running' } catch { Write-Host 'Qdrant:   Not running' }"
+	@if curl -s -o /dev/null -w "%{http_code}" http://localhost:6333/collections | grep -q "200"; then \
+		echo "Qdrant:   Running"; \
+	else \
+		echo "Qdrant:   Not running"; \
+	fi
 
 # Show detailed ingestion status with file history
 status-detailed:
 	@echo "Detailed ingestion status..."
-	python -m src.ragx.ingestion.pipelines.pipeline status --show-files
+	$(PY) -m src.ragx.ingestion.pipelines.pipeline status --show-files
 
 # Clear ingestion progress (start fresh)
 clear-progress:
@@ -210,7 +230,7 @@ docker-up:
 	@echo "Starting all services..."
 	$(DOCKER_COMPOSE) up -d
 	@echo "Waiting for services..."
-	@powershell -Command "Start-Sleep -Seconds 5"
+	@sleep 5
 	@$(DOCKER_COMPOSE) ps
 
 docker-down:
@@ -226,25 +246,25 @@ docker-logs:
 
 clean:
 	@echo "Cleaning cache files..."
-	@if exist __pycache__ rmdir /s /q __pycache__
-	@for /d /r %%d in (__pycache__) do @if exist "%%d" rmdir /s /q "%%d"
-	@for /d /r %%d in (.pytest_cache) do @if exist "%%d" rmdir /s /q "%%d"
-	@for /d /r %%d in (.mypy_cache) do @if exist "%%d" rmdir /s /q "%%d"
-	@for /d /r %%d in (.ruff_cache) do @if exist "%%d" rmdir /s /q "%%d"
-	@del /s /q *.pyc 2>nul
+	@rm -rf __pycache__
+	@find . -name "__pycache__" -type d -exec rm -rf {} +
+	@find . -name ".pytest_cache" -type d -exec rm -rf {} +
+	@find . -name ".mypy_cache" -type d -exec rm -rf {} +
+	@find . -name ".ruff_cache" -type d -exec rm -rf {} +
+	@find . -name "*.pyc" -delete
 	@echo "Cache cleaned!"
 
 clean-data:
 	@echo "Cleaning data files..."
-	@if exist data\processed\wiki_extracted rmdir /s /q data\processed\wiki_extracted
-	@if exist data\raw\*.bz2 del /q data\raw\*.bz2
+	@rm -rf data/processed/wiki_extracted
+	@rm -f data/raw/*.bz2
 	@echo "Data cleaned!"
 
 clean-all: clean clean-data
 	@echo "Deep cleaning..."
 	$(DOCKER_COMPOSE) down -v
-	@if exist models rmdir /s /q models
-	@if exist .cache rmdir /s /q .cache
+	@rm -rf models
+	@rm -rf .cache
 	@echo "Everything cleaned!"
 
 # ============================================================================
@@ -418,7 +438,7 @@ eval-help:
 
 eval-generate:
 	@echo "Generating $(NUM_QUESTIONS) test questions..."
-	@if not exist "data\eval" mkdir data\eval
+	@mkdir -p data/eval
 	$(PY) scripts/generate_questions.py \
 		--num-questions $(NUM_QUESTIONS) \
 		--data-dir data/processed/wiki_extracted \
@@ -444,8 +464,8 @@ eval-run:
 	@echo "Run ID: $(RUN_ID)"
 	@echo "Checkpoint dir: $(CHECKPOINT_DIR)"
 	@echo ""
-	@if not exist "$(CHECKPOINT_DIR)" mkdir $(CHECKPOINT_DIR)
-	@if not exist "results" mkdir results
+	@mkdir -p $(CHECKPOINT_DIR)
+	@mkdir -p results
 	$(PY) scripts/run_ablation_study.py \
 		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
 		--output $(EVAL_OUTPUT) \
@@ -462,7 +482,10 @@ eval-resume:
 	@echo "Resuming ablation study..."
 	@echo "Run ID: $(RUN_ID)"
 	@echo ""
-	@if not exist "$(CHECKPOINT_DIR)\checkpoint_$(RUN_ID).json" (echo ERROR: Checkpoint not found! && exit 1)
+	@if [ ! -f "$(CHECKPOINT_DIR)/checkpoint_$(RUN_ID).json" ]; then \
+		echo "ERROR: Checkpoint not found!"; \
+		exit 1; \
+	fi
 	$(PY) scripts/run_ablation_study.py \
 		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
 		--output $(EVAL_OUTPUT) \
@@ -478,7 +501,7 @@ eval-quick:
 	@echo "Running QUICK test (10 questions, 3 configs)..."
 	@echo "This should take ~2-5 minutes"
 	@echo ""
-	@if not exist "results" mkdir results
+	@mkdir -p results
 	$(PY) scripts/run_ablation_study.py \
 		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
 		--output results/quick_test.json \
@@ -492,8 +515,8 @@ eval-quick:
 
 eval-clean:
 	@echo "Cleaning evaluation data..."
-	@if exist "$(CHECKPOINT_DIR)" rmdir /s /q $(CHECKPOINT_DIR)
-	@if exist "results" rmdir /s /q results
-	@if exist "data\eval" rmdir /s /q data\eval
+	@rm -rf $(CHECKPOINT_DIR)
+	@rm -rf results
+	@rm -rf data/eval
 	@echo "Evaluation data cleaned!"
 	@echo ""
