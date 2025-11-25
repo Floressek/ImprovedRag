@@ -255,7 +255,6 @@ class AblationStudy:
                     }
                     metadata_list.append(metadata)
 
-                    # Success - break retry loop
                     break
 
                 except Exception as e:
@@ -267,7 +266,6 @@ class AblationStudy:
                     else:
                         logger.error(f"Question {i+1} failed after {max_retries} attempts: {e}")
                         failed_questions.append((i, q["question"], str(e)))
-                        # Add placeholder to maintain alignment
                         rag_questions.append(q["question"])
                         rag_answers.append("")
                         rag_contexts_list.append([])

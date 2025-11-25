@@ -1,4 +1,3 @@
-"""Predefined pipeline configurations for ablation studies."""
 from .predefined_configs import (
     BASELINE,
     ENHANCED_ONLY,

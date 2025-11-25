@@ -6,7 +6,8 @@ DOCKER_COMPOSE = docker-compose
 PIPELINE = $(PY) -m src.ragx.ingestion.pipelines.pipeline
 
 # Evaluation settings (can override: make eval-run NUM_QUESTIONS=50)
-NUM_QUESTIONS ?= 200
+#NUM_QUESTIONS ?= 200
+NUM_QUESTIONS ?= 1000
 # Linux date command syntax
 RUN_ID ?= study_$(shell date +%Y%m%d_%H%M%S)
 CHECKPOINT_DIR ?= checkpoints
@@ -507,6 +508,24 @@ eval-quick:
 		--output results/quick_test.json \
 		--configs baseline full_no_cove full_cove_auto \
 		--max-questions 5 \
+		--api-url http://localhost:8080
+	@echo ""
+	@echo "Quick test complete!"
+	@echo "Results: results/quick_test.json"
+	@echo ""
+
+eval-test:
+	@echo "Running QUICK mockup (10 questions, all configs)..."
+	@echo "This should take ~? minutes"
+	@echo ""
+	@mkdir -p results
+	$(PY) scripts/run_ablation_study.py \
+		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
+		--output results/quick_test.json \
+		--max-questions 10 \
+		--checkpoint-dir $(CHECKPOINT_DIR) \
+        --run-id $(RUN_ID) \
+        --resume \
 		--api-url http://localhost:8080
 	@echo ""
 	@echo "Quick test complete!"

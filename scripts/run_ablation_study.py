@@ -4,7 +4,11 @@ import argparse
 import sys
 from pathlib import Path
 
-# Add project root to path
+# from src.ragx.evaluation.configs import (
+#     ENHANCED_ONLY, MULTIHOP_ONLY, QUERY_RERANK, BASELINE, RERANKER_ONLY, COVE_AUTO_ONLY, \
+#     FULL_NO_COVE, FULL_COVE_AUTO, FULL_COVE_METADATA
+# )
+
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -14,13 +18,14 @@ from src.ragx.evaluation.ablation_study import AblationStudy
 from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator
 from src.ragx.evaluation.configs import (
     BASELINE,
-    QUERY_ONLY,
     RERANKER_ONLY,
+    ENHANCED_ONLY,
+    MULTIHOP_ONLY,
+    QUERY_RERANK,
     COVE_AUTO_ONLY,
     FULL_NO_COVE,
     FULL_COVE_AUTO,
     FULL_COVE_METADATA,
-    FULL_COVE_SUGGEST,
 )
 
 from colorlog import ColoredFormatter
@@ -48,7 +53,8 @@ def print_summary(result):
     print(f"Configurations Tested: {len(result.config_results)}\n")
 
     # Table header
-    print(f"{'Configuration':<20} {'Faith':>7} {'Rel':>7} {'Prec':>7} {'Recall':>7} {'Latency':>9} {'Cands':>7} {'Srcs':>6} {'Cov':>6}")
+    print(
+        f"{'Configuration':<20} {'Faith':>7} {'Rel':>7} {'Prec':>7} {'Recall':>7} {'Latency':>9} {'Cands':>7} {'Srcs':>6} {'Cov':>6}")
     print(f"{'-' * 20} {'-' * 7} {'-' * 7} {'-' * 7} {'-' * 7} {'-' * 9} {'-' * 7} {'-' * 6} {'-' * 6}")
 
     # Results per config
@@ -89,7 +95,8 @@ def print_summary(result):
 
         # Show pipeline flow
         if cfg.reranker_enabled and ev.num_multihop > 0:
-            print(f"  Pipeline: Retrieve ({ev.mean_num_candidates:.0f}) → Local Rerank → Fusion → Global Rerank → Top-K ({ev.mean_sources_count:.0f})")
+            print(
+                f"  Pipeline: Retrieve ({ev.mean_num_candidates:.0f}) → Local Rerank → Fusion → Global Rerank → Top-K ({ev.mean_sources_count:.0f})")
         elif cfg.reranker_enabled:
             print(f"  Pipeline: Retrieve ({ev.mean_num_candidates:.0f}) → Rerank → Top-K ({ev.mean_sources_count:.0f})")
         else:
@@ -139,7 +146,8 @@ def print_summary(result):
             print(f"  Full (CoVe Auto): {comparison['mean_a']:.3f}")
             print(f"  Baseline:         {comparison['mean_b']:.3f}")
             print(f"  Diff:             {comparison['mean_diff']:+.3f}")
-            print(f"  p-value:          {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
+            print(
+                f"  p-value:          {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
             print(f"  Effect:           {comparison['effect_size']} (d={comparison['cohens_d']:.2f})")
         print()
 
@@ -155,7 +163,8 @@ def print_summary(result):
             print(f"  With CoVe:    {comparison['mean_a']:.3f}")
             print(f"  Without CoVe: {comparison['mean_b']:.3f}")
             print(f"  Diff:         {comparison['mean_diff']:+.3f}")
-            print(f"  p-value:      {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
+            print(
+                f"  p-value:      {comparison['p_value']:.4f} {'✓ SIGNIFICANT' if comparison['significant'] else '✗ not significant'}")
             print(f"  Effect:       {comparison['effect_size']} (d={comparison['cohens_d']:.2f})")
         print()
 
@@ -266,15 +275,25 @@ def main():
     # Select configs
     configs = None
     if args.configs:
+        # config_map = {
+        #     "baseline": BASELINE,
+        #     "reranker_only": RERANKER_ONLY,
+        #     "cove_auto_only": COVE_AUTO_ONLY,
+        #     "full_no_cove": FULL_NO_COVE,
+        #     "full_cove_auto": FULL_COVE_AUTO,
+        #     "full_cove_metadata": FULL_COVE_METADATA,
+        # }
         config_map = {
             "baseline": BASELINE,
-            "query_only": QUERY_ONLY,
+            "enhanced_only": ENHANCED_ONLY,
             "reranker_only": RERANKER_ONLY,
+            "multihop_only": MULTIHOP_ONLY,
             "cove_auto_only": COVE_AUTO_ONLY,
+            # "cot_enhanced": TODO IMPLEMENT THIS ,
+            "query_rerank": QUERY_RERANK,
             "full_no_cove": FULL_NO_COVE,
             "full_cove_auto": FULL_COVE_AUTO,
             "full_cove_metadata": FULL_COVE_METADATA,
-            "full_cove_suggest": FULL_COVE_SUGGEST,
         }
         configs = [config_map[name] for name in args.configs]
 
@@ -298,8 +317,6 @@ def main():
 
     # Save results
     ablation.save_results(result, args.output)
-
-    # Print summary
     print_summary(result)
 
     logger.info("\n✓ Ablation study complete!")
