@@ -379,6 +379,24 @@ class MultihopRerankerEnhancer(Enhancer):
                 for sq in doc_sqs:
                     subquery_counts[sq] += 1
 
+        # Pass 3: Fill remaining to top_k (ignore max_per_query)
+        # Piroritizing the faithfullness of the reranked results
+        pass3_added = 0
+        if len(selected) < effective_top_k:
+            for doc_id, payload, score in final:
+                if len(selected) >= effective_top_k:
+                    break
+
+                if doc_id in selected_ids:
+                    continue
+
+                selected.append((doc_id, payload, score))
+                selected_ids.add(doc_id)
+                doc_sqs = doc_to_subqueries.get(doc_id, [])
+                for sq in doc_sqs:
+                    subquery_counts[sq] += 1
+                pass3_added += 1
+
         selected.sort(key=lambda x: x[2], reverse=True)
 
         logger.info(

@@ -1,6 +1,6 @@
 {
   "num_questions": 5,
-  "total_time_ms": 738524.313211441,
+  "total_time_ms": 1118046.2493896484,
   "configs": [
     {
       "name": "baseline",
@@ -14,39 +14,39 @@
         "top_k": 10
       },
       "evaluation": {
-        "mean_faithfulness": 0.9368421052631579,
-        "mean_answer_relevancy": 0.6857225925896363,
-        "mean_context_precision": 0.3961111110927963,
-        "mean_context_recall": 0.8,
-        "mean_latency_ms": 5330.584000000001,
+        "mean_faithfulness": 0.8949999999999999,
+        "mean_answer_relevancy": 0.6638670587477177,
+        "mean_context_precision": 0.570793650745111,
+        "mean_context_recall": 0.9,
+        "mean_latency_ms": 8686.712,
         "mean_sources_count": 10.0,
         "mean_num_candidates": 20.0,
         "mean_multihop_coverage": 0.0,
         "ci_faithfulness": [
-          0.37528486198110633,
-          1.1236625064399464
+          0.7428630879766518,
+          1.0471369120233482
         ],
         "ci_answer_relevancy": [
-          0.34351819647846465,
-          1.027926988700808
+          0.32897122210894386,
+          0.9987628953864915
         ],
         "ci_context_precision": [
-          0.11104049909897845,
-          0.6811817230866142
+          0.17179853277357165,
+          0.9697887687166507
         ],
         "ci_context_recall": [
-          0.4080000000000001,
-          1.192
+          0.7040000000000001,
+          1.096
         ],
-        "std_faithfulness": 0.42689369537018745,
-        "std_answer_relevancy": 0.390404230563186,
-        "std_context_precision": 0.32522309530900184,
-        "std_context_recall": 0.4472135954999579,
+        "std_faithfulness": 0.17356554957709783,
+        "std_answer_relevancy": 0.38206625311528725,
+        "std_context_precision": 0.45519398289536245,
+        "std_context_recall": 0.22360679774997896,
         "num_questions": 5,
         "num_multihop": 0,
         "num_simple": 5
       },
-      "run_time_ms": 145725.5003452301
+      "run_time_ms": 287531.58950805664
     },
     {
       "name": "full_no_cove",
@@ -60,39 +60,39 @@
         "top_k": 10
       },
       "evaluation": {
-        "mean_faithfulness": 0.925,
-        "mean_answer_relevancy": 0.8632878613761374,
-        "mean_context_precision": 0.5959047618776772,
-        "mean_context_recall": 0.8800000000000001,
-        "mean_latency_ms": 12947.702,
-        "mean_sources_count": 9.0,
+        "mean_faithfulness": 0.8654545454545455,
+        "mean_answer_relevancy": 0.8783951642676737,
+        "mean_context_precision": 0.7683333332610556,
+        "mean_context_recall": 0.9,
+        "mean_latency_ms": 26541.471999999998,
+        "mean_sources_count": 7.4,
         "mean_num_candidates": 200.0,
-        "mean_multihop_coverage": 0.4,
+        "mean_multihop_coverage": 0.8,
         "ci_faithfulness": [
-          0.778,
-          1.072
+          0.6992194077978648,
+          1.031689683111226
         ],
         "ci_answer_relevancy": [
-          0.8076536921761197,
-          0.9189220305761552
+          0.8405470998159962,
+          0.9162432287193513
         ],
         "ci_context_precision": [
-          0.2652531213683997,
-          0.9265564023869546
+          0.48597917428436743,
+          1.0506874922377438
         ],
         "ci_context_recall": [
-          0.6448,
-          1.1152
+          0.7040000000000001,
+          1.096
         ],
-        "std_faithfulness": 0.16770509831248423,
-        "std_answer_relevancy": 0.0634702980627371,
-        "std_context_precision": 0.3772242576788611,
-        "std_context_recall": 0.2683281572999748,
+        "std_faithfulness": 0.18964952451498615,
+        "std_answer_relevancy": 0.04317900251568583,
+        "std_context_precision": 0.32212402714370264,
+        "std_context_recall": 0.22360679774997896,
         "num_questions": 5,
-        "num_multihop": 2,
-        "num_simple": 3
+        "num_multihop": 4,
+        "num_simple": 1
       },
-      "run_time_ms": 213066.71142578125
+      "run_time_ms": 342786.17334365845
     },
     {
       "name": "full_cove_auto",
@@ -106,39 +106,39 @@
         "top_k": 10
       },
       "evaluation": {
-        "mean_faithfulness": 0.8034186401833461,
-        "mean_answer_relevancy": 0.6770784986755852,
-        "mean_context_precision": 0.5705555555286249,
-        "mean_context_recall": 0.8800000000000001,
-        "mean_latency_ms": 30976.288,
-        "mean_sources_count": 13.8,
+        "mean_faithfulness": 0.767032967032967,
+        "mean_answer_relevancy": 0.8587220747358233,
+        "mean_context_precision": 0.72499999993375,
+        "mean_context_recall": 0.9,
+        "mean_latency_ms": 53781.268000000004,
+        "mean_sources_count": 8.4,
         "mean_num_candidates": 200.0,
-        "mean_multihop_coverage": 0.4,
+        "mean_multihop_coverage": 0.6,
         "ci_faithfulness": [
-          0.6487841432321652,
-          0.958053137134527
+          0.4396483516483516,
+          1.0944175824175824
         ],
         "ci_answer_relevancy": [
-          0.3405337719300003,
-          1.0136232254211701
+          0.8001449286579827,
+          0.9172992208136639
         ],
         "ci_context_precision": [
-          0.24895705652481848,
-          0.8921540545324316
+          0.3422977658541626,
+          1.1077022340133373
         ],
         "ci_context_recall": [
-          0.6448,
-          1.1152
+          0.7040000000000001,
+          1.096
         ],
-        "std_faithfulness": 0.1764149218619003,
-        "std_answer_relevancy": 0.38394739105725484,
-        "std_context_precision": 0.3668959720583724,
-        "std_context_recall": 0.2683281572999748,
+        "std_faithfulness": 0.37349706876919564,
+        "std_answer_relevancy": 0.06682779620305442,
+        "std_context_precision": 0.43660622986887454,
+        "std_context_recall": 0.22360679774997896,
         "num_questions": 5,
-        "num_multihop": 2,
-        "num_simple": 3
+        "num_multihop": 3,
+        "num_simple": 2
       },
-      "run_time_ms": 379722.5384712219
+      "run_time_ms": 487721.99749946594
     }
   ]
 }

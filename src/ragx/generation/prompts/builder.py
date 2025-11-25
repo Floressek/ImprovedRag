@@ -364,10 +364,13 @@ class PromptBuilder:
                     section.append(f"[{global_idx}] SOURCE: {title}")
 
                 # Scores
-                final_score = ctx.get("final_score")
+                final_score = float(ctx.get("final_score"))
                 if final_score is not None:
                     confidence = get_confidence_level(final_score)
                     section.append(f"    Relevance: {final_score:.3f} ({confidence})")
+
+                if final_score is not None and final_score < 0.3:
+                    section.append(f"    BE WARY, THIS SOURCE MAY NOT BE RELEVANT!")
 
                 # rerank_score = ctx.get("rerank_score")
                 # retrieval_score = ctx.get("retrieval_score")
