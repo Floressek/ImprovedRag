@@ -193,13 +193,15 @@ def main():
         nargs="+",
         choices=[
             "baseline",
-            "query_only",
+            "enhanced_only",
             "reranker_only",
+            "multihop_only",
             "cove_auto_only",
+            "cot_enhanced",
+            "query_rerank",
             "full_no_cove",
             "full_cove_auto",
             "full_cove_metadata",
-            "full_cove_suggest",
         ],
         default=None,
         help="Specific configurations to test (default: all)",
@@ -214,13 +216,13 @@ def main():
     parser.add_argument(
         "--ragas-batch-size",
         type=int,
-        default=2,
+        default=8,
         help="Mini-batch size for RAGAS evaluation (default: 2 for API, use 10+ for local H100)",
     )
     parser.add_argument(
         "--ragas-delay",
         type=float,
-        default=2.0,
+        default=1.0,
         help="Delay in seconds between RAGAS mini-batches (default: 2.0 for API, use 0 for local)",
     )
     parser.add_argument(

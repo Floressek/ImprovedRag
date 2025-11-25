@@ -40,11 +40,11 @@ services:
       --trust-remote-code
       --host 0.0.0.0
       --port 8000
-      --gpu-memory-utilization 0.90
-      --max-num-seqs 8
+      --gpu-memory-utilization 0.92
+      --max-num-seqs 6
       --max-model-len 32768
       --enable-chunked-prefill
-      --max-num-batched-tokens 12288
+      --max-num-batched-tokens 11288
     deploy:
       resources:
         reservations:

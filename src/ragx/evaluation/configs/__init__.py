@@ -1,7 +1,6 @@
 """Predefined pipeline configurations for ablation studies."""
 from .predefined_configs import (
     BASELINE,
-    QUERY_ONLY,
     ENHANCED_ONLY,
     COT_ONLY,
     RERANKER_ONLY,
@@ -18,7 +17,6 @@ from .predefined_configs import (
 
 __all__ = [
     "BASELINE",
-    "QUERY_ONLY",
     "ENHANCED_ONLY",
     "COT_ONLY",
     "RERANKER_ONLY",
