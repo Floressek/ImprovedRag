@@ -27,13 +27,6 @@ logging.basicConfig(level=logging.INFO, handlers=[handler])
 logger = logging.getLogger(__name__)
 
 
-# logging.basicConfig(
-#     level=logging.DEBUG,
-#     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-# )
-# logger = logging.getLogger(__name__)
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Generate test questions from Wikipedia articles"

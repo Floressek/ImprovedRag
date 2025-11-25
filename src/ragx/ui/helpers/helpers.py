@@ -67,25 +67,25 @@ def estimate_step_timings(config: PipelineConfig) -> StepTiming:
 
     # Query Analysis: ~1-2s
     if config.query_analysis_enabled:
-        timings.query_analysis = 1.5
+        timings.query_analysis = 10
 
     # Retrieval: ~5-8s (vector search + embeddings)
-    timings.retrieval = 6.0
+    timings.retrieval = 2.0
 
     # Reranking: ~3-5s (especially for multihop 3-stage)
     if config.reranker_enabled:
-        timings.reranking = 4.0
+        timings.reranking = 2.0
 
     # Generation: ~10-15s (longest step, LLM inference)
     # CoT makes it even longer
     if config.cot_enabled:
-        timings.generation = 14.0
+        timings.generation = 25.0
     else:
-        timings.generation = 8.0
+        timings.generation = 15.0
 
     # CoVe: ~5-8s (additional verification queries)
     if config.cove_mode != "off":
-        timings.cove = 6.5
+        timings.cove = 35.5
 
     return timings
 

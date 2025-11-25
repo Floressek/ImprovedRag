@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -13,7 +12,6 @@ import logging
 
 from src.ragx.evaluation.ablation_study import AblationStudy
 from src.ragx.evaluation.ragas_evaluator import RAGASEvaluator
-from src.ragx.evaluation.models import PipelineConfig
 from src.ragx.evaluation.configs import (
     BASELINE,
     QUERY_ONLY,

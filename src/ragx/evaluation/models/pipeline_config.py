@@ -36,7 +36,7 @@ class PipelineConfig:
     # LLM provider
     provider: Optional[str] = None  # "api", "ollama", "huggingface", or None (use default)
     # Retrieval parameters
-    top_k: int = 10
+    top_k: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Union[bool, str, int, None]]:
         """
@@ -49,7 +49,7 @@ class PipelineConfig:
             "use_reranker": self.reranker_enabled,
             "cove": self.cove_mode,
             "prompt_template": self.prompt_template,
-            "top_k": self.top_k,
+            "top_k": self.top_k if self.top_k is not None else 15,
         }
         if self.provider:
             request["provider"] = self.provider
