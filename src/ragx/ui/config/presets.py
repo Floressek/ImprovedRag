@@ -9,6 +9,7 @@ PRESETS = {
         reranker_enabled=False,
         cove_mode="off",
         prompt_template="basic",
+        top_k=15
     ),
     "enhanced_full": PipelineConfig(
         name="Enhanced (Full)",
@@ -18,6 +19,7 @@ PRESETS = {
         reranker_enabled=True,
         cove_mode="auto",
         prompt_template="auto",
+        top_k=15
     ),
     "enhanced_cove": PipelineConfig(
         name="Enhanced + CoVe",
@@ -27,6 +29,7 @@ PRESETS = {
         reranker_enabled=True,
         cove_mode="auto",
         prompt_template="auto",
+        top_k=15
     ),
     "query_only": PipelineConfig(
         name="Query Analysis Only",
@@ -36,6 +39,7 @@ PRESETS = {
         reranker_enabled=False,
         cove_mode="off",
         prompt_template="basic",
+        top_k=15
     ),
     "reranker_only": PipelineConfig(
         name="Reranker Only",
@@ -45,5 +49,6 @@ PRESETS = {
         reranker_enabled=True,
         cove_mode="off",
         prompt_template="basic",
+        top_k=15
     ),
 }

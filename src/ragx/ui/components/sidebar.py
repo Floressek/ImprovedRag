@@ -92,7 +92,7 @@ def render_sidebar(api_url: str) -> PipelineConfig:
             "🔢 Top K",
             min_value=1,
             max_value=20,
-            value=10,
+            value=15,
             help="Number of contexts to retrieve"
         )
 

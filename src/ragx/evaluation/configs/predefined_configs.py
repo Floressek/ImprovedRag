@@ -20,6 +20,7 @@ BASELINE = PipelineConfig(
     reranker_enabled=False,
     cove_mode="off",
     prompt_template="basic",
+    top_k=15
 )
 
 # === Single toggle configs ===
@@ -31,6 +32,7 @@ QUERY_ONLY = PipelineConfig(
     reranker_enabled=False,
     cove_mode="off",
     prompt_template="basic",
+    top_k=15
 )
 
 ENHANCED_ONLY = PipelineConfig(
@@ -41,6 +43,7 @@ ENHANCED_ONLY = PipelineConfig(
     reranker_enabled=False,
     cove_mode="off",
     prompt_template="enhanced",
+    top_k=15
 )
 
 COT_ONLY = PipelineConfig(
@@ -51,6 +54,7 @@ COT_ONLY = PipelineConfig(
     reranker_enabled=False,
     cove_mode="off",
     prompt_template="basic",
+    top_k=15
 )
 
 RERANKER_ONLY = PipelineConfig(
@@ -61,6 +65,7 @@ RERANKER_ONLY = PipelineConfig(
     reranker_enabled=True,
     cove_mode="off",
     prompt_template="basic",
+    top_k=15
 )
 
 MULTIHOP_ONLY = PipelineConfig(
@@ -71,6 +76,7 @@ MULTIHOP_ONLY = PipelineConfig(
     reranker_enabled=True,
     cove_mode="off",
     prompt_template="multihop",
+    top_k=15
 )
 
 COVE_AUTO_ONLY = PipelineConfig(
@@ -81,6 +87,7 @@ COVE_AUTO_ONLY = PipelineConfig(
     reranker_enabled=False,
     cove_mode="auto",
     prompt_template="basic",
+    top_k=15
 )
 
 # === Important combinations ===
@@ -92,6 +99,7 @@ COT_ENHANCED = PipelineConfig(
     reranker_enabled=False,
     cove_mode="off",
     prompt_template="enhanced",
+    top_k=15
 )
 
 QUERY_RERANK = PipelineConfig(
@@ -102,6 +110,7 @@ QUERY_RERANK = PipelineConfig(
     reranker_enabled=True,
     cove_mode="off",
     prompt_template="basic",
+    top_k=15
 )
 
 # === CoVe mode variations ===
@@ -113,6 +122,7 @@ FULL_COVE_AUTO = PipelineConfig(
     reranker_enabled=True,
     cove_mode="auto",
     prompt_template="multihop",
+    top_k=15
 )
 
 FULL_COVE_METADATA = PipelineConfig(
@@ -123,6 +133,7 @@ FULL_COVE_METADATA = PipelineConfig(
     reranker_enabled=True,
     cove_mode="metadata",
     prompt_template="multihop",
+    top_k=15
 )
 
 FULL_COVE_SUGGEST = PipelineConfig(
@@ -133,6 +144,7 @@ FULL_COVE_SUGGEST = PipelineConfig(
     reranker_enabled=True,
     cove_mode="suggest",
     prompt_template="multihop",
+    top_k=15
 )
 
 # === Full (no CoVe) ===
@@ -144,6 +156,7 @@ FULL_NO_COVE = PipelineConfig(
     reranker_enabled=True,
     cove_mode="off",
     prompt_template="multihop",
+    top_k=15
 )
 
 
