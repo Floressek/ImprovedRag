@@ -122,7 +122,7 @@ class AblationStudy:
             questions = self._load_questions(questions_path, max_questions)
             logger.info(f"Loaded {len(questions)} test questions")
 
-        # Default configs if not provided (12 configs)
+        # Default configs if not provided (10 configs TODO FIX THE COT ENABLE/DISABLE MODE IN VLLM)
         if configs is None:
             configs = get_all_configs()
 

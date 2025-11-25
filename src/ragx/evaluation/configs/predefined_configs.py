@@ -16,7 +16,7 @@ BASELINE = PipelineConfig(
     name="baseline",
     description="No enhancements (vector search only)",
     query_analysis_enabled=False,
-    cot_enabled=False,
+    cot_enabled=True,
     reranker_enabled=False,
     cove_mode="off",
     prompt_template="basic",
@@ -24,22 +24,11 @@ BASELINE = PipelineConfig(
 )
 
 # === Single toggle configs ===
-QUERY_ONLY = PipelineConfig(
-    name="query_only",
-    description="Query analysis only (multihop detection)",
-    query_analysis_enabled=True,
-    cot_enabled=False,
-    reranker_enabled=False,
-    cove_mode="off",
-    prompt_template="basic",
-    top_k=15
-)
-
 ENHANCED_ONLY = PipelineConfig(
     name="enhanced_only",
     description="Enhanced features only (metadata, quality checks)",
     query_analysis_enabled=False,
-    cot_enabled=False,
+    cot_enabled=True,
     reranker_enabled=False,
     cove_mode="off",
     prompt_template="enhanced",
@@ -61,7 +50,7 @@ RERANKER_ONLY = PipelineConfig(
     name="reranker_only",
     description="Reranker only",
     query_analysis_enabled=False,
-    cot_enabled=False,
+    cot_enabled=True,
     reranker_enabled=True,
     cove_mode="off",
     prompt_template="basic",
@@ -83,7 +72,7 @@ COVE_AUTO_ONLY = PipelineConfig(
     name="cove_auto_only",
     description="CoVe auto-correction only",
     query_analysis_enabled=False,
-    cot_enabled=False,
+    cot_enabled=True,
     reranker_enabled=False,
     cove_mode="auto",
     prompt_template="basic",
@@ -164,7 +153,6 @@ def get_all_configs() -> List[PipelineConfig]:
     """Get all predefined configurations (12 configs total)."""
     return [
         BASELINE,
-        QUERY_ONLY,
         ENHANCED_ONLY,
         COT_ONLY,
         RERANKER_ONLY,
