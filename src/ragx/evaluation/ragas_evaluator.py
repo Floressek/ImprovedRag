@@ -146,7 +146,7 @@ class RAGASEvaluator:
                     logger.error(f"Rate limit exceeded after {max_retries} attempts")
                     raise
 
-            except (APIError, APIConnectionError) as e:
+            except (APIError, APIConnectionError, TimeoutError) as e:
                 if attempt < max_retries - 1:
                     logger.warning(f"API error (attempt {attempt + 1}/{max_retries}): {e}, retrying in 30s...")
                     time.sleep(30)

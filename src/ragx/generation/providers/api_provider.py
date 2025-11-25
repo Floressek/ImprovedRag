@@ -18,7 +18,7 @@ class APIProvider:
             base_url: Optional[str] = None,
             api_key: Optional[str] = None,
             model_name: Optional[str] = None,
-            timeout: int = 120,
+            timeout: int = 300,
     ):
         self.base_url = base_url.rstrip('/') if base_url else settings.llm.api_base_url.rstrip('/')
         self.api_key = api_key or settings.llm.api_key
@@ -187,6 +187,7 @@ class APIProvider:
                                 if content:
                                     yield content
                         except:
+                            logger.error(f"Error parsing JSON: {line}")
                             continue
 
         except Exception as e:
