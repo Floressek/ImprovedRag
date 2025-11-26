@@ -11,7 +11,6 @@ from tqdm import tqdm
 
 from src.ragx.generation.inference import LLMInference
 from src.ragx.retrieval.rerankers.reranker import Reranker
-from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)
 

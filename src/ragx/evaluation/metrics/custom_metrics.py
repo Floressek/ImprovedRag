@@ -1,4 +1,3 @@
-"""Custom evaluation metrics."""
 from typing import List, Dict, Any
 
 
@@ -40,7 +39,7 @@ def calculate_multihop_coverage(
     covered = 0
     for sq in sub_queries:
         results = results_by_subquery.get(sq)
-        # Handle both formats: int (count) or list (legacy)
+        # Handle both formats: int (count) or list
         if isinstance(results, int):
             if results > 0:
                 covered += 1

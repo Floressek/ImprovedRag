@@ -139,7 +139,7 @@ class EmbedderAdapter(Embeddings):
         # This matches what embed_query() does
         embeddings = self.embedder.embed_texts(
             texts=texts,
-            convert_to_numpy=True,  # Get numpy array
+            convert_to_numpy=True,
             add_prefix=True,  # Treat as passages/documents
         )
         return embeddings.tolist()

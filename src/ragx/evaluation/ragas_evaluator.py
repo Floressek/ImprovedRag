@@ -1,4 +1,3 @@
-"""RAGAS-based evaluator for RAG pipelines."""
 from __future__ import annotations
 
 import logging
@@ -14,8 +13,6 @@ from ragas.metrics import (
 )
 from datasets import Dataset
 from openai import RateLimitError, APIError, APIConnectionError
-
-from src.ragx.utils.settings import settings
 from src.ragx.evaluation.langchain_adapters import LLMInferenceAdapter, EmbedderAdapter
 from src.ragx.evaluation.models import EvaluationResult, BatchEvaluationResult
 from src.ragx.evaluation.metrics import (

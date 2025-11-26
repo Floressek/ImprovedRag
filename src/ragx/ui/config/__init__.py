@@ -1,5 +1,3 @@
-"""Configuration module for RAGx Chat UI."""
-
 from .presets import PRESETS
 from .session_state import initialize_session_state
 

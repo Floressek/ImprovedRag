@@ -1,11 +1,3 @@
-"""Predefined pipeline configurations for ablation studies.
-
-This module contains 12 predefined configs covering important toggle combinations:
-- Baseline (all off)
-- Single toggle configs (test each feature independently)
-- Important combinations (e.g., CoT + Enhanced)
-- CoVe mode variations
-"""
 from typing import List
 
 from src.ragx.evaluation.models import PipelineConfig

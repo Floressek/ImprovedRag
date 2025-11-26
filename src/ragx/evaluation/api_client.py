@@ -1,4 +1,3 @@
-"""API client for RAG evaluation."""
 import logging
 import json
 from typing import Dict, Any
