@@ -1,4 +1,3 @@
-"""Statistical utility functions for evaluation."""
 import logging
 import math
 import statistics

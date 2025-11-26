@@ -1,4 +1,3 @@
-"""Checkpoint management for resumable ablation studies."""
 import logging
 import json
 from pathlib import Path
