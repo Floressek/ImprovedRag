@@ -244,7 +244,7 @@ def _generate_answer(
         citation_mapping = None
 
     # answer = llm.generate(prompt, temperature=0.1, max_new_tokens=500)
-    answer = llm.generate(prompt)
+    answer = llm.generate(prompt, cot_enabled)
     return answer, citation_mapping, template_name
 
 
