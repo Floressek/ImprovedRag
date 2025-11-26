@@ -237,7 +237,7 @@ class EnhancedPipeline(BasePipeline):
             citation_mapping = None
 
         llm_start = time.time()
-        answer = self.llm.generate(prompt)
+        answer = self.llm.generate(prompt=prompt, chain_of_thought_enabled=True)
         llm_time = (time.time() - llm_start) * 1000
 
         if is_multihop and citation_mapping:

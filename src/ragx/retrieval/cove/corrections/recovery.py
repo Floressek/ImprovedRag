@@ -110,7 +110,7 @@ class RecoveryEngine:
                 prompt=prompt,
                 temperature=settings.cove.temperature,
                 max_new_tokens=settings.cove.max_tokens,
-                chain_of_thought_enabled=False,
+                chain_of_thought_enabled=True,
             ).strip()
 
         success, result, metadata = self.validator.validate_with_retry(

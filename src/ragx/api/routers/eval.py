@@ -244,7 +244,10 @@ def _generate_answer(
         citation_mapping = None
 
     # answer = llm.generate(prompt, temperature=0.1, max_new_tokens=500)
-    answer = llm.generate(prompt, cot_enabled)
+    answer = llm.generate(
+        prompt=prompt,
+        chain_of_thought_enabled=cot_enabled
+    )
     return answer, citation_mapping, template_name
 
 
@@ -480,7 +483,6 @@ async def pipeline_ablation(
             from fastapi import HTTPException
             raise HTTPException(status_code=400, detail=validation_result)
         elif validation_result.get("warnings"):
-            # Soft warnings - log
             logger.warning(f"Config warnings: {validation_result['warnings']}")
             metadata["config_warnings"] = validation_result["warnings"]
 

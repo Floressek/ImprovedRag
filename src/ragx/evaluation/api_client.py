@@ -17,7 +17,7 @@ class RAGAPIClient:
     def __init__(
             self,
             api_base_url: str,
-            timeout: int = 120,
+            timeout: int = 150,
             retry_total: int = 3,
             retry_backoff: int = 2,
     ):

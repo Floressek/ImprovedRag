@@ -182,7 +182,7 @@ class AnswerCorrector:
                 prompt=prompt,
                 temperature=settings.cove.temperature + 0.3,
                 max_new_tokens=4096,
-                chain_of_thought_enabled=False,
+                chain_of_thought_enabled=True,
             ).strip()
 
         success, result, metadata = self.json_validator.validate_with_retry(
@@ -289,7 +289,7 @@ class AnswerCorrector:
                 prompt=prompt,
                 temperature=settings.cove.temperature + 0.5,
                 max_new_tokens=4092,
-                chain_of_thought_enabled=False,
+                chain_of_thought_enabled=True,
             ).strip()
 
             if len(corrected) < 30 or "I'm here to assist" in corrected or "Could you please" in corrected:

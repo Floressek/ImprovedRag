@@ -12,7 +12,7 @@ BASELINE = PipelineConfig(
     reranker_enabled=False,
     cove_mode="off",
     prompt_template="basic",
-    top_k=8
+    top_k=10
 )
 
 # === Single toggle configs ===
@@ -64,7 +64,7 @@ COVE_AUTO_ONLY = PipelineConfig(
     name="cove_auto_only",
     description="CoVe auto-correction only",
     query_analysis_enabled=False,
-    cot_enabled=False,
+    cot_enabled=True,
     reranker_enabled=False,
     cove_mode="auto",
     prompt_template="basic",

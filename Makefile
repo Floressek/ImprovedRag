@@ -522,7 +522,7 @@ eval-test:
 	$(PY) scripts/run_ablation_study.py \
 		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
 		--output results/quick_test.json \
-		--max-questions 10 \
+		--max-questions 20 \
 		--checkpoint-dir $(CHECKPOINT_DIR) \
         --run-id $(RUN_ID) \
         --resume \
