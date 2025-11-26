@@ -139,7 +139,7 @@ class LLMInference:
                     model_name=settings.llm.api_model_name,
                     api_key=settings.llm.api_key,
                     base_url=base_url,
-                    timeout=120,
+                    timeout=150,
                 )
             except Exception as e:
                 logger.error(f"❌ API provider initialization error: {e}")
@@ -155,7 +155,7 @@ class LLMInference:
             prompt: str,
             temperature: Optional[float] = None,
             max_new_tokens: Optional[int] = None,
-            chain_of_thought_enabled: Optional[bool] = True,
+            chain_of_thought_enabled: Optional[bool] = None,
     ) -> str:
         """Generate text from prompt with optional streaming.
 
@@ -167,6 +167,7 @@ class LLMInference:
         """
         temperature = temperature if temperature is not None else self.temperature
         max_new_tokens = max_new_tokens or self.max_new_tokens
+        chain_of_thought_enabled = chain_of_thought_enabled if chain_of_thought_enabled is not None else False
 
         logger.debug(f"chains of thought enabled: {chain_of_thought_enabled}")
         logger.debug(f"temperature: {temperature}")
@@ -202,7 +203,7 @@ class LLMInference:
                 temperature=temperature,
                 do_sample=temperature > 0,
                 top_p=settings.llm.top_p,
-                repetition_penalty=1.1,
+                repetition_penalty=1.5,
                 pad_token_id=self.tokenizer.eos_token_id,
             )
 
