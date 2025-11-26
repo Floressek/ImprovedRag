@@ -369,7 +369,7 @@ class PromptBuilder:
                     confidence = get_confidence_level(final_score)
                     section.append(f"    Relevance: {final_score:.3f} ({confidence})")
 
-                if final_score is not None and final_score < 0.3:
+                if final_score is not None and final_score < 0.35:
                     section.append(f"    BE WARY, THIS SOURCE MAY NOT BE RELEVANT!")
 
                 # rerank_score = ctx.get("rerank_score")

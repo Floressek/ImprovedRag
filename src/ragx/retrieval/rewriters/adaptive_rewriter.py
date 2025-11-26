@@ -196,7 +196,7 @@ class AdaptiveQueryRewriter:
                 prompt=prompt,
                 temperature=self.temperature,
                 max_new_tokens=self.max_tokens,
-                chain_of_thought_enabled=False,
+                chain_of_thought_enabled=True,
             ).strip()
 
         # Use validator with retry
@@ -245,7 +245,7 @@ class AdaptiveQueryRewriter:
                 prompt=prompt,
                 temperature=self.temperature,
                 max_new_tokens=self.max_tokens,
-                chain_of_thought_enabled=False,
+                chain_of_thought_enabled=True,
             ).strip()
 
         # Use validator with retry

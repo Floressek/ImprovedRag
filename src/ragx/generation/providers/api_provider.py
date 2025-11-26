@@ -68,10 +68,10 @@ class APIProvider:
 
         url = f"{self.base_url}/chat/completions"
         logger.info(f"🔍 Making request to: {url}")
-        logger.info(f"🔍 Model: {self.model_name}")
+        # logger.info(f"🔍 Model: {self.model_name}")
         # if chain_of_thought_enabled is not None:
         #     logger.info(f"🔍 enable_thinking: {chain_of_thought_enabled}")
-        logger.info(f"Payload: {payload}")
+        # logger.info(f"Payload: {payload}")
         logger.info(f"🔍 chat_template_kwargs: {payload.get('chat_template_kwargs', {})}")
 
         response = None
@@ -90,8 +90,6 @@ class APIProvider:
                 logger.info(f"📋 Message keys: {list(data['choices'][0].get('message', {}).keys())}")
 
             generated_text = data['choices'][0]['message']['content']
-
-            # 1. Najpierw próbujemy wyciągnąć thinking z tekstu (dla vLLM/DeepSeek)
             thinking_content = None
             patterns = [
                 (r'<think>(.*?)</think>', 'think'),
@@ -102,16 +100,16 @@ class APIProvider:
                 match = re.search(pattern, generated_text, re.DOTALL)
                 if match:
                     thinking_content = match.group(1).strip()
-                    # Usuwamy sekcję thinking z głównego tekstu
+                    # Delete the think tag from the generated text
                     generated_text = re.sub(pattern, '', generated_text, flags=re.DOTALL).strip()
                     logger.info(f"Found {tag_name} tag in text response")
                     break
 
             logger.info(f"Generated text (cleaned): {generated_text}")
 
-            # 2. Logika CoT
+            # 2. Logic of CoT
             if chain_of_thought_enabled:
-                # Jeśli nie znaleźliśmy w tekście, sprawdzamy pola JSON (dla innych providerów)
+                # If no thinking content found yet, check other fields
                 if not thinking_content:
                     message = data['choices'][0]['message']
                     if 'thinking' in message:
