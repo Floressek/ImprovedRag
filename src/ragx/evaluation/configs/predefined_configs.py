@@ -2,7 +2,6 @@ from typing import List
 
 from src.ragx.evaluation.models import PipelineConfig
 
-
 # === Baseline (all off) ===
 BASELINE = PipelineConfig(
     name="baseline",
@@ -27,17 +26,6 @@ ENHANCED_ONLY = PipelineConfig(
     top_k=15
 )
 
-COT_ONLY = PipelineConfig(
-    name="cot_only",
-    description="Chain of Thought only",
-    query_analysis_enabled=False,
-    cot_enabled=True,
-    reranker_enabled=False,
-    cove_mode="off",
-    prompt_template="basic",
-    top_k=15
-)
-
 RERANKER_ONLY = PipelineConfig(
     name="reranker_only",
     description="Reranker only",
@@ -49,29 +37,7 @@ RERANKER_ONLY = PipelineConfig(
     top_k=15
 )
 
-MULTIHOP_ONLY = PipelineConfig(
-    name="multihop_only",
-    description="Multihop detection only",
-    query_analysis_enabled=True,
-    cot_enabled=True,
-    reranker_enabled=True,
-    cove_mode="off",
-    prompt_template="multihop",
-    top_k=15
-)
-
-COVE_AUTO_ONLY = PipelineConfig(
-    name="cove_auto_only",
-    description="CoVe auto-correction only",
-    query_analysis_enabled=False,
-    cot_enabled=True,
-    reranker_enabled=False,
-    cove_mode="auto",
-    prompt_template="basic",
-    top_k=15
-)
-
-# === Important combinations ===
+# === CoT combinations ===
 COT_ENHANCED = PipelineConfig(
     name="cot_enhanced",
     description="CoT + Enhanced Features",
@@ -83,18 +49,54 @@ COT_ENHANCED = PipelineConfig(
     top_k=15
 )
 
-QUERY_RERANK = PipelineConfig(
-    name="query_rerank",
-    description="Query Analysis + Reranking",
-    query_analysis_enabled=True,
-    cot_enabled=False,
-    reranker_enabled=True,
+COT_ONLY = PipelineConfig(
+    name="cot_only",
+    description="Chain of Thought only",
+    query_analysis_enabled=False,
+    cot_enabled=True,
+    reranker_enabled=False,
     cove_mode="off",
     prompt_template="basic",
     top_k=15
 )
 
+# === MULTIHOP combinations ===
+MULTIHOP_ONLY = PipelineConfig(
+    name="multihop_only",
+    description="Query Analysis + Reranking",
+    query_analysis_enabled=True,
+    cot_enabled=False,
+    reranker_enabled=True,
+    cove_mode="off",
+    prompt_template="multihop",
+    top_k=15
+)
+
+MULTIHOP_COT = PipelineConfig(
+    name="multihop+cot",
+    description="Multihop detection only",
+    query_analysis_enabled=True,
+    cot_enabled=True,
+    reranker_enabled=True,
+    cove_mode="off",
+    prompt_template="multihop",
+    top_k=15
+)
+
+
+
 # === CoVe mode variations ===
+COVE_AUTO_ONLY = PipelineConfig(
+    name="cove_auto_only",
+    description="CoVe auto-correction only",
+    query_analysis_enabled=False,
+    cot_enabled=True,
+    reranker_enabled=False,
+    cove_mode="auto",
+    prompt_template="basic",
+    top_k=15
+)
+
 FULL_COVE_AUTO = PipelineConfig(
     name="full_cove_auto",
     description="Full pipeline with CoVe auto-correction",
@@ -150,7 +152,8 @@ def get_all_configs() -> List[PipelineConfig]:
         RERANKER_ONLY,
         COVE_AUTO_ONLY,
         COT_ENHANCED,
-        QUERY_RERANK,
+        MULTIHOP_ONLY,
+        MULTIHOP_COT,
         FULL_NO_COVE,
         FULL_COVE_AUTO,
         FULL_COVE_METADATA,

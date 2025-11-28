@@ -53,7 +53,8 @@ class APIProvider:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature or settings.llm.temperature,
             "max_tokens": max_new_tokens or settings.llm.max_new_tokens,
-            "enable_thinking": False,
+            # "repetition_penalty": settings.llm.repetition_penalty,
+            # "enable_thinking": False,
         }
 
         # # Works on ollama, not on vllm or api alibaba
