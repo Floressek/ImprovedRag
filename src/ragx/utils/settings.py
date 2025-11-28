@@ -112,7 +112,7 @@ class LLMConfig:
     quantization: Optional[str] = os.getenv("QUANTIZATION", "awq")
 
     max_model_len: int = int(os.getenv("MAX_MODEL_LEN", "8192"))
-    repetition_penalty: float = float(os.getenv("REPETITION_PENALTY", "1.1"))
+    repetition_penalty: float = float(os.getenv("REPETITION_PENALTY", "1.3"))
 
 
 @dataclass

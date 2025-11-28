@@ -37,7 +37,7 @@ class AblationStudy:
             self,
             api_base_url: str,
             ragas_evaluator: Optional[RAGASEvaluator] = None,
-            api_timeout: int = 120,
+            api_timeout: int = 300,
             retry_total: int = 3,
             retry_backoff: int = 2,
             checkpoint_dir: Optional[Path] = None,
@@ -51,7 +51,7 @@ class AblationStudy:
         Args:
             api_base_url: Base URL for RAG API (e.g., http://localhost:8000)
             ragas_evaluator: RAGAS evaluator instance (creates default if None)
-            api_timeout: API request timeout in seconds (default: 120)
+            api_timeout: API request timeout in seconds (default: 300)
             retry_total: Max number of retries for failed requests (default: 3)
             retry_backoff: Backoff factor for retries in seconds (default: 2)
             checkpoint_dir: Directory for checkpoint files (default: None = disabled)

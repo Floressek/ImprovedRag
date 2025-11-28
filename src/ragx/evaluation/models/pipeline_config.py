@@ -32,7 +32,7 @@ class PipelineConfig:
     # Toggle 4: CoVe mode
     cove_mode: str = "off"  # "off", "auto", "metadata", "suggest"
     # Prompt template selection
-    prompt_template: str = "auto"  # "basic", "enhanced", "auto"
+    prompt_template: str = "auto"  # "basic", "enhanced", "auto" # TODO CHECK IF THIS WORKS WITH MULITHOP
     # LLM provider
     provider: Optional[str] = None  # "api", "ollama", "huggingface", or None (use default)
     # Retrieval parameters

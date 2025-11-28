@@ -4,11 +4,6 @@ import argparse
 import sys
 from pathlib import Path
 
-# from src.ragx.evaluation.configs import (
-#     ENHANCED_ONLY, MULTIHOP_ONLY, QUERY_RERANK, BASELINE, RERANKER_ONLY, COVE_AUTO_ONLY, \
-#     FULL_NO_COVE, FULL_COVE_AUTO, FULL_COVE_METADATA
-# )
-
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -20,12 +15,14 @@ from src.ragx.evaluation.configs import (
     BASELINE,
     RERANKER_ONLY,
     ENHANCED_ONLY,
+    COT_ENHANCED,
     MULTIHOP_ONLY,
-    QUERY_RERANK,
+    MULTIHOP_COT,
     COVE_AUTO_ONLY,
     FULL_NO_COVE,
     FULL_COVE_AUTO,
     FULL_COVE_METADATA,
+    FULL_COVE_SUGGEST
 )
 
 from colorlog import ColoredFormatter
@@ -207,7 +204,8 @@ def main():
             "multihop_only",
             "cove_auto_only",
             "cot_enhanced",
-            "query_rerank",
+            "multihop_cot",
+            "multihop_only",
             "full_no_cove",
             "full_cove_auto",
             "full_cove_metadata",
@@ -287,13 +285,14 @@ def main():
             "baseline": BASELINE,
             "enhanced_only": ENHANCED_ONLY,
             "reranker_only": RERANKER_ONLY,
+            "cot_enhanced": COT_ENHANCED ,
             "multihop_only": MULTIHOP_ONLY,
+            "mutlihop_cot": MULTIHOP_COT,
             "cove_auto_only": COVE_AUTO_ONLY,
-            # "cot_enhanced": TODO IMPLEMENT THIS ,
-            "query_rerank": QUERY_RERANK,
             "full_no_cove": FULL_NO_COVE,
             "full_cove_auto": FULL_COVE_AUTO,
             "full_cove_metadata": FULL_COVE_METADATA,
+            "full_cove_suggest": FULL_COVE_SUGGEST,
         }
         configs = [config_map[name] for name in args.configs]
 
