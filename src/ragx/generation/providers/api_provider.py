@@ -53,27 +53,11 @@ class APIProvider:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature or settings.llm.temperature,
             "max_tokens": max_new_tokens or settings.llm.max_new_tokens,
-            # "repetition_penalty": settings.llm.repetition_penalty,
-            # "enable_thinking": False,
+            "enable_thinking": False,  # Must be explicitly false for non-streaming
         }
-
-        # # Works on ollama, not on vllm or api alibaba
-        # if chain_of_thought_enabled is not None:
-        #     payload["extra_body"] = {"enable_thinking": chain_of_thought_enabled}
-
-        if chain_of_thought_enabled is not None:
-            payload["chat_template_kwargs"] = {"enable_thinking": chain_of_thought_enabled}
-        else:
-            # Default: disable thinking
-            payload["chat_template_kwargs"] = {"enable_thinking": False}
 
         url = f"{self.base_url}/chat/completions"
         logger.info(f"🔍 Making request to: {url}")
-        # logger.info(f"🔍 Model: {self.model_name}")
-        # if chain_of_thought_enabled is not None:
-        #     logger.info(f"🔍 enable_thinking: {chain_of_thought_enabled}")
-        # logger.info(f"Payload: {payload}")
-        logger.info(f"🔍 chat_template_kwargs: {payload.get('chat_template_kwargs', {})}")
 
         response = None
         try:
