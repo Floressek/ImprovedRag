@@ -6,6 +6,7 @@ from typing import Any, Optional, Sequence, Tuple, List, Union
 from uuid import uuid4
 
 from qdrant_client import QdrantClient
+from qdrant_client.conversions.common_types import HnswConfigDiff
 from qdrant_client.models import (
     Distance,
     FieldCondition,
@@ -148,6 +149,12 @@ class QdrantStore:
                 )
             return
 
+        optimizers_config = HnswConfigDiff(
+            m=settings.hnsw.m,
+            ef_construction=settings.hnsw.ef_construction,
+            on_disk=settings.hnsw.on_disk
+        )
+
         logger.info("Creating collection '%s'", self.collection_name)
         self.client.create_collection(
             collection_name=self.collection_name,
@@ -155,7 +162,7 @@ class QdrantStore:
                 size=self.embedding_dim,
                 distance=self.distance_metric,
             ),
-            optimizers_config=None,
+            optimizers_config=optimizers_config,
             shard_number=1,
             replication_factor=1,
             write_consistency_factor=1,

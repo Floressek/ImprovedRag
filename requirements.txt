@@ -6,3 +6,5 @@
 # transformers
 # fastapi
 # uvicorn
+
+requests

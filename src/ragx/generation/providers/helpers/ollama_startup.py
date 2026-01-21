@@ -12,8 +12,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-
-
 def ensure_ollama_running(timeout: int, host: Optional[str] = None) -> bool:
     """Check if Ollama is running, start it if not."""
     host = host or settings.llm.ollama_host
