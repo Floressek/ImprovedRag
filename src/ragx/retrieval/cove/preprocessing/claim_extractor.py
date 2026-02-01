@@ -12,6 +12,7 @@ from src.ragx.utils.settings import settings
 
 logger = logging.getLogger(__name__)
 
+
 class ClaimExtractor:
     """Extracts claims from a generated text."""
 

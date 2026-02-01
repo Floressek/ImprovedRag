@@ -82,15 +82,13 @@ class RAGAPIClient:
         # Flatten config into request (no nested "config" object)
         payload = {
             "query": query,
-            **config.to_dict(),  # Use config's to_dict() method
+            **config.to_dict(),
         }
 
         logger.debug(f"Sending request to {url}")
         logger.debug(f"Payload: {json.dumps(payload, indent=2)}")
 
         response = self.session.post(url, json=payload, timeout=self.timeout)
-
-        # Log response details before raising
         if not response.ok:
             logger.error(f"API returned {response.status_code}: {response.text}")
 

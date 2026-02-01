@@ -21,6 +21,7 @@ def ensure_ollama_running(timeout: int, host: Optional[str] = None) -> bool:
         if response.status_code == 200:
             return True
     except requests.exceptions.RequestException:
+        logger.info("Ollama not running, starting...")
         pass
 
     try:

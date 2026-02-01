@@ -101,7 +101,6 @@ def main():
         logger.error(f"Data directory not found: {e}")
         sys.exit(1)
 
-    # Generate questions
     logger.info(f"Generating {args.num_questions} questions...")
     logger.info(f"Folders: {args.folders or 'AA-AJ (default)'}")
 

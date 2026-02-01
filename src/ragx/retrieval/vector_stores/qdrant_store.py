@@ -17,6 +17,7 @@ from qdrant_client.models import (
     PointStruct,
     SearchParams,
     VectorParams,
+    HnswConfigDiff
 )
 
 from src.ragx.utils.settings import settings
@@ -74,7 +75,7 @@ class QdrantStore:
         logger.info(f"Connecting to Qdrant at {self.url}...")
         self.client = self._connect_with_retry(timeout)
         self._ensure_collection(recreate)
-        logger.info(f"✓ QdrantStore initialized successfully (collection: {self.collection_name})")
+        logger.info(f"QdrantStore initialized successfully (collection: {self.collection_name})")
 
     def _connect_with_retry(self, timeout: int) -> QdrantClient:
         """Connect to Qdrant with retries on connection errors."""
@@ -149,10 +150,11 @@ class QdrantStore:
                 )
             return
 
-        optimizers_config = HnswConfigDiff(
-            m=settings.hnsw.m,
-            ef_construction=settings.hnsw.ef_construction,
-            on_disk=settings.hnsw.on_disk
+        hnsw = settings.hnsw
+        hnsw_config = HnswConfigDiff(
+            m=hnsw.m,
+            ef_construct=hnsw.ef_construct,
+            on_disk=hnsw.on_disk,
         )
 
         logger.info("Creating collection '%s'", self.collection_name)
@@ -162,7 +164,8 @@ class QdrantStore:
                 size=self.embedding_dim,
                 distance=self.distance_metric,
             ),
-            optimizers_config=optimizers_config,
+            hnsw_config=hnsw_config,
+            optimizers_config=None,
             shard_number=1,
             replication_factor=1,
             write_consistency_factor=1,

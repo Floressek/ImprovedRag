@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 def safe_std(values: List[float]) -> float:
     """
     Calculate standard deviation, handling edge cases.
+    Beta testing the usage, this funtionality may be removed in the future.
 
     Args:
         values: List of numeric values
@@ -26,10 +27,10 @@ def safe_std(values: List[float]) -> float:
 
 def calculate_ci(
         values: List[float],
-        confidence: float = 0.95,
 ) -> Tuple[float, float]:
     """
     Calculate confidence interval.
+    Beta testing the usage, this funtionality may be removed in the future.
 
     Uses formula: CI = mean ± z * (std / sqrt(n))
     For 95% CI, z = 1.96
@@ -54,12 +55,10 @@ def calculate_ci(
 
         # Z-score for 95% CI
         z_score = 1.96
-
-        # Margin of error
         margin = z_score * (std_val / math.sqrt(n))
 
-        return (mean_val - margin, mean_val + margin)
+        return mean_val - margin, mean_val + margin
 
     except (statistics.StatisticsError, ZeroDivisionError):
         mean_val = statistics.mean(values) if values else 0.0
-        return (mean_val, mean_val)
+        return mean_val, mean_val

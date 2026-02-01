@@ -9,10 +9,9 @@ from src.ragx.ui.helpers.helpers import get_pipeline_steps, call_rag_api
 
 
 def show_progress_with_api_call(
-    prompt: str,
-    config: PipelineConfig,
-    api_url: str,
-    status_container
+        prompt: str,
+        config: PipelineConfig,
+        api_url: str,
 ) -> Dict[str, Any]:
     """
     Show live progress bar while API call executes.
@@ -24,7 +23,6 @@ def show_progress_with_api_call(
         prompt: User query
         config: Pipeline configuration
         api_url: API base URL
-        status_container: Streamlit status container
 
     Returns:
         API response dict
@@ -34,7 +32,6 @@ def show_progress_with_api_call(
     """
     steps = get_pipeline_steps(config)
     enabled_steps = [s for s in steps if s.enabled]
-    total_steps = len(enabled_steps)
 
     # Calculate total estimated time
     total_estimated_time = sum(s.estimated_duration for s in enabled_steps)
@@ -60,7 +57,6 @@ def show_progress_with_api_call(
         finally:
             api_done.set()
 
-    # Start API call in background
     thread = threading.Thread(target=api_call_thread, daemon=True)
     thread.start()
 
@@ -68,9 +64,8 @@ def show_progress_with_api_call(
     cumulative_time = 0.0
     for idx, step in enumerate(steps):
         if step.enabled:
-            # Calculate progress percentage based on time estimates
             progress = cumulative_time / total_estimated_time if total_estimated_time > 0 else 0
-            progress = min(progress, 0.95)  # Cap at 95% until actually done
+            progress = min(progress, 0.95)
 
             progress_bar.progress(progress)
             status_text.markdown(step.message)
@@ -108,10 +103,9 @@ def show_progress_with_api_call(
             raise TimeoutError("Failed to retrieve API result from queue")
         raise
 
-    # Complete progress
     progress_bar.progress(1.0)
     total_time = (time.time() - start_time) * 1000
     status_text.markdown(f"✨ **Complete!** Total: {total_time:.0f}ms")
-    timing_text.caption(f"⏱️ Actual: {total_time/1000:.1f}s (estimated: {total_estimated_time:.1f}s)")
+    timing_text.caption(f"⏱️ Actual: {total_time / 1000:.1f}s (estimated: {total_estimated_time:.1f}s)")
 
     return result

@@ -27,8 +27,8 @@ class LLMInferenceAdapter(LLM):
     def __init__(
             self,
             provider: str = "api",
-            temperature: float = 0.5,
-            max_tokens: int = 4092,
+            temperature: Optional[float] = None,
+            max_tokens: Optional[int] = None,
             **kwargs: Any,
     ):
         """Initialize adapter with LLMInference instance.
@@ -99,7 +99,7 @@ class EmbedderAdapter(Embeddings):
     instead of requiring OpenAI embeddings API.
     """
 
-    embedder: Any  # Type hint but not validated by Pydantic
+    embedder: Any
 
     class Config:
         """Pydantic config to allow arbitrary types."""
@@ -122,7 +122,7 @@ class EmbedderAdapter(Embeddings):
         self.embedder = Embedder(
             model_id=model_id,
             device=device,
-            show_progress=False,  # RAGAS doesn't need progress bars
+            show_progress=False,
         )
         logger.info(f"Initialized EmbedderAdapter with model: {self.embedder.model_id}")
 
@@ -135,8 +135,6 @@ class EmbedderAdapter(Embeddings):
         Returns:
             List of embeddings (each embedding is a list of floats)
         """
-        # Use convert_to_numpy=True for reliable conversion, then .tolist()
-        # This matches what embed_query() does
         embeddings = self.embedder.embed_texts(
             texts=texts,
             convert_to_numpy=True,
@@ -153,6 +151,6 @@ class EmbedderAdapter(Embeddings):
         Returns:
             Embedding as list of floats
         """
-        # Our Embedder.embed_query() already returns list[float]
+        # Embedder.embed_query() already returns list[float]
         embedding = self.embedder.embed_query(text)
         return embedding

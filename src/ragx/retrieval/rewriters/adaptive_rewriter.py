@@ -147,7 +147,7 @@ class AdaptiveQueryRewriter:
 
         logger.info(f"Query {query} decomposed into sub-queries: {sub_queries}")
 
-        # # Step 4: Verify before retrival
+        # # Step 4: Verify before retrival (to be fixed in updated version)
         # if self.verify_before_retrieval and len(sub_queries) > 1:
         #     verified = self._verify_subqueries(query, sub_queries)
         #     if not verified["valid"]:
@@ -227,7 +227,7 @@ class AdaptiveQueryRewriter:
             "confidence": 0.0,
         }
 
-    # currently not used
+    # currently not used -> to be implemented
     def _verify_subqueries(self, original: str, sub_queries: List[str]) -> Dict[str, Any]:
         """Verify sub-queries before retrieval."""
         prompt_config = self.prompts["verification"]

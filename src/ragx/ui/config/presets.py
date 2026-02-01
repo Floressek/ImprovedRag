@@ -1,5 +1,6 @@
 from src.ragx.ui.constants.types import PipelineConfig
 
+# Basic predefined presets, for quick selection in the UI.
 PRESETS = {
     "baseline": PipelineConfig(
         name="Baseline",
