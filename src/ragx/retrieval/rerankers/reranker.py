@@ -95,8 +95,6 @@ class Reranker:
 
         # Create query-document pairs
         pairs = [[query, text] for text in texts]
-
-        # Score pairs
         logger.debug(f"Reranking {len(pairs)} documents")
 
         scores = self.model.predict(
@@ -143,8 +141,6 @@ class Reranker:
 
         # Create pairs
         pairs = [[query, passage] for passage in passages]
-
-        # Score pairs
         scores = self.model.predict(
             pairs,
             batch_size=batch_size,

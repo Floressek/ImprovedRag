@@ -153,11 +153,6 @@ class CoVeEnhancer:
             if v.label in ["refutes", "insufficient"]
         ]
 
-        # missing_citations = [
-        #     v for v in verifications
-        #     if v.label == "supports" and not v.claim.has_citations
-        # ]
-
         # Step 4: Recovery (if enabled)
         recovery_attempted = False
         recovery_helped = False

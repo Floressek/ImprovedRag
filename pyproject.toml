@@ -37,4 +37,5 @@ dependencies = [
     "streamlit>=1.38.0",
     "plotly>=5.18.0",
     "colorlog>=6.10.1",
+    "spacy>=3.8.11",
 ]

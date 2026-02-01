@@ -112,7 +112,6 @@ class JSONValidator:
                             "response_preview": response[:200] if response else None,
                         })
                     else:
-                        # Success!
                         metadata["total_time"] = time.time() - start_time
                         logger.info(
                             f"Successfully parsed JSON after {attempt + 1} attempt(s) "
@@ -120,7 +119,6 @@ class JSONValidator:
                         )
                         return True, parsed, metadata
                 else:
-                    # Parse failed
                     logger.warning(f"Attempt {attempt + 1}: {error}")
                     metadata["errors"].append({
                         "attempt": attempt + 1,
