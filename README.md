@@ -619,7 +619,7 @@ ragx/
 │   │   ├── providers/          # Provider implementations
 │   │   └── prompts/            # Prompt templates
 │   │
-│   ├── ui/                     # Streamlit chat interface
+│   ├── ui/                     # Streamlit chat interface -> claude generated, beta testing
 │   │   ├── chat_app.py         # Main application
 │   │   ├── components/         # UI components
 │   │   └── config/             # UI configuration
