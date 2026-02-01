@@ -1,0 +1,203 @@
+extract_claims:
+  system: |
+    Extract independent factual claims from the answer.
+    Each claim must be verifiable against a knowledge base.
+    CRITICAL: Extract claims in the SAME language as the answer!
+
+  template: |
+    Answer:
+    {answer}
+
+    Requirements:
+    - Extract ONLY factual statements (no opinions, meta-statements, citations)
+    - PRESERVE THE LANGUAGE: if answer is in Polish, claims MUST be in Polish
+    - Each claim independent and verifiable
+    - Max 20 words per claim
+    - Skip anaphoric pronouns (he, she, it, this, that) - rephrase with explicit entities
+    - Max {max_claims} claims
+
+    Response (JSON only):
+    {{
+      "claims": ["claim1", "claim2"]
+    }}
+
+nli_verdict:
+  system: |
+    You are a natural language inference classifier.
+    Determine if evidence supports, refutes, or is insufficient for the claim.
+
+  template: |
+    Claim:
+    {claim}
+
+    Evidence:
+    {evidence}
+
+    Task: Does the evidence support or refute the claim?
+
+    Response (JSON only):
+    {{
+      "label": "supports" | "refutes" | "insufficient",
+      "confidence": 0.0-1.0,
+      "reasoning": "brief explanation (max 20 words)"
+    }}
+
+batch_nli_verdict:
+  system: |
+    You are a natural language inference classifier.
+    Evaluate multiple claims against provided evidence.
+    
+    CRITICAL: For claims about SPECIFIC PEOPLE or ENTITIES:
+    - Evidence MUST mention THE EXACT SAME person/entity by name
+    - Similar descriptions of DIFFERENT people = "insufficient"
+    - Example: Evidence about "John Smith" does NOT support claims about "Jane Doe"
+      even if both are teachers
+
+  template: |
+    Evidence:
+    {evidence}
+
+    Claims to evaluate ({num_claims} total):
+    {claims_list}
+
+    Task: For EACH claim (0 to {num_claims}), determine if the evidence above supports, refutes, or is insufficient.
+    You MUST provide exactly {num_claims} results.
+
+    Response (JSON only):
+    {{
+      "results": [
+        {{"claim_id": 0, "label": "supports|refutes|insufficient", "confidence": 0.0-1.0, "reasoning": "brief explanation"}},
+        {{"claim_id": 1, "label": "supports|refutes|insufficient", "confidence": 0.0-1.0, "reasoning": "brief explanation"}},
+        ... (continue for all {num_claims} claims)
+      ]
+    }}
+
+correct_answer:
+  system: |
+    You are an answer corrector. Your task is to REMOVE false information from the answer.
+    ANSWER IN THE SAME LANGUAGE AS THE QUESTION!
+
+    CRITICAL RULES:
+    1. COMPLETELY DELETE all sentences containing false statements
+    2. DO NOT preserve citations [N] for false statements - they are wrong!
+    3. Handle false statements based on their type:
+       - "insufficient" (no evidence): DELETE entire claim → write "Brak informacji o [entity] w dostępnych źródłach."
+       - "refutes" (contradicted): DELETE false claim → write ONLY facts from CORRECT SOURCES
+    4. DO NOT add speculation, inference, or new information beyond sources
+    5. Keep ONLY verified parts with their citations
+
+  template: |
+    ORIGINAL QUESTION:
+    {query}
+
+    ORIGINAL ANSWER (contains FALSE information):
+    {answer}
+
+    FALSE STATEMENTS (MUST BE DELETED):
+    {failed_verifications_with_evidence}
+
+    CORRECT SOURCES (use ONLY for "refutes" replacements):
+    {original_contexts}
+
+    STEP-BY-STEP PROCESS:
+
+    Step 1: IDENTIFY which sentences/paragraphs contain the false statements above
+    Step 2: DELETE those sentences completely (ignore their citations - they're wrong!)
+    Step 3: REPLACE based on type:
+
+    A) For "insufficient" (no evidence exists):
+       → Write: "Brak informacji o [entity/topic] w dostępnych źródłach."
+       → DO NOT try to salvage or rephrase the original claim
+       → Example: "Maja Popielarska była działaczką..." (insufficient)
+         ✗ WRONG: Keep any part of the original paragraph
+         ✓ CORRECT: "Brak informacji o Maji Popielarskiej w dostępnych źródłach."
+
+    B) For "refutes" (contradicted by evidence):
+       → Write ONLY facts from CORRECT SOURCES that answer the question
+       → DO NOT add speculation like "mógł mieć znaczenie" or "symbolem stylu"
+       → If sources lack relevant info: "Brak szczegółowych informacji w dostępnych źródłach."
+
+    Step 4: Keep verified parts with their citations
+
+    CRITICAL: If false statements cover entire answer, output ONLY "Brak informacji" statement!
+
+    CORRECTED ANSWER (just the fixed answer, no explanations):
+
+correct_answer_simplified:
+  system: |
+    You are a fact checker. Remove false information from the answer.
+    CRITICAL: Answer in THE SAME LANGUAGE as the original answer!
+
+  template: |
+    QUESTION: 
+    {query}
+    
+    ORIGINAL ANSWER (contains errors):
+    {answer}
+    
+    FALSE STATEMENTS (remove these):
+    {false_claims}
+    
+    SOURCES (use to fix errors):
+    {contexts}
+    
+    TASK: Rewrite the answer removing false statements. Keep everything else. Use citations [N].
+    CORRECTED ANSWER:
+
+suggest_corrections:
+  system: |
+    You are a fact checker. Analyze false claims and suggest corrections.
+    CRITICAL: Respond in THE SAME LANGUAGE as the answer!
+
+  template: |
+    QUESTION: 
+    {query}
+    
+    ANSWER TO ANALYZE:
+    {answer}
+    
+    FALSE CLAIMS DETECTED:
+    {false_claims}
+    
+    AVAILABLE EVIDENCE:
+    {contexts}
+    
+    TASK: For each false claim, suggest a correction with reasoning.
+    
+    Response (JSON only):
+    {{
+      "suggestions": [
+        {{
+          "original_claim": "claim text",
+          "suggested_correction": "corrected version or 'REMOVE'",
+          "reasoning": "why this correction",
+          "confidence": 0.0-1.0,
+          "sources_used": [1, 2]
+        }}
+      ]
+    }}
+
+
+targeted_queries:
+  system: |
+    Generate specific search queries to find missing evidence.
+    CRICTICAL: Generate queries in the SAME language as the original question!
+
+  template: |
+    Original Question: {original_query}
+
+    Claims Missing Evidence:
+    {missing_claims}
+
+    Task: Generate 1-5 specific search queries to find evidence for these claims.
+
+    Requirements:
+    - Each query targets ONE specific claim
+    - Max 15 words per query
+    - Focus on factual aspects
+    - Same language as original query
+
+    Response (JSON only):
+    {{
+      "queries": ["query1", "query2"]
+    }}

@@ -1,0 +1,171 @@
+{
+  "timestamp": "2025-11-18T23:44:17.126745",
+  "completed_configs": [
+    "baseline",
+    "full_no_cove",
+    "full_cove_auto"
+  ],
+  "config_results": [
+    {
+      "name": "baseline",
+      "description": "No enhancements (vector search only)",
+      "config": {
+        "use_query_analysis": false,
+        "use_cot": false,
+        "use_reranker": false,
+        "cove": "off",
+        "prompt_template": "basic",
+        "top_k": 8
+      },
+      "evaluation": {
+        "mean_faithfulness": 1.0,
+        "mean_answer_relevancy": 0.7777476200326283,
+        "mean_context_precision": 0.2880952380725,
+        "mean_context_recall": 1.0,
+        "mean_latency_ms": 6470.125,
+        "mean_sources_count": 7.0,
+        "mean_multihop_coverage": 1.0,
+        "ci_faithfulness": [
+          1.0,
+          1.0
+        ],
+        "ci_answer_relevancy": [
+          0.5310341250707279,
+          1.0244611149945286
+        ],
+        "ci_context_precision": [
+          0.1994285714266,
+          0.3767619047184
+        ],
+        "ci_context_recall": [
+          1.0,
+          1.0
+        ],
+        "std_faithfulness": 0.0,
+        "std_answer_relevancy": 0.17801304622223768,
+        "std_context_precision": 0.06397632780665607,
+        "std_context_recall": 0.0,
+        "num_questions": 2,
+        "num_multihop": 0,
+        "num_simple": 2
+      },
+      "run_time_ms": 48240.875244140625
+    },
+    {
+      "name": "full_no_cove",
+      "description": "Full pipeline without CoVe",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": true,
+        "use_reranker": true,
+        "cove": "off",
+        "prompt_template": "multihop",
+        "top_k": 8
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.9444444444444444,
+        "mean_answer_relevancy": 0.8433562223329649,
+        "mean_context_precision": 0.6147619047296096,
+        "mean_context_recall": 1.0,
+        "mean_latency_ms": 13531.555,
+        "mean_sources_count": 6.0,
+        "mean_multihop_coverage": 1.0,
+        "ci_faithfulness": [
+          0.8355555555555555,
+          1.0533333333333335
+        ],
+        "ci_answer_relevancy": [
+          0.7038690432771206,
+          0.9828434013888092
+        ],
+        "ci_context_precision": [
+          0.38982857136157495,
+          0.8396952380976441
+        ],
+        "ci_context_recall": [
+          1.0,
+          1.0
+        ],
+        "std_faithfulness": 0.07856742013183865,
+        "std_answer_relevancy": 0.10064523489690783,
+        "std_context_precision": 0.16229784218309348,
+        "std_context_recall": 0.0,
+        "num_questions": 2,
+        "num_multihop": 0,
+        "num_simple": 2
+      },
+      "run_time_ms": 80851.01199150085
+    },
+    {
+      "name": "full_cove_auto",
+      "description": "Full pipeline with CoVe auto-correction",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": true,
+        "use_reranker": true,
+        "cove": "auto",
+        "prompt_template": "multihop",
+        "top_k": 8
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.975,
+        "mean_answer_relevancy": 0.8431762008515351,
+        "mean_context_precision": 0.6147619047296096,
+        "mean_context_recall": 1.0,
+        "mean_latency_ms": 23088.285,
+        "mean_sources_count": 6.0,
+        "mean_multihop_coverage": 1.0,
+        "ci_faithfulness": [
+          0.9259999999999999,
+          1.024
+        ],
+        "ci_answer_relevancy": [
+          0.7033361796920882,
+          0.983016222010982
+        ],
+        "ci_context_precision": [
+          0.38982857136157495,
+          0.8396952380976441
+        ],
+        "ci_context_recall": [
+          1.0,
+          1.0
+        ],
+        "std_faithfulness": 0.03535533905932741,
+        "std_answer_relevancy": 0.10089982371746452,
+        "std_context_precision": 0.16229784218309348,
+        "std_context_recall": 0.0,
+        "num_questions": 2,
+        "num_multihop": 0,
+        "num_simple": 2
+      },
+      "run_time_ms": 96074.56183433533
+    }
+  ],
+  "questions": [
+    {
+      "question": "Co to jest \u015arodkowy paleolit?",
+      "ground_truth": "\u015arodkowy paleolit odnosi si\u0119 do charakterystycznych wyrob\u00f3w kulturowych spotykanych na terenie zachodniej Eurazji, a w Afryce odpowiada mu okres znany jako \u015arodkowa Epoka Kamienia (MSA).",
+      "type": "simple",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=57018"
+      ],
+      "contexts": [
+        "\u015arodkowy paleolit \u2013 odnosi si\u0119 do charakterystycznych wyrob\u00f3w kulturowych spotykanych na terenie zachodniej Eurazji. Odpowiednikiem dla tego terminu, w odniesieniu do teren\u00f3w afryka\u0144skich, jest \u015arodkowa Epoka Kamienia (MSA \u2013 \"Middle Stone Age\"). Proces przechodzenia od aszelskiej tradycji technologicznej do \u015arodkowej Epoki Kamienia znanej z teren\u00f3w afryka\u0144skich trwa\u0142 od ok. 300 do 200 tys. lat temu za\u015b koniec MSA wyznacza okres mi\u0119dzy 50 a 20 tys. lat temu.\nW okresie MSA bro\u0144 miotana \u2013 oszczepy \u2013 coraz cz\u0119\u015bciej wyposa\u017cana by\u0142a w ostrza li\u015bciowate jak i specjalnie odbijane od\u0142upki o wcze\u015bniej zamierzonym tr\u00f3jk\u0105tnym kszta\u0142cie kt\u00f3re s\u0142u\u017cy\u0142y jako groty. Zastosowanie kamiennych grot\u00f3w znacznie zwi\u0119ksza\u0142o efektywno\u015b\u0107 podejmowanych przez cz\u0142owieka dzia\u0142a\u0144 \u0142owczych. W okresie MSA w zasadzie niepo\u015bwiadczone jest stosowanie padlino\u017cerstwa, za\u015b \u015blad\u00f3w zorganizowanych polowa\u0144 ludzkich dostarcza wiele stanowisk, tj. Klasies River Mouth w Po\u0142udniowej Afryce. Na stanowisku tym znaleziono szcz\u0105tki bow"
+      ]
+    },
+    {
+      "question": "Co to jest IPPC?",
+      "ground_truth": "IPPC to Dyrektywa Unii Europejskiej nr 96/61/WE z 24 wrze\u015bnia 1996 r. dotycz\u0105ca zintegrowanego zapobiegania zanieczyszczeniom i ich kontroli.",
+      "type": "simple",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=146961"
+      ],
+      "contexts": [
+        "IPPC (ang. \"Integrated Pollution Prevention and Control\" ) \u2013 Dyrektywa Unii Europejskiej nr 96/61/WE z 24 wrze\u015bnia 1996 r. dotycz\u0105ca zintegrowanego zapobiegania zanieczyszczeniom i ich kontroli. Dyrektywa IPPC narzuca konieczno\u015b\u0107 uzyskiwania tzw. pozwolenia zintegrowanego na funkcjonowanie w UE instalacji technologicznych, w niekt\u00f3rych, uznawanych za szczeg\u00f3lnie uci\u0105\u017cliwe dla \u015brodowiska, dziedzinach dzia\u0142alno\u015bci gospodarczej, np. przemys\u0142u. S\u0105 to niekt\u00f3re instalacje technologiczne w ramach: przemys\u0142u paliwowo-energetycznego, chemicznego, mineralnego, metalurgicznego, a r\u00f3wnie\u017c instalacje zwi\u0105zane np. z gospodark\u0105 odpadami technologicznymi i komunalnymi oraz rolnictwem (m.in. ubojnie, mleczarnie, garbarnie).\nDyrektywa IPPC opiera si\u0119 na czterech filarach, s\u0105 to:"
+      ]
+    }
+  ],
+  "current_config_idx": 3,
+  "total_configs": 3
+}

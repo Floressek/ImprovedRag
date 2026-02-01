@@ -1,0 +1,512 @@
+{
+  "num_questions": 20,
+  "total_time_ms": 9405406.854391098,
+  "configs": [
+    {
+      "name": "baseline",
+      "description": "No enhancements (vector search only)",
+      "config": {
+        "use_query_analysis": false,
+        "use_cot": false,
+        "use_reranker": false,
+        "cove": "off",
+        "prompt_template": "basic",
+        "top_k": 10
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8616666666666667,
+        "mean_answer_relevancy": 0.5919025726793101,
+        "mean_context_precision": 0.48505952377125344,
+        "mean_context_recall": 0.7083333333333333,
+        "mean_latency_ms": 2151.8810000000003,
+        "mean_sources_count": 10.0,
+        "mean_num_candidates": 20.0,
+        "mean_multihop_coverage": 0.0,
+        "ci_faithfulness": [
+          0.7423668173998395,
+          0.9809665159334939
+        ],
+        "ci_answer_relevancy": [
+          0.3959149452843796,
+          0.7878902000742405
+        ],
+        "ci_context_precision": [
+          0.29317424453360474,
+          0.6769448030089023
+        ],
+        "ci_context_recall": [
+          0.5409664708226599,
+          0.8757001958440068
+        ],
+        "std_faithfulness": 0.27220670680214726,
+        "std_answer_relevancy": 0.44718536490200456,
+        "std_context_precision": 0.43782502883358326,
+        "std_context_recall": 0.3818813079129867,
+        "num_questions": 20,
+        "num_multihop": 0,
+        "num_simple": 20
+      },
+      "run_time_ms": 200739.23659324646
+    },
+    {
+      "name": "enhanced_only",
+      "description": "Enhanced features only (metadata, quality checks)",
+      "config": {
+        "use_query_analysis": false,
+        "use_cot": false,
+        "use_reranker": false,
+        "cove": "off",
+        "prompt_template": "enhanced",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8201263197586727,
+        "mean_answer_relevancy": 0.6933460951511464,
+        "mean_context_precision": 0.48123522306906696,
+        "mean_context_recall": 0.7333333333333333,
+        "mean_latency_ms": 7397.6265,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 30.0,
+        "mean_multihop_coverage": 0.0,
+        "ci_faithfulness": [
+          0.7107454816009151,
+          0.9295071579164302
+        ],
+        "ci_answer_relevancy": [
+          0.5352242759157321,
+          0.8514679143865608
+        ],
+        "ci_context_precision": [
+          0.28473353329690304,
+          0.6777369128412309
+        ],
+        "ci_context_recall": [
+          0.573651339416403,
+          0.8930153272502636
+        ],
+        "std_faithfulness": 0.2495744791394376,
+        "std_answer_relevancy": 0.3607868740166533,
+        "std_context_precision": 0.4483583020654426,
+        "std_context_recall": 0.3643467277356775,
+        "num_questions": 20,
+        "num_multihop": 0,
+        "num_simple": 20
+      },
+      "run_time_ms": 438416.6033267975
+    },
+    {
+      "name": "cot_only",
+      "description": "Chain of Thought only",
+      "config": {
+        "use_query_analysis": false,
+        "use_cot": true,
+        "use_reranker": false,
+        "cove": "off",
+        "prompt_template": "basic",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.9418722943722944,
+        "mean_answer_relevancy": 0.6489822811062109,
+        "mean_context_precision": 0.4618223442825812,
+        "mean_context_recall": 0.7333333333333333,
+        "mean_latency_ms": 9274.405499999999,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 30.0,
+        "mean_multihop_coverage": 0.0,
+        "ci_faithfulness": [
+          0.875324288582688,
+          1.0084203001619008
+        ],
+        "ci_answer_relevancy": [
+          0.47847138961551006,
+          0.8194931725969116
+        ],
+        "ci_context_precision": [
+          0.26067861637585305,
+          0.6629660721893094
+        ],
+        "ci_context_recall": [
+          0.5776584960256931,
+          0.8890081706409735
+        ],
+        "std_faithfulness": 0.15184271909449945,
+        "std_answer_relevancy": 0.3890550451809157,
+        "std_context_precision": 0.4589500498440465,
+        "std_context_recall": 0.3552035904143916,
+        "num_questions": 20,
+        "num_multihop": 0,
+        "num_simple": 20
+      },
+      "run_time_ms": 413077.1036148071
+    },
+    {
+      "name": "reranker_only",
+      "description": "Reranker only",
+      "config": {
+        "use_query_analysis": false,
+        "use_cot": false,
+        "use_reranker": true,
+        "cove": "off",
+        "prompt_template": "basic",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.825576923076923,
+        "mean_answer_relevancy": 0.7059146374804851,
+        "mean_context_precision": 0.5301159950727263,
+        "mean_context_recall": 0.7958333333333333,
+        "mean_latency_ms": 3272.4095,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 250.0,
+        "mean_multihop_coverage": 0.0,
+        "ci_faithfulness": [
+          0.6821809928379734,
+          0.9689728533158728
+        ],
+        "ci_answer_relevancy": [
+          0.5446748946131189,
+          0.8671543803478515
+        ],
+        "ci_context_precision": [
+          0.3388936243281873,
+          0.7213383658172656
+        ],
+        "ci_context_recall": [
+          0.6574051318747276,
+          0.934261534791939
+        ],
+        "std_faithfulness": 0.32718678337868295,
+        "std_answer_relevancy": 0.367901046659202,
+        "std_context_precision": 0.4363124691872006,
+        "std_context_recall": 0.31585190659640605,
+        "num_questions": 20,
+        "num_multihop": 0,
+        "num_simple": 20
+      },
+      "run_time_ms": 287568.60089302063
+    },
+    {
+      "name": "cove_auto_only",
+      "description": "CoVe auto-correction only",
+      "config": {
+        "use_query_analysis": false,
+        "use_cot": true,
+        "use_reranker": false,
+        "cove": "auto",
+        "prompt_template": "basic",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8856868131868133,
+        "mean_answer_relevancy": 0.5759283297981789,
+        "mean_context_precision": 0.5149184981239175,
+        "mean_context_recall": 0.705,
+        "mean_latency_ms": 40659.3525,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 30.0,
+        "mean_multihop_coverage": 0.0,
+        "ci_faithfulness": [
+          0.7998099237090739,
+          0.9715637026645525
+        ],
+        "ci_answer_relevancy": [
+          0.38520886844940716,
+          0.7666477911469504
+        ],
+        "ci_context_precision": [
+          0.31271352655977513,
+          0.71712346968806
+        ],
+        "ci_context_recall": [
+          0.5441772244170657,
+          0.8658227755829342
+        ],
+        "std_faithfulness": 0.1959454720086341,
+        "std_answer_relevancy": 0.4351649798040786,
+        "std_context_precision": 0.4613714916386066,
+        "std_context_recall": 0.366949651564933,
+        "num_questions": 20,
+        "num_multihop": 0,
+        "num_simple": 20
+      },
+      "run_time_ms": 1047347.9206562042
+    },
+    {
+      "name": "cot_enhanced",
+      "description": "CoT + Enhanced Features",
+      "config": {
+        "use_query_analysis": false,
+        "use_cot": true,
+        "use_reranker": false,
+        "cove": "off",
+        "prompt_template": "enhanced",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8459791352438412,
+        "mean_answer_relevancy": 0.6837616959024627,
+        "mean_context_precision": 0.488965201421224,
+        "mean_context_recall": 0.7216666666666667,
+        "mean_latency_ms": 12950.153,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 30.0,
+        "mean_multihop_coverage": 0.0,
+        "ci_faithfulness": [
+          0.7579641451810486,
+          0.9339941253066337
+        ],
+        "ci_answer_relevancy": [
+          0.5274569372458733,
+          0.8400664545590522
+        ],
+        "ci_context_precision": [
+          0.2842281598975351,
+          0.6937022429449131
+        ],
+        "ci_context_recall": [
+          0.5653779168049657,
+          0.8779554165283676
+        ],
+        "std_faithfulness": 0.20082398042793131,
+        "std_answer_relevancy": 0.3566408832273803,
+        "std_context_precision": 0.4671489207746589,
+        "std_context_recall": 0.35660435592777984,
+        "num_questions": 20,
+        "num_multihop": 0,
+        "num_simple": 20
+      },
+      "run_time_ms": 505222.4793434143
+    },
+    {
+      "name": "query_rerank",
+      "description": "Query Analysis + Reranking",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": false,
+        "use_reranker": true,
+        "cove": "off",
+        "prompt_template": "basic",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8468578643578644,
+        "mean_answer_relevancy": 0.8228875460481058,
+        "mean_context_precision": 0.5161278998349718,
+        "mean_context_recall": 0.9333333333333332,
+        "mean_latency_ms": 16653.889499999997,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 250.0,
+        "mean_multihop_coverage": 0.5,
+        "ci_faithfulness": [
+          0.7190630436477353,
+          0.9746526850679934
+        ],
+        "ci_answer_relevancy": [
+          0.7250504168741156,
+          0.9207246752220959
+        ],
+        "ci_context_precision": [
+          0.3241644427287852,
+          0.7080913569411583
+        ],
+        "ci_context_recall": [
+          0.8733793548818265,
+          0.9932873117848402
+        ],
+        "std_faithfulness": 0.2915897002859657,
+        "std_answer_relevancy": 0.22323517505762208,
+        "std_context_precision": 0.43800340743397775,
+        "std_context_recall": 0.13679711361135388,
+        "num_questions": 20,
+        "num_multihop": 11,
+        "num_simple": 9
+      },
+      "run_time_ms": 570593.7116146088
+    },
+    {
+      "name": "full_no_cove",
+      "description": "Full pipeline without CoVe",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": true,
+        "use_reranker": true,
+        "cove": "off",
+        "prompt_template": "multihop",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.7364923964923964,
+        "mean_answer_relevancy": 0.6220132391421556,
+        "mean_context_precision": 0.5307112331664764,
+        "mean_context_recall": 0.8791666666666667,
+        "mean_latency_ms": 23213.9735,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 250.0,
+        "mean_multihop_coverage": 0.45,
+        "ci_faithfulness": [
+          0.5970338636717705,
+          0.8759509293130225
+        ],
+        "ci_answer_relevancy": [
+          0.43842977457375576,
+          0.8055967037105556
+        ],
+        "ci_context_precision": [
+          0.34391619063729995,
+          0.7175062756956528
+        ],
+        "ci_context_recall": [
+          0.7893333333333333,
+          0.969
+        ],
+        "std_faithfulness": 0.31820281574418924,
+        "std_answer_relevancy": 0.41888276155088394,
+        "std_context_precision": 0.42621062546449257,
+        "std_context_recall": 0.20497289793748072,
+        "num_questions": 20,
+        "num_multihop": 11,
+        "num_simple": 9
+      },
+      "run_time_ms": 717850.3775596619
+    },
+    {
+      "name": "full_cove_auto",
+      "description": "Full pipeline with CoVe auto-correction",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": true,
+        "use_reranker": true,
+        "cove": "auto",
+        "prompt_template": "multihop",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.783042328042328,
+        "mean_answer_relevancy": 0.686021227539604,
+        "mean_context_precision": 0.5572985347520916,
+        "mean_context_recall": 0.8708333333333332,
+        "mean_latency_ms": 58296.258499999996,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 250.0,
+        "mean_multihop_coverage": 0.5,
+        "ci_faithfulness": [
+          0.6870596333918326,
+          0.8790250226928233
+        ],
+        "ci_answer_relevancy": [
+          0.5297241479585474,
+          0.8423183071206609
+        ],
+        "ci_context_precision": [
+          0.36866147161264173,
+          0.7459355978915412
+        ],
+        "ci_context_recall": [
+          0.7817849284006642,
+          0.9598817382660025
+        ],
+        "std_faithfulness": 0.2190039080633806,
+        "std_answer_relevancy": 0.35662336186524213,
+        "std_context_precision": 0.4304135676078873,
+        "std_context_recall": 0.20318192522181225,
+        "num_questions": 20,
+        "num_multihop": 10,
+        "num_simple": 10
+      },
+      "run_time_ms": 1426797.0123291016
+    },
+    {
+      "name": "full_cove_metadata",
+      "description": "Full pipeline with CoVe metadata-only",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": true,
+        "use_reranker": true,
+        "cove": "metadata",
+        "prompt_template": "multihop",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8222237762237763,
+        "mean_answer_relevancy": 0.6433920552099472,
+        "mean_context_precision": 0.5259890109431986,
+        "mean_context_recall": 0.9083333333333332,
+        "mean_latency_ms": 54873.39349999999,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 250.0,
+        "mean_multihop_coverage": 0.5,
+        "ci_faithfulness": [
+          0.7137295407406343,
+          0.930718011706918
+        ],
+        "ci_answer_relevancy": [
+          0.475031714967019,
+          0.8117523954528757
+        ],
+        "ci_context_precision": [
+          0.32454098322186264,
+          0.7274370386645346
+        ],
+        "ci_context_recall": [
+          0.8213387109277767,
+          0.99532795573889
+        ],
+        "std_faithfulness": 0.2475515160277295,
+        "std_answer_relevancy": 0.3841481280593686,
+        "std_context_precision": 0.45964437134507075,
+        "std_context_recall": 0.19849580548546017,
+        "num_questions": 20,
+        "num_multihop": 10,
+        "num_simple": 10
+      },
+      "run_time_ms": 1853804.5828342438
+    },
+    {
+      "name": "full_cove_suggest",
+      "description": "Full pipeline with CoVe suggest mode",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": true,
+        "use_reranker": true,
+        "cove": "suggest",
+        "prompt_template": "multihop",
+        "top_k": 15
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8550183150183152,
+        "mean_answer_relevancy": 0.8252487518767022,
+        "mean_context_precision": 0.5626556776086986,
+        "mean_context_recall": 0.8625,
+        "mean_latency_ms": 57449.849,
+        "mean_sources_count": 15.0,
+        "mean_num_candidates": 250.0,
+        "mean_multihop_coverage": 0.5,
+        "ci_faithfulness": [
+          0.7728270634860688,
+          0.9372095665505613
+        ],
+        "ci_answer_relevancy": [
+          0.7354564002145025,
+          0.9150411035389017
+        ],
+        "ci_context_precision": [
+          0.3727607991387577,
+          0.7525505560786395
+        ],
+        "ci_context_recall": [
+          0.7596928293965574,
+          0.9653071706034427
+        ],
+        "std_faithfulness": 0.1875359444713126,
+        "std_answer_relevancy": 0.2048793899757598,
+        "std_context_precision": 0.4332835273855604,
+        "std_context_recall": 0.23457532861603678,
+        "num_questions": 20,
+        "num_multihop": 10,
+        "num_simple": 10
+      },
+      "run_time_ms": 1943959.8381519318
+    }
+  ]
+}

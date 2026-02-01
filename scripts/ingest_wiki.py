@@ -12,11 +12,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from dotenv import load_dotenv
 
 from src.ragx.ingestion.chunkers.chunker import TextChunker
-from src.ragx.ingestion.ingestion_pipeline import IngestionPipeline
-from src.ragx.ingestion.wiki_extractor import WikiExtractor
+from src.ragx.ingestion.pipelines.ingestion_pipeline import IngestionPipeline
+from src.ragx.ingestion.extractions.wiki_extractor import WikiExtractor
 from src.ragx.ingestion.utils.download_wiki_dump import download_wikipedia_dump
 from src.ragx.utils.logging_config import setup_logging
-from src.ragx.retrieval.embedder import Embedder
+from src.ragx.retrieval.embedder.embedder import Embedder
 from src.ragx.retrieval.vector_stores.qdrant_store import QdrantStore
 
 
@@ -152,7 +152,7 @@ def main() -> None:
     # Setup logging
     setup_logging(level=args.log_level)
 
-    logger.info("Starting Wikipedia ingestion pipeline")
+    logger.info("Starting Wikipedia ingestion pipelines")
     logger.info("Configuration:")
     logger.info("  Language: %s", args.language)
     logger.info("  Max articles: %d", args.max_articles)
@@ -237,7 +237,7 @@ def main() -> None:
             add_passage_prefix=False,
         )
 
-        # Create ingestion pipeline
+        # Create ingestion pipelines
         pipeline = IngestionPipeline(
             extractor=WikiExtractor(
                 max_articles=args.max_articles,
@@ -263,8 +263,6 @@ def main() -> None:
         for batch in pipeline.process_in_batches(chunks_iterator, batch_size=args.batch_size):
             # Convert chunks to dictionaries
             chunk_dicts = [chunk.to_dict() for chunk in batch]
-
-            # Extract texts for embedding
             texts = [chunk["text"] for chunk in chunk_dicts]
 
             # "passage" prefix will come from the embedder if enabled
@@ -274,7 +272,6 @@ def main() -> None:
                 convert_to_numpy=False,
             )
 
-            # Add to vector store
             vector_store.add(
                 vectors=embeddings,
                 payloads=chunk_dicts,
@@ -304,7 +301,7 @@ def main() -> None:
 
             # Embed query with prefix if needed
             query_vector = embedder.embed_query(test_query)
-            results = vector_store.search(query_vector, top_k=10)
+            results = vector_store.search(vector=query_vector, top_k=10)
 
             logger.info(f"Test search for '{test_query}':")
             for i, (id_, payload, score) in enumerate(results, 1):

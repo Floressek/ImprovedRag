@@ -1,0 +1,111 @@
+import time
+import threading
+import streamlit as st
+from typing import Dict, Any
+from queue import Queue
+
+from src.ragx.ui.constants.types import PipelineConfig
+from src.ragx.ui.helpers.helpers import get_pipeline_steps, call_rag_api
+
+
+def show_progress_with_api_call(
+        prompt: str,
+        config: PipelineConfig,
+        api_url: str,
+) -> Dict[str, Any]:
+    """
+    Show live progress bar while API call executes.
+
+    Uses threading to run API call in background while updating progress
+    based on realistic step duration estimates.
+
+    Args:
+        prompt: User query
+        config: Pipeline configuration
+        api_url: API base URL
+
+    Returns:
+        API response dict
+
+    Raises:
+        Exception: If API call fails or times out
+    """
+    steps = get_pipeline_steps(config)
+    enabled_steps = [s for s in steps if s.enabled]
+
+    # Calculate total estimated time
+    total_estimated_time = sum(s.estimated_duration for s in enabled_steps)
+
+    start_time = time.time()
+
+    # Show progress bar
+    progress_bar = st.progress(0.0)
+    status_text = st.empty()
+    timing_text = st.empty()
+
+    # Thread communication using Queue for thread-safety
+    api_done = threading.Event()
+    result_queue = Queue()
+
+    def api_call_thread():
+        """Background thread for API call."""
+        try:
+            result = call_rag_api(prompt, config, api_url)
+            result_queue.put(('success', result))
+        except Exception as e:
+            result_queue.put(('error', e))
+        finally:
+            api_done.set()
+
+    thread = threading.Thread(target=api_call_thread, daemon=True)
+    thread.start()
+
+    # Show progress based on realistic timing estimates
+    cumulative_time = 0.0
+    for idx, step in enumerate(steps):
+        if step.enabled:
+            progress = cumulative_time / total_estimated_time if total_estimated_time > 0 else 0
+            progress = min(progress, 0.95)
+
+            progress_bar.progress(progress)
+            status_text.markdown(step.message)
+
+            elapsed = time.time() - start_time
+            timing_text.caption(f"⏱️ Elapsed: {elapsed:.1f}s / ~{total_estimated_time:.1f}s")
+
+            # Wait for this step's estimated duration (in small chunks to stay responsive)
+            step_wait_time = step.estimated_duration
+            intervals = int(step_wait_time / 0.2)  # Check every 200ms
+
+            for _ in range(intervals):
+                if api_done.is_set():
+                    break
+                time.sleep(0.2)
+
+            cumulative_time += step.estimated_duration
+
+            if api_done.is_set():
+                break
+
+    # Wait for API to complete (with timeout)
+    if not api_done.wait(timeout=120):
+        raise TimeoutError("API request timed out after 120 seconds")
+
+    # Retrieve result from queue (thread-safe)
+    try:
+        status, data = result_queue.get(timeout=1)
+        if status == 'error':
+            raise data
+        result = data
+    except Exception as e:
+        # If queue is empty or other issue, re-raise
+        if isinstance(e, TimeoutError):
+            raise TimeoutError("Failed to retrieve API result from queue")
+        raise
+
+    progress_bar.progress(1.0)
+    total_time = (time.time() - start_time) * 1000
+    status_text.markdown(f"✨ **Complete!** Total: {total_time:.0f}ms")
+    timing_text.caption(f"⏱️ Actual: {total_time / 1000:.1f}s (estimated: {total_estimated_time:.1f}s)")
+
+    return result
