@@ -1,6 +1,4 @@
 #!/bin/bash
-# Launch RAGx Interactive Chat UI
-
 echo "🚀 Starting RAGx Chat UI..."
 echo ""
 echo "Make sure the API server is running:"

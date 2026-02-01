@@ -64,7 +64,6 @@ class AblationStudy:
         self.ragas_delay = ragas_delay
         self.save_every_n_questions = save_every_n_questions
 
-        # Initialize API client
         self.api_client = RAGAPIClient(
             api_base_url=api_base_url,
             timeout=api_timeout,
@@ -72,7 +71,6 @@ class AblationStudy:
             retry_backoff=retry_backoff,
         )
 
-        # Initialize checkpoint manager
         self.checkpoint_manager = CheckpointManager(checkpoint_dir=checkpoint_dir)
 
         logger.info(
@@ -101,7 +99,6 @@ class AblationStudy:
         Returns:
             AblationStudyResult with all metrics
         """
-        # Generate run_id if not provided
         if run_id is None:
             run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -110,7 +107,8 @@ class AblationStudy:
         if resume and self.checkpoint_manager.is_enabled():
             checkpoint = self.checkpoint_manager.load(run_id)
             if checkpoint:
-                logger.info(f"🔄 Resuming from checkpoint ({len(checkpoint.completed_configs)}/{checkpoint.total_configs} configs completed)")
+                logger.info(
+                    f"🔄 Resuming from checkpoint ({len(checkpoint.completed_configs)}/{checkpoint.total_configs} configs completed)")
                 questions = checkpoint.questions
             else:
                 logger.info("No checkpoint found, starting fresh")
@@ -120,7 +118,6 @@ class AblationStudy:
             questions = self._load_questions(questions_path, max_questions)
             logger.info(f"Loaded {len(questions)} test questions")
 
-        # Default configs if not provided (10 configs TODO FIX THE COT ENABLE/DISABLE MODE IN VLLM)
         if configs is None:
             configs = get_all_configs()
 
@@ -135,15 +132,15 @@ class AblationStudy:
 
         # Run each configuration
         study_start = time.time()
-
-        # Progress bar for configs
         configs_iterator = (
-            tqdm(configs[start_config_idx:], desc="Configs", unit="config", initial=start_config_idx, total=len(configs))
+            tqdm(configs[start_config_idx:], desc="Configs", unit="config", initial=start_config_idx,
+                 total=len(configs))
             if TQDM_AVAILABLE
             else configs[start_config_idx:]
         )
 
-        for config_idx, config in enumerate(configs_iterator if TQDM_AVAILABLE else configs[start_config_idx:], start=start_config_idx):
+        for config_idx, config in enumerate(configs_iterator if TQDM_AVAILABLE else configs[start_config_idx:],
+                                            start=start_config_idx):
             logger.info(f"\n{'=' * 80}")
             logger.info(f"Running configuration [{config_idx + 1}/{len(configs)}]: {config.name}")
             logger.info(f"Description: {config.description}")
@@ -174,7 +171,6 @@ class AblationStudy:
             self,
             config: PipelineConfig,
             questions: List[Dict[str, Any]],
-            run_id: Optional[str] = None,
     ) -> ConfigResult:
         """Run single configuration on all questions with progress tracking."""
         start_time = time.time()
@@ -205,7 +201,7 @@ class AblationStudy:
 
         for i, q in enumerate(questions_iterator):
             max_retries = 3
-            retry_delay = 2  # seconds
+            retry_delay = 2
 
             for attempt in range(max_retries):
                 try:
@@ -252,17 +248,16 @@ class AblationStudy:
                         "results_by_subquery": response_metadata.get("results_by_subquery", {}),
                     }
                     metadata_list.append(metadata)
-
                     break
 
                 except Exception as e:
                     retry_count += 1
                     if attempt < max_retries - 1:
-                        logger.warning(f"Question {i+1} failed (attempt {attempt+1}/{max_retries}): {e}")
+                        logger.warning(f"Question {i + 1} failed (attempt {attempt + 1}/{max_retries}): {e}")
                         logger.warning(f"Retrying in {retry_delay}s...")
                         time.sleep(retry_delay)
                     else:
-                        logger.error(f"Question {i+1} failed after {max_retries} attempts: {e}")
+                        logger.error(f"Question {i + 1} failed after {max_retries} attempts: {e}")
                         failed_questions.append((i, q["question"], str(e)))
                         rag_questions.append(q["question"])
                         rag_answers.append("")
@@ -273,10 +268,10 @@ class AblationStudy:
         # Error summary
         if failed_questions:
             logger.warning(f"\n{'=' * 80}")
-            logger.warning(f"⚠️  {len(failed_questions)} questions failed after retries (total retries: {retry_count})")
+            logger.warning(f"{len(failed_questions)} questions failed after retries (total retries: {retry_count})")
             logger.warning(f"{'=' * 80}")
-            for idx, question, error in failed_questions[:5]:  # Show first 5
-                logger.warning(f"  [{idx+1}] {question[:60]}... → {error}")
+            for idx, question, error in failed_questions[:5]:
+                logger.warning(f"  [{idx + 1}] {question[:60]}... → {error}")
             if len(failed_questions) > 5:
                 logger.warning(f"  ... and {len(failed_questions) - 5} more")
             logger.warning(f"{'=' * 80}\n")

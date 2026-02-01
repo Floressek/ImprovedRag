@@ -37,10 +37,11 @@ class LLMModel:
         self.model_id = model_id or settings.llm.model_id
         self.load_in_4bit = load_in_4bit if load_in_4bit is not None else settings.llm.load_in_4bit
 
-        logger.warning(f"🔍 DEBUG: load_in_4bit parameter = {load_in_4bit}")
-        logger.warning(f"🔍 DEBUG: settings.llm.load_in_4bit = {settings.llm.load_in_4bit}")
-        logger.warning(f"🔍 DEBUG: self.load_in_4bit = {self.load_in_4bit}")
+        logger.debug(f"DEBUG: load_in_4bit parameter = {load_in_4bit}")
+        logger.debug(f"DEBUG: settings.llm.load_in_4bit = {settings.llm.load_in_4bit}")
+        logger.debug(f"DEBUG: self.load_in_4bit = {self.load_in_4bit}")
         device = device or settings.llm.device
+
         if device is None or device == "auto":
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         else:

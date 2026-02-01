@@ -273,19 +273,11 @@ def main():
     # Select configs
     configs = None
     if args.configs:
-        # config_map = {
-        #     "baseline": BASELINE,
-        #     "reranker_only": RERANKER_ONLY,
-        #     "cove_auto_only": COVE_AUTO_ONLY,
-        #     "full_no_cove": FULL_NO_COVE,
-        #     "full_cove_auto": FULL_COVE_AUTO,
-        #     "full_cove_metadata": FULL_COVE_METADATA,
-        # }
         config_map = {
             "baseline": BASELINE,
             "enhanced_only": ENHANCED_ONLY,
             "reranker_only": RERANKER_ONLY,
-            "cot_enhanced": COT_ENHANCED ,
+            "cot_enhanced": COT_ENHANCED,
             "multihop_only": MULTIHOP_ONLY,
             "mutlihop_cot": MULTIHOP_COT,
             "cove_auto_only": COVE_AUTO_ONLY,

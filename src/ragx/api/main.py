@@ -29,14 +29,13 @@ async def lifespan(app: FastAPI):
     try:
         # Warmup models
         logger.info("Warming up models...")
-        baseline = get_baseline_pipeline()
-        enhanced = get_enhanced_pipeline()
+        get_baseline_pipeline()
+        get_enhanced_pipeline()
 
         logger.info("✓ Models ready")
         logger.info(f"✓ Collection: {settings.qdrant.collection_name}")
         logger.info(f"✓ Embedder: {settings.embedder.model_id}")
         logger.info(f"✓ Reranker: {settings.reranker.model_id}")
-        # logger.info(f"✓ LLM: {settings.llm.model_id}")
         if getattr(settings.llm, "provider", None) == "api":
             logger.info(f"✓ LLM: {settings.llm.api_model_name}")
         elif getattr(settings.llm, "provider", None) in ("huggingface", "ollama"):
@@ -48,11 +47,11 @@ async def lifespan(app: FastAPI):
 
     except QdrantConnectionError as e:
         logger.error("=" * 80)
-        logger.error("❌ STARTUP FAILED: Cannot connect to Qdrant")
+        logger.error("STARTUP FAILED: Cannot connect to Qdrant")
         logger.error("=" * 80)
         logger.error(str(e))
         logger.error("")
-        logger.error("💡 Solutions:")
+        logger.error("Solutions:")
         logger.error("   1. Start Qdrant: docker-compose up -d qdrant")
         logger.error("   2. Check Qdrant URL in .env: QDRANT_URL=%s", settings.qdrant.url)
         logger.error("   3. Verify Qdrant is accessible: curl %s/collections", settings.qdrant.url)
@@ -60,21 +59,20 @@ async def lifespan(app: FastAPI):
         raise
     except Exception as e:
         logger.error("=" * 80)
-        logger.error("❌ STARTUP FAILED: Unexpected error")
+        logger.error("STARTUP FAILED: Unexpected error")
         logger.error("=" * 80)
         logger.error(f"{type(e).__name__}: {e}", exc_info=True)
         logger.error("=" * 80)
         raise
 
     yield
-
     logger.info("Shutting down RAGx API server...")
 
 
 app = FastAPI(
     title="RAGx API",
     description="RAGx API service",
-    version="0.2.0",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -93,7 +91,6 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
 
     logger.info(f"📨 Incoming: {request.method} {request.url.path}")
-
     response = await call_next(request)
 
     process_time = (time.time() - start_time) * 1000

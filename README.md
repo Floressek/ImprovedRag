@@ -1,329 +1,246 @@
-# 🚀 RAGx - Advanced RAG System with Query Rewriting & Multihop Retrieval
+# RAGx - Advanced Retrieval-Augmented Generation System
 
-Retrieval-Augmented Generation (RAG) system with advanced query processing including **Linguistic Analysis**, **Adaptive Query Rewriting**, **Multihop Retrieval**, and **Cross-Encoder Reranking**.
+Ablation oriented RAG system featuring adaptive query rewriting, multihop retrieval, Chain-of-Verification (CoVe), and cross-encoder reranking. Designed for Polish and multilingual knowledge bases.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Quick Start](#-quick-start)
-- [Installation](#-installation)
-- [Configuration](#️-configuration)
-- [Usage](#-usage)
-- [API Documentation](#-api-documentation)
-- [Project Structure](#-project-structure)
-- [Performance](#-performance)
-- [Contributing](#-contributing)
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [API Reference](#api-reference)
+- [Evaluation](#evaluation)
+- [Experimental Results](#experimental-results)
+- [Project Structure](#project-structure)
+- [License](#license)
+- [References](#references)
 
 ---
 
-## ✨ Features
+## Overview
+
+RAGx is an advanced Retrieval-Augmented Generation system that combines semantic search with large language models to provide accurate, citation-backed answers. The system features:
+
+- **Adaptive Query Processing** - Automatic detection of query complexity and decomposition into sub-queries
+- **Multihop Retrieval** - Three-stage reranking pipeline for complex questions requiring information synthesis
+- **Chain-of-Verification (CoVe)** - Post-generation claim verification and correction
+- **Multi-Provider LLM Support** - HuggingFace, Ollama, vLLM, and OpenAI-compatible APIs
+
+The system is optimized for Polish Wikipedia but supports any multilingual corpus through configurable embeddings.
+
+---
+
+## Features
 
 ### Core RAG Pipeline
-- **🔍 Semantic Retrieval** - Multi-lingual embeddings (GTE, E5, BGE)
-- **⚡ Vector Store** - Qdrant with HNSW indexing for fast similarity search
-- **🎯 Cross-Encoder Reranking** - Improves precision by re-scoring top-K results
-- **🤖 Multi-Provider LLM** - HuggingFace, Ollama, vLLM, API (LM Studio, OpenAI-compatible)
 
-### Advanced Query Processing 🆕
-- **🧠 Linguistic Analysis** - spaCy-based POS tagging, dependency parsing, NER
-- **🔄 Adaptive Query Rewriting** - LLM-powered query decomposition and expansion
-- **🎯 Query Type Detection** - Automatic detection of:
-    - **Verification** - "Is X the largest...?"
-    - **Comparison** - "X vs Y in terms of Z"
-    - **Similarity** - "What do X and Y have in common?"
-    - **Chaining** - "Who directed the movie starring X?"
-    - **Temporal** - "Events between X and Y"
-    - **Aggregation** - "How many X..."
-    - **Superlative** - "What's the best X under Y?"
-- **📊 Sub-Query Decomposition** - Intelligent breaking down of complex questions
-- **🔗 Multihop Retrieval** - Three-stage reranking (local → fusion → global)
+| Component | Description |
+|-----------|-------------|
+| Semantic Retrieval | Multilingual embeddings (GTE, E5, BGE) with Qdrant HNSW indexing |
+| Cross-Encoder Reranking | Jina Reranker v2 for precision improvement on top-K results |
+| LLM Generation | Multi-provider support with 4-bit quantization |
+| Citation Enforcement | Inline source citations `[N]` for every factual claim |
 
-### Advanced Methods
-- **✅ Citation Enforcement** - Inline source citations `[N]` for every claim
-- **📝 Advanced Prompting** - Template system with CoT support and language detection
-- **🧩 Semantic Chunking** - Context-aware text splitting with LlamaIndex
-- **🎨 Query-Type-Specific Fusion** - Adaptive weights based on query complexity
+### Query Processing
 
-### Production Features
-- **📊 Progress Tracking** - Resume ingestion from where you left off
-- **🔄 Incremental Indexing** - Skip already processed files
-- **⚙️ Configurable Pipeline** - YAML + .env for easy configuration
-- **🌐 REST API** - FastAPI server with multiple endpoints
-- **📈 Performance Monitoring** - Built-in metrics and logging
+| Feature | Description |
+|---------|-------------|
+| Linguistic Analysis | spaCy-based POS tagging, dependency parsing, NER |
+| Query Type Detection | Automatic classification: comparison, verification, similarity, chaining, temporal, aggregation, superlative |
+| Sub-Query Decomposition | LLM-powered decomposition of complex questions |
+| Adaptive Rewriting | Query expansion and reformulation based on linguistic features |
+
+### Retrieval Strategies
+
+| Mode | Description |
+|------|-------------|
+| Single Query | Standard retrieval with optional reranking |
+| Multihop | Parallel retrieval for sub-queries with three-stage fusion (local, fusion, global) |
+
+### Verification (CoVe)
+
+| Component | Description |
+|-----------|-------------|
+| Claim Extraction | Automatic extraction of verifiable claims from generated answers |
+| NLI Verification | Natural Language Inference-based claim verification against evidence |
+| Correction | Automatic correction of unsupported or contradicted claims |
+| Citation Injection | Adding citations for verified claims |
 
 ---
 
-## 🏗️ Architecture
-
-### Enhanced Pipeline Flow
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    User Query                                │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│  STEP 1: Linguistic Analysis (spaCy)                        │
-│  - POS tagging, dependency parsing, NER                     │
-│  - Syntax depth, clause counting                            │
-│  - Entity extraction                                        │
-│  Output: LinguisticFeatures                                 │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│  STEP 2: Adaptive Query Rewriting (LLM)                     │
-│  - Query type detection (comparison, similarity, etc.)      │
-│  - Decision: decompose / expand / passthrough               │
-│  - Multi-hop decomposition into sub-queries                 │
-│  Output: is_multihop, sub_queries[], query_type            │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-              ┌─────────┴─────────┐
-              │                   │
-         [Simple]            [Multihop]
-              │                   │
-              ▼                   ▼
-   ┌──────────────────┐  ┌──────────────────────────┐
-   │ Single Query     │  │ Multiple Sub-Queries     │
-   │ Retrieval        │  │ Parallel Retrieval       │
-   └─────┬────────────┘  └────────┬─────────────────┘
-         │                         │
-         ▼                         ▼
-   ┌──────────────────┐  ┌──────────────────────────┐
-   │ Standard         │  │ Three-Stage Reranking:   │
-   │ Reranking        │  │ 1. Local (per subquery)  │
-   │ (Cross-Encoder)  │  │ 2. Fusion (by doc_id)    │
-   │                  │  │ 3. Global (original Q)   │
-   └─────┬────────────┘  └────────┬─────────────────┘
-         │                         │
-         └────────┬────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│  STEP 3: Prompt Engineering                                 │
-│  - Template selection (basic/enhanced/multihop)             │
-│  - Context formatting with metadata                         │
-│  - Language detection & CoT injection                       │
-│  - Citation instructions                                    │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│  STEP 4: LLM Generation                                      │
-│  - Multi-provider support (HF/Ollama/vLLM/API)              │
-│  - Temperature control (0.2-0.7)                            │
-│  - Chain-of-Thought reasoning                               │
-│  Output: Answer with inline citations [N]                   │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  Final Answer to User                        │
-│  + Source documents with scores                             │
-│  + Metadata (timings, query_type, sub_queries)             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Query Type Examples
-
-**Comparison Query:**
-```
-User: "ziemniaki vs pomidory, co ma więcej błonnika?"
-└─> Detected: comparison
-└─> Sub-queries:
-    1. "Ile błonnika mają ziemniaki?"
-    2. "Ile błonnika mają pomidory?"
-└─> Fusion: MAX strategy
-└─> Answer: "Ziemniaki zawierają około 2.2g błonnika na 100g [1], 
-            podczas gdy pomidory około 1.2g [2]."
-```
-
-**Verification Query:**
-```
-User: "Polska to największy kraj europejski?"
-└─> Detected: verification
-└─> Sub-queries:
-    1. "Jaka jest powierzchnia Polski?"
-    2. "Jaki jest największy kraj w Europie?"
-└─> Fusion: Query-type weight = 0.2 (trust local more)
-└─> Answer: "Nie, Polska nie jest największym krajem w Europie..."
+User Query
+    |
+    v
++------------------------------------------+
+|  1. LINGUISTIC ANALYSIS (spaCy)          |
+|  - POS tagging, dependency parsing       |
+|  - Entity extraction, clause counting    |
++------------------------------------------+
+    |
+    v
++------------------------------------------+
+|  2. ADAPTIVE QUERY REWRITING (LLM)       |
+|  - Query type detection                  |
+|  - Decomposition decision                |
+|  - Sub-query generation                  |
++------------------------------------------+
+    |
+    +---------------+---------------+
+    |               |               |
+ [Simple]       [Multihop]
+    |               |
+    v               v
++-------------+  +------------------------+
+| Single      |  | Parallel Retrieval     |
+| Retrieval   |  | (per sub-query)        |
++-------------+  +------------------------+
+    |               |
+    v               v
++-------------+  +------------------------+
+| Standard    |  | Three-Stage Reranking: |
+| Reranking   |  | 1. Local (per query)   |
+|             |  | 2. Fusion (by doc_id)  |
+|             |  | 3. Global (original Q) |
++-------------+  +------------------------+
+    |               |
+    +-------+-------+
+            |
+            v
++------------------------------------------+
+|  3. PROMPT ENGINEERING                   |
+|  - Template selection (basic/enhanced)   |
+|  - Context formatting with metadata      |
+|  - Language detection                    |
++------------------------------------------+
+    |
+    v
++------------------------------------------+
+|  4. LLM GENERATION                       |
+|  - Multi-provider (HF/Ollama/vLLM/API)   |
+|  - Chain-of-Thought reasoning            |
+|  - Citation formatting                   |
++------------------------------------------+
+    |
+    v
++------------------------------------------+
+|  5. CHAIN-OF-VERIFICATION (CoVe)         |
+|  - Claim extraction                      |
+|  - NLI verification                      |
+|  - Correction and citation injection     |
++------------------------------------------+
+    |
+    v
+Final Answer + Sources + Metadata
 ```
 
 ---
 
-## 🚀 Quick Start
+## Requirements
 
-### Prerequisites
-- **Python 3.12+**
-- **Docker** (for Qdrant)
-- **20GB+ RAM** (32GB recommended)
-- **CUDA GPU** (optional, for faster processing)
+### Development Environment
 
-### 1. Clone & Install
+| Resource | Specification                              |
+|----------|--------------------------------------------|
+| GPU | NVIDIA RTX 4070 (12GB VRAM)                |
+| CPU | AMD Ryzen 7 7800X3D (8 cores / 16 threads) |
+| RAM | 32GB DDR5                                  |
+| Storage | 1TB                                        |
+| OS | Windows 11 Home                            |
+| LLM | Qwen2.5-14B / Qwen3-8B (4-bit via Ollama)  |
+
+### Production Environment (curtesy of Military University of Technology Cloud Laboratory)
+
+| Resource | Specification |
+|----------|---------------|
+| GPU | NVIDIA H100 (96GB VRAM) |
+| CPU | AMD Ryzen 7 7800X3D (8 cores / 16 threads) |
+| RAM | 128GB DDR5 |
+| Storage | 2TB |
+| OS | Ubuntu 22.04 LTS |
+| LLM | Qwen3-32B (4-bit via vLLM) |
+
+### Shared Configuration
+
+| Component | Model |
+|-----------|-------|
+| Embedding | Alibaba-NLP/gte-multilingual-base |
+| Reranker | jinaai/jina-reranker-v2-base-multilingual |
+| Linguistic Analysis | spaCy pl_core_news_md |
+| Vector Store | Qdrant (self-hosted) |
+
+### Software Requirements
+
+| Requirement | Version |
+|-------------|---------|
+| Python | 3.12+ |
+| Docker | 20.10+ |
+| CUDA | 12.0+ (optional) |
+
+---
+
+## Installation
+
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/floressek/ragx.git
 cd ragx
-
-# Install dependencies
-make install
-
-# Or manually:
-pip install -e .
 ```
 
-### 2. Start Qdrant
+### 2. Install Dependencies
 
+Using uv (recommended):
 ```bash
-make setup-qdrant
-# Or manually:
-docker-compose up -d qdrant
-```
-
-> Dataset used for qdrant:
-https://huggingface.co/datasets/Floressek/wiki-1m-qdrant-snapshot
-
-### 3. Configure
-
-```bash
-# Copy example config
-cp .env.example .env
-
-# Edit .env with your settings
-# Key variables:
-# - EMBEDDING_MODEL
-# - QDRANT_COLLECTION
-# - CHUNK_SIZE, CHUNK_OVERLAP
-# - REWRITE_ENABLED=true          # Enable query rewriting
-# - LLM_PROVIDER=huggingface      # or ollama, vllm, api
-```
-
-### 4. Ingest Data
-
-```bash
-# Download Polish Wikipedia (small chunk for testing)
-make download-wiki
-
-# Extract articles
-make extract-wiki
-
-# Index into Qdrant (1k articles for testing)
-make ingest-test
-
-# Or full ingestion (200k articles):
-# make ingest-full
-```
-
-### 5. Start API Server
-
-```bash
-# Start FastAPI server
-make api
-
-# Or manually:
-python -m uvicorn src.ragx.api.main:app --host 0.0.0.0 --port 8000
-```
-
-### 6. Try It Out!
-
-#### Option A: Interactive Chat UI 💬 (Recommended)
-
-```bash
-# Launch the Streamlit chat interface
-./launch_ui.sh
-
-# Or directly:
-streamlit run src/ragx/ui/chat_app.py
-```
-
-**Features:**
-- 🎯 Real-time pipeline status visualization
-- ⚙️ Easy configuration with presets (baseline/enhanced/custom)
-- 📊 Detailed timing and metadata display
-- 🔍 Expandable source citations
-
-See [`src/ragx/ui/README.md`](src/ragx/ui/README.md) for details.
-
-#### Option B: API Calls (curl)
-
-```bash
-# Simple search
-curl -X POST "http://localhost:8000/ask/baseline" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "sztuczna inteligencja"}'
-
-# Enhanced pipeline with query rewriting
-curl -X POST "http://localhost:8000/ask/enhanced" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "ziemniaki vs pomidory błonnik"}'
-
-# Linguistic analysis
-curl -X POST "http://localhost:8000/analysis/linguistic" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Co łączy mitologię słowiańską i nordycką?"}'
-```
-
----
-
-## 💻 Installation
-
-### Option 1: Using `uv` (Recommended - Fast!)
-
-```bash
-# Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install project
 uv pip install --system -e .
 ```
 
-### Option 2: Using `pip`
-
+Using pip:
 ```bash
-pip install --upgrade pip
 pip install -e .
 ```
 
-### Option 3: Using `make`
-
+Using make:
 ```bash
 make install
 ```
 
-### Dependencies
-
-Core libraries:
-- `sentence-transformers` - Embeddings & reranking
-- `qdrant-client` - Vector database
-- `transformers` - LLM inference
-- `llama-index` - Semantic chunking
-- `spacy` - Linguistic analysis
-- `fastapi` - REST API
-- `pyyaml` - Configuration
-
-### spaCy Models
+### 3. Install spaCy Models
 
 ```bash
-# Polish language model (recommended)
 python -m spacy download pl_core_news_md
-
-# English fallback
 python -m spacy download en_core_web_sm
+```
+
+### 4. Start Qdrant
+
+```bash
+docker-compose up -d qdrant
+```
+
+### 5. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env with your settings
 ```
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-### Environment Variables (.env)
+### Environment Variables
 
 ```bash
 # Vector Store
@@ -339,577 +256,421 @@ EMBEDDING_USE_PREFIXES=true
 RERANKER_MODEL=jinaai/jina-reranker-v2-base-multilingual
 RERANKER_BATCH_SIZE=16
 
-# LLM Provider (huggingface, ollama, vllm, api)
+# LLM Provider: huggingface | ollama | vllm | api
 LLM_PROVIDER=huggingface
 LLM_MODEL=Qwen/Qwen2.5-7B-Instruct
 LLM_LOAD_IN_4BIT=true
-LLM_MAX_NEW_TOKENS=2000
 LLM_TEMPERATURE=0.2
+LLM_MAX_NEW_TOKENS=2000
 
-# Alternative: Ollama
+# Ollama (alternative)
 # LLM_PROVIDER=ollama
 # OLLAMA_HOST=http://localhost:11434
 # LLM_MODEL_NAME_OLLAMA=qwen3:4b
 
-# Alternative: API (LM Studio, OpenAI-compatible)
-# LLM_PROVIDER=api
-# LLM_API_BASE_URL=http://localhost:1234/v1
-# LLM_API_MODEL_NAME=local-model
-# LLM_API_KEY=your-key
+# vLLM (production)
+# LLM_PROVIDER=vllm
+# LLM_API_BASE_URL=http://localhost:8000/v1
+# LLM_API_MODEL_NAME=Qwen/Qwen3-32B
 
-# Query Rewriting 🆕
+# Query Rewriting
 REWRITE_ENABLED=true
 REWRITE_TEMPERATURE=0.2
 REWRITE_MAX_TOKENS=4096
-REWRITE_VERIFY_BEFORE_RETRIEVAL=false
 
-# Multihop Configuration 🆕
-MULTIHOP_FUSION_STRATEGY=max           # max, mean, weighted_mean
-MULTIHOP_GLOBAL_RANKER_WEIGHT=0.6     # 0.0-1.0
+# Multihop Configuration
+MULTIHOP_FUSION_STRATEGY=max
+MULTIHOP_GLOBAL_RANKER_WEIGHT=0.6
 MULTIHOP_TOP_K_PER_SUBQUERY=20
 MULTIHOP_FINAL_TOP_K=10
 
 # Retrieval Pipeline
-TOP_K_RETRIEVE=100     # Initial retrieval
-RERANK_TOP_M=80        # Candidates for reranking
-CONTEXT_TOP_N=8        # Final chunks to LLM
+TOP_K_RETRIEVE=100
+RERANK_TOP_M=80
+CONTEXT_TOP_N=8
 
-# Chunking
-CHUNKER_STRATEGY=semantic
-CHUNK_SIZE=512
-CHUNK_OVERLAP=96
+# Chain-of-Verification
+COVE_ENABLED=true
+COVE_USE_BATCH_NLI=true
+```
+
+### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `configs/models.yaml` | Model configurations (embedder, reranker, LLM) |
+| `configs/app.yaml` | Application settings |
+| `configs/vector_store.qdrant.yaml` | Qdrant connection settings |
+| `configs/eval.yaml` | Evaluation settings |
+
+---
+
+## Usage
+
+### Data Ingestion
+
+```bash
+# Download Polish Wikipedia dump
+make download-wiki
+
+# Extract articles
+make extract-wiki
+
+# Ingest to Qdrant (test - 1k articles)
+make ingest-test
+
+# Ingest full corpus (200k+ articles)
+make ingest-full
+
+# Custom ingestion
+make ingest-custom MAX_ARTICLES=50000
+```
+
+Pre-built Qdrant snapshot available at:
+https://huggingface.co/datasets/Floressek/wiki-1m-qdrant-snapshot
+
+### API Server
+
+```bash
+# Start FastAPI server
+make api
+
+# Or with auto-reload for development
+make api-dev
+
+# Manual start
+python -m uvicorn src.ragx.api.main:app --host 0.0.0.0 --port 8000
+```
+
+### Interactive Chat UI
+
+```bash
+./launch_ui.sh
+
+# Or directly
+streamlit run src/ragx/ui/chat_app.py
+```
+
+### Command Line
+
+```bash
+# Search
+make search QUERY="sztuczna inteligencja"
+
+# Check status
+make status
 ```
 
 ---
 
-## 📖 Usage
+## API Reference
 
-### Command-Line Interface
+### Endpoints
 
-```bash
-# Ingestion pipelines
-python -m src.ragx.ingestion.pipelines --help
-
-# Available commands:
-python -m src.ragx.ingestion.pipelines download --language pl
-python -m src.ragx.ingestion.pipelines ingest <source> --max-articles 10000
-python -m src.ragx.ingestion.pipelines status
-python -m src.ragx.ingestion.pipelines search "query text"
-```
-
-### Makefile Commands
-
-```bash
-# Setup
-make install              # Install dependencies
-make setup-qdrant         # Start Qdrant container
-
-# Wikipedia Pipeline
-make download-wiki        # Download PL Wikipedia dump
-make extract-wiki         # Extract articles to JSON
-make ingest-test          # Test ingestion (1k articles)
-make ingest-full          # Full ingestion (200k articles)
-
-# Progress Tracking
-make ingest-resume        # Resume from last processed file
-make ingest-from FILE=wiki_05  # Start from specific file
-make status-detailed      # Show file-by-file history
-
-# API Server
-make api                  # Start FastAPI server
-make api-dev              # Start with auto-reload
-
-# Search & Status
-make search QUERY="..."   # Search for query
-make status               # Check system status
-
-# Maintenance
-make clean                # Clean cache files
-make clean-data           # Clean data files
-make clean-all            # Nuclear clean
-```
-
----
-
-## 🌐 API Documentation
-
-### Endpoints Overview
-
-```
-GET  /api                      # API information
-GET  /info/health              # Health check with model status
-
-POST /ask/baseline             # Simple RAG pipeline
-POST /ask/enhanced             # Enhanced pipeline with query rewriting
-
-POST /llm/generate             # Direct LLM access (no RAG)
-
-POST /search/search            # Vector search only
-POST /search/rerank            # Search + reranking
-
-POST /analysis/linguistic      # Linguistic analysis
-POST /analysis/multihop        # Multihop search with detailed metadata
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api` | API information and available endpoints |
+| GET | `/info/health` | Health check with model status |
+| POST | `/ask/baseline` | Simple RAG pipeline (retrieval + LLM) |
+| POST | `/ask/enhanced` | Full pipeline with query rewriting and multihop |
+| POST | `/llm/generate` | Direct LLM access (no RAG) |
+| POST | `/search/search` | Vector search only |
+| POST | `/search/rerank` | Search with reranking |
+| POST | `/analysis/linguistic` | Linguistic analysis of query |
+| POST | `/analysis/rewrite` | Query rewriting analysis |
+| POST | `/cove/verify` | CoVe verification of answer |
+| POST | `/eval/ablation` | Ablation study endpoint with configurable toggles |
 
 ### Example Requests
 
-#### 1. Baseline Pipeline (Simple RAG)
-
+**Baseline Pipeline:**
 ```bash
 curl -X POST "http://localhost:8000/ask/baseline" \
   -H "Content-Type: application/json" \
-  -d '{
-    "query": "Co to jest sztuczna inteligencja?",
-    "top_k": 5
-  }'
+  -d '{"query": "Co to jest sztuczna inteligencja?", "top_k": 5}'
 ```
 
-**Response:**
-```json
-{
-  "answer": "Sztuczna inteligencja (SI) to dział informatyki zajmujący się...",
-  "sources": [
-    {
-      "id": "doc123",
-      "doc_title": "Sztuczna inteligencja",
-      "text": "...",
-      "retrieval_score": 0.85,
-      "rerank_score": null
-    }
-  ],
-  "metadata": {
-    "pipeline": "baseline",
-    "retrieval_time_ms": 12.5,
-    "llm_time_ms": 850.2,
-    "total_time_ms": 862.7,
-    "num_sources": 5
-  }
-}
-```
-
-#### 2. Enhanced Pipeline (Query Rewriting + Multihop)
-
+**Enhanced Pipeline (with query rewriting and multihop):**
 ```bash
 curl -X POST "http://localhost:8000/ask/enhanced" \
   -H "Content-Type: application/json" \
+  -d '{"query": "ziemniaki vs pomidory, co ma wiecej blonnika?"}'
+```
+
+**Ablation Study:**
+```bash
+curl -X POST "http://localhost:8000/eval/ablation" \
+  -H "Content-Type: application/json" \
   -d '{
-    "query": "ziemniaki vs pomidory, co ma więcej błonnika?",
-    "top_k": 8
+    "query": "Kto zalozyl Krakow?",
+    "top_k": 8,
+    "query_analysis_enabled": true,
+    "reranker_enabled": true,
+    "cot_enabled": true,
+    "cove_mode": "auto",
+    "prompt_template": "auto"
   }'
 ```
 
-**Response:**
+### Response Format
+
 ```json
 {
-  "answer": "Ziemniaki zawierają około 2.2g błonnika na 100g [1][2], podczas gdy pomidory około 1.2g [3][4]...",
+  "answer": "Answer text with citations [1][2]...",
   "sources": [
     {
-      "id": "doc456",
-      "doc_title": "Ziemniaki",
-      "text": "...",
-      "local_rerank_score": 0.92,
-      "fused_score": 0.88,
-      "global_rerank_score": 0.85,
-      "final_score": 0.87,
-      "fusion_metadata": {
-        "source_subqueries": ["Ile błonnika mają ziemniaki?"],
-        "num_occurrences": 1
-      }
+      "id": "doc_id",
+      "text": "Source text...",
+      "doc_title": "Document Title",
+      "retrieval_score": 0.85,
+      "rerank_score": 0.92
     }
   ],
   "metadata": {
     "pipeline": "enhanced",
     "is_multihop": true,
-    "sub_queries": [
-      "Ile błonnika mają ziemniaki?",
-      "Ile błonnika mają pomidory?"
-    ],
+    "sub_queries": ["sub-query 1", "sub-query 2"],
     "query_type": "comparison",
-    "reasoning": "comparison by fiber",
     "rewrite_time_ms": 450.2,
     "retrieval_time_ms": 25.8,
     "rerank_time_ms": 180.5,
     "llm_time_ms": 920.1,
-    "total_time_ms": 1576.6,
-    "num_candidates": 200,
-    "num_sources": 8
+    "cove_time_ms": 340.0,
+    "total_time_ms": 1916.6
   }
 }
 ```
 
-#### 3. Linguistic Analysis
+---
 
-```bash
-curl -X POST "http://localhost:8000/analysis/linguistic" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "Co łączy mitologię słowiańską i nordycką?"
-  }'
-```
+## Evaluation
 
-**Response:**
+### Methodology
+
+Evaluation was conducted using ablation experiments on a test set of **1000 synthetic questions** generated from the Polish Wikipedia corpus (1M articles). The evaluation uses **RAGAS metrics** and was performed on infrastructure provided by the Military University of Technology Cloud Laboratory.
+
+#### Why Synthetic Questions?
+
+Unlike standard benchmarks (PolQA, MKQA), synthetic questions generated directly from the indexed corpus provide:
+- Full control over grounding - each question has exact source documents in the Qdrant database
+- Coverage of all query types supported by the system
+- Polish language optimization
+
+### Test Set Generation
+
+The `WikipediaQuestionGenerator` creates evaluation questions through the following pipeline:
+
+1. **Article Sampling** - Random selection of article chunks from ingested data (minimum 200 characters)
+2. **Question Generation** - LLM-based generation (Qwen3:32B) with dedicated prompts per question type
+3. **Grounding Validation** - Cross-encoder verification that "ground truth" exists in the source article
+4. **Export** - JSONL format with fields: `ground_truth`, `type`, `contexts`
+
+**Example generated question (JSONL format):**
 ```json
 {
-  "query": "Co łączy mitologię słowiańską i nordycką?",
-  "pos_sequence": ["PRON", "VERB", "NOUN", "ADJ", "CCONJ", "ADJ"],
-  "dep_tree": [
-    {"dependency": "nsubj", "head": "łączy", "child": "Co"},
-    {"dependency": "ROOT", "head": "łączy", "child": "łączy"}
-  ],
-  "entities": [
-    {"text": "mitologię słowiańską", "label": "MISC"},
-    {"text": "nordycką", "label": "MISC"}
-  ],
-  "num_tokens": 7,
-  "num_clauses": 1,
-  "syntax_depth": 3,
-  "has_relative_clauses": false,
-  "has_conjunctions": true,
-  "analysis_text": "..."
+  "question": "Jak nazywa sie wspolnik do Neville'a Roundego?",
+  "ground_truth": "Tekstor zostal przez Aldine...",
+  "type": "simple",
+  "source_title": "Neville'a...",
+  "contexts": [
+    "https://pl.wikipedia.org/wiki/Aldine#12661"
+  ]
 }
 ```
 
-#### 4. Multihop Search with Options
+### RAGAS Metrics
+
+| Metric | Description |
+|--------|-------------|
+| **Faithfulness** | Factual consistency of answer with retrieved contexts |
+| **Answer Relevancy** | Relevance of answer to the question |
+| **Context Precision** | Proportion of relevant contexts in retrieved set |
+| **Context Recall** | Coverage of ground truth by retrieved contexts |
+
+### Running Evaluation
 
 ```bash
-curl -X POST "http://localhost:8000/analysis/multihop" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "król Mieszko I czy Bolesław Chrobry miał większy wpływ?",
-    "top_k": 10,
-    "use_reranker": true,
-    "include_linguistic_analysis": true
-  }'
-```
+# Generate test questions (default: 1000)
+make eval-generate NUM_QUESTIONS=1000
 
-**Features:**
-- `use_reranker`: Enable/disable three-stage reranking (default: true)
-- `include_linguistic_analysis`: Add linguistic features to response (default: false)
-- Automatic query decomposition
-- Query-type-specific fusion strategies
+# Start RAG API server
+make eval-api
 
-#### 5. Direct LLM Access (No RAG)
+# Run ablation study with checkpointing
+make eval-run
 
-```bash
-curl -X POST "http://localhost:8000/llm/generate" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "Wyjaśnij czym jest gradient descent",
-    "temperature": 0.7,
-    "max_tokens": 500,
-    "chain_of_thought_enabled": true
-  }'
+# Resume interrupted evaluation
+make eval-resume RUN_ID=study_20240115_143022
+
+# Quick validation (10 questions, 3 configs)
+make eval-quick
+
+# Clean checkpoints and results
+make eval-clean
 ```
 
 ---
 
-## 📁 Project Structure
+## Experimental Results
+
+### Ablation Study Results
+
+Full results across 12 configurations on 1000 test questions. Bold values indicate best performance for each metric.
+
+| Configuration | Faithfulness | Relevancy | Precision | Recall | Latency | Cov |
+|--------------|--------------|-----------|-----------|--------|---------|-----|
+| baseline | 0.768 | 0.594 | 0.463 | 0.600 | 2.7s | 0.00 |
+| enhanced_only | 0.850 | 0.646 | 0.443 | 0.622 | 7.6s | 0.00 |
+| cot_only | 0.884 | 0.641 | 0.440 | 0.614 | 9.6s | 0.00 |
+| reranker_only | 0.838 | 0.680 | 0.501 | 0.698 | 3.9s | 0.00 |
+| cove_auto_only | 0.872 | 0.621 | 0.448 | 0.613 | 44.3s | 0.00 |
+| cot_enhanced | 0.823 | 0.653 | 0.431 | 0.610 | 12.7s | 0.00 |
+| multihop_only | **0.891** | 0.714 | 0.494 | **0.829** | 18.4s | 0.64 |
+| multihop+cot | 0.870 | **0.762** | 0.493 | 0.828 | 25.7s | 0.62 |
+| full_no_cove | 0.881 | 0.721 | 0.506 | 0.823 | 24.5s | 0.61 |
+| full_cove_auto | 0.855 | 0.732 | 0.516 | 0.810 | 62.8s | 0.64 |
+| full_cove_metadata | 0.858 | 0.743 | 0.498 | 0.827 | 60.4s | 0.62 |
+| full_cove_suggest | 0.832 | 0.756 | **0.522** | 0.810 | 63.6s | 0.60 |
+
+### Component Impact Analysis
+
+Individual component contribution compared to baseline:
+
+| Component | Faithfulness | Relevancy | Recall | Latency |
+|-----------|--------------|-----------|--------|---------|
+| Reranker | +9.1% (0.77->0.84) | +15.3% (0.59->0.68) | +16.7% (0.60->0.70) | +1.2s |
+| CoT | +14.2% (0.77->0.88) | +8.5% (0.59->0.64) | +1.6% (0.60->0.61) | +6.9s |
+| Multihop | +15.6% (0.77->0.89) | +20.3% (0.59->0.71) | +38.4% (0.60->0.83) | +15.7s |
+| CoVe (auto) | +11.6% (0.77->0.86) | +5.1% (0.59->0.62) | +1.6% (0.60->0.61) | +41.6s |
+
+### Key Findings
+
+1. **Multihop module dominates** in Faithfulness (0.891) and Context Recall (0.829)
+2. **Multihop + CoT combination** achieves highest Answer Relevancy (0.762)
+3. **Baseline performs lowest** across all metrics
+4. **Any component addition** improves results over baseline
+5. **Best ROI**: Multihop provides +38.4% Recall improvement with acceptable latency cost
+
+### Multihop Classification Distribution
+
+62-64% of test queries are classified as multihop, indicating significant proportion of complex questions in the test set:
+
+| Configuration | Multihop | Simple | Coverage |
+|--------------|----------|--------|----------|
+| multihop_only | 645 | 355 | 64.0% |
+| multihop+cot | 620 | 380 | 62.0% |
+| full_no_cove | 615 | 385 | 61.0% |
+| full_cove_auto | 640 | 360 | 63.5% |
+| full_cove_metadata | 630 | 370 | 61.5% |
+| full_cove_suggest | 620 | 380 | 62.0% |
+
+### Quality vs Latency Trade-off
+
+| Tier | Configurations | Latency | Characteristics |
+|------|----------------|---------|-----------------|
+| **Fast** | baseline, reranker_only | 2.7-3.9s | Production real-time, basic quality |
+| **Medium** | enhanced, cot_only, cot_enhanced | 7.6-12.7s | Quality/speed balance |
+| **Slow** | multihop_only, multihop+cot, full_no_cove | 18.4-25.7s | High quality, acceptable latency |
+| **Very Slow** | cove_auto_only, full_cove_* | 44.3-63.6s | Highest quality, offline use |
+
+### Recommended Configurations
+
+| Use Case | Configuration | Expected Latency |
+|----------|---------------|------------------|
+| Real-time chat | reranker_only | ~4s |
+| Balanced production | multihop_only | ~18s |
+| Maximum quality (async) | full_cove_metadata | ~60s |
+
+---
+
+## Project Structure
 
 ```
 ragx/
 ├── src/ragx/
-│   ├── api/                        # FastAPI server
-│   │   ├── routers/
-│   │   │   ├── chat.py            # /ask endpoints
-│   │   │   ├── analysis.py        # /analysis endpoints 🆕
-│   │   │   ├── search.py          # /search endpoints
-│   │   │   ├── llm.py             # /llm endpoints
-│   │   │   └── health.py          # /info endpoints
-│   │   ├── schemas/               # Pydantic models
-│   │   └── dependencies.py        # DI container
+│   ├── api/                    # FastAPI server
+│   │   ├── routers/            # Endpoint handlers
+│   │   ├── schemas/            # Pydantic models
+│   │   ├── dependencies.py     # Dependency injection
+│   │   └── main.py             # Application entry point
 │   │
-│   ├── ingestion/                 # Data ingestion pipeline
-│   │   ├── chunkers/
-│   │   │   └── chunker.py         # Semantic & token-based chunking
-│   │   ├── pipelines/
-│   │   │   ├── ingestion_pipeline.py
-│   │   │   └── ingestion_progress.py  # Progress tracking
-│   │   └── extractions/
-│   │       └── wiki_extractor.py  # Wikipedia extraction
+│   ├── ingestion/              # Data ingestion pipeline
+│   │   ├── chunkers/           # Text chunking strategies
+│   │   ├── pipelines/          # Ingestion orchestration
+│   │   ├── extractions/        # Wikipedia extraction
+│   │   └── utils/              # Ingestion utilities
 │   │
-│   ├── retrieval/                 # Retrieval & reranking
-│   │   ├── embedder/
-│   │   │   └── embedder.py        # Bi-encoder embeddings
-│   │   ├── rerankers/
-│   │   │   └── reranker.py        # Cross-encoder reranking
-│   │   ├── analyzers/ 🆕
-│   │   │   ├── linguistic_analyzer.py   # spaCy analysis
-│   │   │   └── linguistic_features.py   # Feature dataclass
-│   │   ├── rewriters/ 🆕
-│   │   │   ├── adaptive_rewriter.py     # Query rewriting
-│   │   │   ├── prompts/
-│   │   │   │   └── rewriter_prompts.yaml
-│   │   │   └── tools/
-│   │   │       └── parse.py             # JSON validation
-│   │   ├── constants/ 🆕
-│   │   │   └── query_types.py           # Query type definitions
-│   │   └── vector_stores/
-│   │       └── qdrant_store.py    # Qdrant integration
+│   ├── retrieval/              # Retrieval components
+│   │   ├── embedder/           # Bi-encoder embeddings
+│   │   ├── rerankers/          # Cross-encoder reranking
+│   │   ├── analyzers/          # Linguistic analysis
+│   │   ├── rewriters/          # Query rewriting
+│   │   ├── cove/               # Chain-of-Verification
+│   │   └── vector_stores/      # Qdrant integration
 │   │
-│   ├── pipelines/ 🆕              # RAG pipelines
-│   │   ├── base.py                # Abstract base
-│   │   ├── baseline.py            # Simple RAG
-│   │   ├── enhanced.py            # Advanced RAG
-│   │   └── enhancers/
-│   │       ├── reranker.py        # Standard reranking
-│   │       └── multihop_reranker.py  # Multihop reranking
+│   ├── pipelines/              # RAG pipelines
+│   │   ├── base.py             # Abstract base
+│   │   ├── baseline.py         # Simple RAG
+│   │   ├── enhanced.py         # Full pipeline
+│   │   └── enhancers/          # Pipeline enhancers
 │   │
-│   ├── generation/                # LLM & prompting
-│   │   ├── model.py               # LLM loading (HuggingFace)
-│   │   ├── inference.py           # Multi-provider inference
-│   │   ├── providers/
-│   │   │   ├── ollama_provider.py
-│   │   │   ├── vllm_provider.py
-│   │   │   └── api_provider.py
-│   │   └── prompts/
-│   │       ├── builder.py         # Prompt templates
-│   │       └── templates/
-│   │           ├── basic.yaml
-│   │           ├── enhanced.yaml
-│   │           └── multihop.yaml  🆕
+│   ├── generation/             # LLM generation
+│   │   ├── inference.py        # Multi-provider inference
+│   │   ├── providers/          # Provider implementations
+│   │   └── prompts/            # Prompt templates
 │   │
-│   └── utils/
-│       ├── settings.py            # Configuration management
-│       ├── logging_config.py      # Structured logging
-│       └── model_registry.py      # Model caching
+│   ├── ui/                     # Streamlit chat interface -> claude generated, beta testing.
+│   │   ├── chat_app.py         # Main application
+│   │   ├── components/         # UI components
+│   │   └── config/             # UI configuration
+│   │
+│   └── utils/                  # Shared utilities
+│       ├── settings.py         # Configuration management
+│       ├── logging_config.py   # Logging setup
+│       └── model_registry.py   # Model caching
 │
-├── configs/
-│   ├── models.yaml                # Model configurations
-│   └── app.yaml                   # App settings
-│
-├── data/
-│   ├── raw/                       # Raw Wikipedia dumps
-│   ├── processed/                 # Extracted articles
-│   └── .ingestion_progress.json  # Progress tracking
-│
-├── tests/                         # Unit & integration tests
-├── docs/                          # Additional documentation
-├── docker-compose.yml             # Qdrant service
-├── Makefile                       # Development commands
-├── pyproject.toml                 # Project dependencies
-└── README.md                      # This file
+├── configs/                    # Configuration files
+├── data/                       # Data directory
+│   ├── raw/                    # Raw Wikipedia dumps
+│   ├── processed/              # Extracted articles
+│   └── db_snapshots/           # Qdrant snapshots
+├── scripts/                    # Utility scripts
+├── results/                    # Evaluation results
+├── docker-compose.yml          # Docker services
+├── Makefile                    # Build commands
+├── pyproject.toml              # Project dependencies
+└── README.md
 ```
 
 ---
 
-## 📊 Performance
+## License
 
-### Benchmarks (Single GPU - RTX 4070)
-
-| Operation | Speed | Notes |
-|-----------|-------|-------|
-| Embedding (batch=64) | ~1200 docs/s | GTE-multilingual-base |
-| Reranking (batch=16) | ~80 pairs/s | Jina-reranker-v2 |
-| Chunking (semantic) | ~50 docs/s | LlamaIndex splitter |
-| LLM Generation (HF) | ~25 tokens/s | Qwen2.5-7B (4-bit) |
-| LLM Generation (Ollama) | ~40 tokens/s | Qwen3:4b |
-| Vector Search | <10ms | Qdrant HNSW (100k docs) |
-| Query Rewriting | ~450ms | LLM-based decomposition |
-| Linguistic Analysis | ~50ms | spaCy Polish model |
-
-### Multihop Query Performance
-
-| Query Type | Stages | Time | Notes |
-|------------|--------|------|-------|
-| Simple | Standard | ~900ms | Single retrieval + rerank |
-| Comparison (2 entities) | Multihop | ~1600ms | 2 sub-queries + 3-stage rerank |
-| Similarity (2 entities) | Multihop | ~1700ms | 2 sub-queries + fusion |
-| Chaining (3 hops) | Multihop | ~2200ms | 3 sub-queries + global rerank |
-| Aggregation | Multihop | ~2500ms | Multiple retrievals + fusion |
-
-**Optimization Tips:**
-- Use Ollama/vLLM for faster LLM inference
-- Disable query rewriting for simple lookups
-- Adjust `MULTIHOP_TOP_K_PER_SUBQUERY` for speed/quality tradeoff
-- Use `use_reranker=false` in multihop endpoint for faster fusion-only
-
-### Scalability
-
-| Corpus Size | Index Time | Search Time | Memory |
-|-------------|------------|-------------|--------|
-| 10k docs    | ~5 min     | <10ms | 2GB    |
-| 200k docs   | ~3 hours   | <15ms | 8GB    |
-| 1M docs     | ~8 hours   | <30ms | 40GB   |
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-## 🎯 Roadmap
+## References
 
-### ✅ Completed (v0.2)
-- [x] Basic RAG pipeline (retrieval → LLM)
-- [x] Cross-encoder reranking
-- [x] Semantic chunking with LlamaIndex
-- [x] Qdrant integration with HNSW
-- [x] Progress tracking & resume
-- [x] Multi-lingual support (PL/EN)
-- [x] **Linguistic analysis with spaCy** 🆕
-- [x] **Adaptive query rewriting** 🆕
-- [x] **Multihop retrieval with three-stage reranking** 🆕
-- [x] **Query type detection (8 types)** 🆕
-- [x] **Multi-provider LLM support (HF/Ollama/vLLM/API)** 🆕
-- [x] **Advanced prompting with templates** 🆕
-- [x] **FastAPI REST server** 🆕
+### Papers
 
-### 🚧 In Progress (v0.3)
-- [ ] Self-Verification (CoVe) implementation
-- [ ] Web UI for search
-- [ ] Batch evaluation framework
-- [ ] Query expansion with embedding similarity
-- [ ] RAG fusion techniques
+- [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401) (Lewis et al., 2020)
+- [Query Rewriting for Retrieval-Augmented Large Language Models](https://arxiv.org/abs/2305.14283) (Jagerman et al., 2023)
+- [HotpotQA: A Dataset for Diverse, Explainable Multi-hop Question Answering](https://arxiv.org/abs/1809.09600) (Yang et al., 2018)
+- [Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks](https://arxiv.org/abs/1908.10084) (Reimers & Gurevych, 2019)
+- [Chain-of-Verification Reduces Hallucination in Large Language Models](https://arxiv.org/abs/2309.11495) (Dhuliawala et al., 2023)
 
-### 🔮 Planned (v0.4+)
-- [ ] Hybrid search (BM25 + vector)
-- [ ] Multi-modal support (images, tables)
-- [ ] Multi-hop reasoning with graphs
-- [ ] Fine-tuning scripts (LoRA/QLoRA)
-- [ ] Deployment guides (Docker, K8s)
-- [ ] Streaming responses
-- [ ] Query caching
+### Libraries
 
-### Development Setup
-
-```bash
-# Install dev dependencies
-make dev
-
-# Pre-commit hooks
-pre-commit install
-
-# Code formatting
-make fmt
-
-# Linting
-make lint
-```
-
-### Code Style
-- **Formatter:** `black` + `isort`
-- **Linter:** `ruff`
-- **Type checking:** `mypy`
-- **Docstrings:** Google style
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-### Papers & Methods
-- **RAG:** [Retrieval-Augmented Generation (Lewis et al., 2020)](https://arxiv.org/abs/2005.11401)
-- **Query Rewriting:** [Query Rewriting for Retrieval (Jagerman et al., 2023)](https://arxiv.org/abs/2305.14283)
-- **Multihop QA:** [HotpotQA (Yang et al., 2018)](https://arxiv.org/abs/1809.09600)
-- **Cross-Encoders:** [Sentence-BERT (Reimers & Gurevych, 2019)](https://arxiv.org/abs/1908.10084)
-- **CoVe:** [Chain-of-Verification (Dhuliawala et al., 2023)](https://arxiv.org/abs/2309.11495)
-
-### Libraries & Tools
-- [Sentence-Transformers](https://www.sbert.net/) - Embedding & reranking
-- [Qdrant](https://qdrant.tech/) - Vector database
-- [LlamaIndex](https://www.llamaindex.ai/) - Semantic chunking
-- [spaCy](https://spacy.io/) - Linguistic analysis
-- [Transformers](https://huggingface.co/transformers/) - LLM inference
-- [FastAPI](https://fastapi.tiangolo.com/) - REST API framework
+- [Sentence-Transformers](https://www.sbert.net/)
+- [Qdrant](https://qdrant.tech/)
+- [LlamaIndex](https://www.llamaindex.ai/)
+- [spaCy](https://spacy.io/)
+- [Transformers](https://huggingface.co/transformers/)
+- [FastAPI](https://fastapi.tiangolo.com/)
 
 ### Models
-- **GTE-multilingual** (Alibaba)
-- **Jina-reranker-v2** (Jina AI)
-- **Qwen3 / Qwen3** (Alibaba Cloud)
 
-
-## 🔥 Quick Examples
-
-### Example 1: Simple Lookup (Baseline)
-
-```bash
-$ curl -X POST "http://localhost:8000/ask/baseline" \
-  -d '{"query": "Co to jest Warszawa?"}'
-
-{
-  "answer": "Warszawa to stolica Polski [1] i największe miasto kraju...",
-  "metadata": {
-    "pipeline": "baseline",
-    "total_time_ms": 850.5
-  }
-}
-```
-
-### Example 2: Comparison Query (Enhanced with Multihop)
-
-```bash
-$ curl -X POST "http://localhost:8000/ask/enhanced" \
-  -d '{"query": "ziemniaki vs pomidory błonnik"}'
-
-{
-  "answer": "Ziemniaki zawierają 2.2g błonnika na 100g [1][2], 
-             pomidory 1.2g [3][4]. Ziemniaki mają więcej błonnika.",
-  "metadata": {
-    "is_multihop": true,
-    "sub_queries": [
-      "Ile błonnika mają ziemniaki?",
-      "Ile błonnika mają pomidory?"
-    ],
-    "query_type": "comparison",
-    "total_time_ms": 1576.6
-  }
-}
-```
-
-### Example 3: Verification Query
-
-```bash
-$ curl -X POST "http://localhost:8000/ask/enhanced" \
-  -d '{"query": "Polska to największy kraj europejski?"}'
-
-{
-  "answer": "Nie, Polska nie jest największym krajem w Europie. 
-             Polska ma powierzchnię 312,696 km² [1], podczas gdy 
-             największym krajem Europy jest Rosja... [2]",
-  "metadata": {
-    "is_multihop": true,
-    "query_type": "verification",
-    "reasoning": "verification of superlative claim"
-  }
-}
-```
-
-### Example 4: Linguistic Analysis Only
-
-```python
-from src.ragx.retrieval.analyzers.linguistic_analyzer import LinguisticAnalyzer
-
-analyzer = LinguisticAnalyzer()
-features = analyzer.analyze("Co łączy mitologię słowiańską i nordycką?")
-
-print(f"Tokens: {features.num_tokens}")
-print(f"Clauses: {features.num_clauses}")
-print(f"Entities: {features.entities}")
-print(f"Has conjunctions: {features.has_conjunctions}")
-```
-
-### Example 5: Python API
-
-```python
-from src.ragx.pipelines.enhanced import EnhancedPipeline
-
-# Initialize pipeline
-pipeline = EnhancedPipeline()
-
-# Ask a complex question
-result = pipeline.answer(
-    query="Król Mieszko I czy Bolesław Chrobry miał większy wpływ?",
-    top_k=10
-)
-
-print(f"Answer: {result['answer']}")
-print(f"Is multihop: {result['metadata']['is_multihop']}")
-print(f"Sub-queries: {result['metadata']['sub_queries']}")
-print(f"Query type: {result['metadata'].get('query_type')}")
-print(f"Sources: {len(result['sources'])}")
-```
-
----
-
-**Happy RAG-ing! 🚀**
+- GTE-multilingual (Alibaba)
+- Jina Reranker v2 (Jina AI)
+- Qwen2.5 / Qwen3 (Alibaba Cloud)

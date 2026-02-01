@@ -57,7 +57,7 @@ class APIProvider:
             # "enable_thinking": False,
         }
 
-        # # Works on ollama, not on vllm or api alibaba
+        # # Works on ollama, not on vllm or api alibaba - DEV LOGS FOR LOCAL
         # if chain_of_thought_enabled is not None:
         #     payload["extra_body"] = {"enable_thinking": chain_of_thought_enabled}
 
@@ -68,12 +68,8 @@ class APIProvider:
             payload["chat_template_kwargs"] = {"enable_thinking": False}
 
         url = f"{self.base_url}/chat/completions"
-        logger.info(f"🔍 Making request to: {url}")
-        # logger.info(f"🔍 Model: {self.model_name}")
-        # if chain_of_thought_enabled is not None:
-        #     logger.info(f"🔍 enable_thinking: {chain_of_thought_enabled}")
-        # logger.info(f"Payload: {payload}")
-        logger.info(f"🔍 chat_template_kwargs: {payload.get('chat_template_kwargs', {})}")
+        logger.info(f"Making request to: {url}")
+        logger.info(f"chat_template_kwargs: {payload.get('chat_template_kwargs', {})}")
 
         response = None
         try:
@@ -128,15 +124,15 @@ class APIProvider:
             return generated_text
 
         except requests.exceptions.HTTPError as e:
-            logger.error(f"❌ APIProvider HTTP error: {e}")
+            logger.error(f"APIProvider HTTP error: {e}")
             if response is not None:
-                logger.error(f"❌ Response status: {response.status_code}")
-                logger.error(f"❌ Response body: {response.text}")
+                logger.error(f"Response status: {response.status_code}")
+                logger.error(f"Response body: {response.text}")
             else:
-                logger.error("❌ No response received (response is None)")
+                logger.error("No response received (response is None)")
             return ""
         except Exception as e:
-            logger.error(f"❌ APIProvider generate error: {e}")
+            logger.error(f"APIProvider generate error: {e}")
         return ""
 
     def generate_stream(
@@ -165,10 +161,10 @@ class APIProvider:
         }
 
         url = f"{self.base_url}/chat/completions"
-        logger.info(f"🔍 Making request to: {url}")
-        logger.info(f"🔍 Model: {self.model_name}")
+        logger.info(f"Making request to: {url}")
+        logger.info(f"Model: {self.model_name}")
         if chain_of_thought_enabled is not None:
-            logger.info(f"🔍 enable_thinking: {chain_of_thought_enabled}")
+            logger.info(f"enable_thinking: {chain_of_thought_enabled}")
 
         try:
             response = requests.post(

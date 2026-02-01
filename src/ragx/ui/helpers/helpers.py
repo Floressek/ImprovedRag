@@ -30,27 +30,6 @@ def validate_api_url(url: str) -> bool:
         if not parsed.netloc:
             raise ValueError("Invalid URL: missing hostname")
 
-        # # Block common SSRF targets
-        # blocked_hosts = [
-        #     'localhost',
-        #     '127.0.0.1',
-        #     '0.0.0.0',
-        #     '169.254.169.254',  # AWS metadata
-        #     '::1',  # IPv6 localhost
-        # ]
-        #
-        # hostname = parsed.hostname
-        # if not hostname:
-        #     raise ValueError("Invalid URL: could not extract hostname")
-        #
-        # # Check if hostname is in blocked list
-        # if hostname.lower() in blocked_hosts:
-        #     raise ValueError(f"Access to {hostname} is not allowed for security reasons")
-        #
-        # # Block local IP ranges (basic check)
-        # if hostname.startswith('192.168.') or hostname.startswith('10.') or hostname.startswith('172.'):
-        #     raise ValueError(f"Access to local IP {hostname} is not allowed")
-
         return True
 
     except Exception as e:
@@ -65,25 +44,25 @@ def estimate_step_timings(config: PipelineConfig) -> StepTiming:
     """
     timings = StepTiming()
 
-    # Query Analysis: ~1-2s
+    # Query Analysis
     if config.query_analysis_enabled:
         timings.query_analysis = 10
 
-    # Retrieval: ~5-8s (vector search + embeddings)
+    # Retrieval: (vector search + embeddings)
     timings.retrieval = 2.0
 
-    # Reranking: ~3-5s (especially for multihop 3-stage)
+    # Reranking: (especially for multihop 3-stage)
     if config.reranker_enabled:
         timings.reranking = 2.0
 
-    # Generation: ~10-15s (longest step, LLM inference)
+    # Generation: (longest step, LLM inference)
     # CoT makes it even longer
     if config.cot_enabled:
         timings.generation = 25.0
     else:
         timings.generation = 15.0
 
-    # CoVe: ~5-8s (additional verification queries)
+    # CoVe: (additional verification queries)
     if config.cove_mode != "off":
         timings.cove = 35.5
 

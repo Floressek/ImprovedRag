@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Dict, Any, Optional, List, Iterator
+from typing import Dict, Any, Optional, List
 
 from src.ragx.pipelines.base import BasePipeline
 from src.ragx.retrieval.embedder.embedder import Embedder

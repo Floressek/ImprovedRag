@@ -36,4 +36,12 @@ dependencies = [
     "pylint>=3.3.8",
     "streamlit>=1.38.0",
     "plotly>=5.18.0",
+    "colorlog>=6.10.1",
+    "spacy>=3.8.11",
+    "scipy-stubs~=1.16.1",
+    "langchain>=1.2.7",
+    "ragas>=0.4.3",
+    "pandas-stubs~=2.2.3",
+    "langdetect>=1.0.9",
+    "ollama>=0.6.1",
 ]

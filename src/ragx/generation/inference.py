@@ -39,7 +39,7 @@ class LLMInference:
         self.max_new_tokens = max_new_tokens or settings.llm.max_new_tokens
         self.provider = provider or settings.llm.provider
 
-        logger.info(f" 🚀 Initializing LLMInference with provider: {self.provider}")
+        logger.info(f" Initializing LLMInference with provider: {self.provider}")
         if llm_model is not None:
             self.provider = 'huggingface'
             self.llm_model = llm_model
@@ -55,16 +55,14 @@ class LLMInference:
 
         def _create_provider():
             """Factory function for model_registry"""
-            logger.info(f" 📦 Creating LLM provider instance: {self.provider}")
+            logger.info(f" Creating LLM provider instance: {self.provider}")
             return self._initialize_provider()
 
-        # using models registry to cache model instances
         self._provider_instance = model_registry.get_or_create(
             cache_key,
             _create_provider
         )
 
-        # for HuggingFace
         if self.provider == 'huggingface':
             self.llm_model = self._provider_instance
             self.tokenizer = self.llm_model.get_tokenizer()
@@ -99,9 +97,9 @@ class LLMInference:
                     host=getattr(settings.llm, 'ollama_host', 'http://localhost:11434'),
                 )
             except ImportError as e:
-                logger.error(f"❌ Ollama provider not found: {e}")
+                logger.error(f"Ollama provider not found: {e}")
                 logger.error("Install with: pip install ollama")
-                logger.info("⚠️  Falling back to HuggingFace Transformers")
+                logger.info("Falling back to HuggingFace Transformers")
                 self.provider = 'huggingface'
                 return LLMModel()
 
@@ -124,9 +122,9 @@ class LLMInference:
                     trust_remote_code=True,
                 )
             except ImportError as e:
-                logger.error(f"❌ vLLM provider not found: {e}")
+                logger.error(f"vLLM provider not found: {e}")
                 logger.error("Install with: pip install vllm")
-                logger.info("⚠️  Falling back to HuggingFace Transformers")
+                logger.info("Falling back to HuggingFace Transformers")
                 self.provider = 'huggingface'
                 return LLMModel()
 
@@ -142,12 +140,12 @@ class LLMInference:
                     timeout=150,
                 )
             except Exception as e:
-                logger.error(f"❌ API provider initialization error: {e}")
-                logger.info("⚠️  Falling back to HuggingFace Transformers")
+                logger.error(f"API provider initialization error: {e}")
+                logger.info("Falling back to HuggingFace Transformers")
                 self.provider = 'huggingface'
                 return LLMModel()
         else:
-            logger.info(f"🤗 Initializing HuggingFace Transformers with model: {self.model_id}")
+            logger.info(f"Initializing HuggingFace Transformers with model: {self.model_id}")
             return LLMModel()
 
     def generate(

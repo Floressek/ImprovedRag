@@ -16,7 +16,6 @@ class IngestionProgress:
 
     started_at: str = field(default_factory=lambda: datetime.now().isoformat())
     last_updated: str = field(default_factory=lambda: datetime.now().isoformat())
-
     total_articles: int = 0
     total_chunks: int = 0
     total_batches: int = 0
