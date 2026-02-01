@@ -63,7 +63,6 @@ class WikipediaQuestionGenerator:
 
         with open(self.prompts_path, 'r', encoding='utf-8') as f:
             self.prompts = yaml.safe_load(f)
-
         logger.info(f"Loaded prompts from {self.prompts_path}")
 
     def load_articles_sample(
@@ -149,8 +148,8 @@ class WikipediaQuestionGenerator:
             List of exactly num_questions validated question dicts
         """
         if folders is None:
-            # First 10 folders
-            folders = [f"{chr(65)}{chr(65+i)}" for i in range(10)]  # AA, AB, ..., AJ
+            # First 10 folders, change the magic number!
+            folders = [f"{chr(65)}{chr(65 + i)}" for i in range(10)]  # AA, AB, ..., AJ
 
         if distribution is None:
             distribution = {
@@ -165,7 +164,6 @@ class WikipediaQuestionGenerator:
         for qtype, ratio in distribution.items():
             targets[qtype] = int(num_questions * ratio)
 
-        # Adjust for rounding errors - add remainder to first type
         total_assigned = sum(targets.values())
         if total_assigned < num_questions:
             first_type = list(targets.keys())[0]
@@ -183,7 +181,7 @@ class WikipediaQuestionGenerator:
         all_folders = []
         for i in range(26):  # A-Z
             for j in range(26):  # A-Z
-                all_folders.append(f"{chr(65+i)}{chr(65+j)}")
+                all_folders.append(f"{chr(65 + i)}{chr(65 + j)}")
 
         # Track which folders we've already loaded
         loaded_folders = set(folders)
@@ -193,9 +191,9 @@ class WikipediaQuestionGenerator:
         type_breakdown = {qtype: 0 for qtype in self.QUESTION_TYPES}
 
         for qtype, target_count in targets.items():
-            logger.info(f"\n{'='*60}")
+            logger.info(f"\n{'=' * 60}")
             logger.info(f"Generating {target_count} {qtype} questions...")
-            logger.info(f"{'='*60}")
+            logger.info(f"{'=' * 60}")
 
             generated_count = 0
             total_attempts = 0
@@ -207,7 +205,7 @@ class WikipediaQuestionGenerator:
                 # Check if we need more articles
                 if total_attempts > 0 and total_attempts % 20 == 0:
                     if len(articles) < 50:  # Running low on articles
-                        logger.info(f"\n⚠️  Running low on articles ({len(articles)}), loading more...")
+                        logger.info(f"\n Running low on articles ({len(articles)}), loading more...")
 
                         # Find next unloaded folder
                         loaded_new = False
@@ -218,7 +216,7 @@ class WikipediaQuestionGenerator:
                             if next_folder not in loaded_folders:
                                 folder_path = self.data_dir / next_folder
                                 if folder_path.exists():
-                                    logger.info(f"📂 Loading articles from {next_folder}...")
+                                    logger.info(f"Loading articles from {next_folder}...")
                                     new_articles = self.load_articles_sample(
                                         [next_folder],
                                         sample_size=sample_size_per_folder
@@ -231,9 +229,10 @@ class WikipediaQuestionGenerator:
                                         break
 
                         if not loaded_new:
-                            logger.warning("⚠️  No more folders available to load!")
+                            logger.warning("No more folders available to load!")
                             if len(articles) == 0:
-                                logger.error(f"❌ Out of articles! Generated {generated_count}/{target_count} {qtype} questions")
+                                logger.error(
+                                    f"Out of articles! Generated {generated_count}/{target_count} {qtype} questions")
                                 break
 
                 # Generate question
@@ -245,7 +244,7 @@ class WikipediaQuestionGenerator:
                         consecutive_failures += 1
                         if consecutive_failures >= max_attempts_per_question:
                             logger.warning(
-                                f"❌ Too many consecutive failures ({consecutive_failures}), stopping {qtype} generation. "
+                                f"Too many consecutive failures ({consecutive_failures}), stopping {qtype} generation. "
                                 f"Generated {generated_count}/{target_count}"
                             )
                             break
@@ -255,10 +254,10 @@ class WikipediaQuestionGenerator:
                     if self.validate_grounding:
                         if not self._validate_grounding(question["ground_truth"], question["contexts"]):
                             consecutive_failures += 1
-                            logger.debug(f"⚠️  Question failed validation (consecutive: {consecutive_failures})")
+                            logger.debug(f"Question failed validation (consecutive: {consecutive_failures})")
                             if consecutive_failures >= max_attempts_per_question:
                                 logger.warning(
-                                    f"❌ Too many consecutive validation failures ({consecutive_failures}), stopping {qtype}. "
+                                    f"Too many consecutive validation failures ({consecutive_failures}), stopping {qtype}. "
                                     f"Generated {generated_count}/{target_count}"
                                 )
                                 break
@@ -272,11 +271,11 @@ class WikipediaQuestionGenerator:
                     pbar.update(1)
 
                 except Exception as e:
-                    logger.error(f"❌ Error generating {qtype} question: {e}")
+                    logger.error(f"Error generating {qtype} question: {e}")
                     consecutive_failures += 1
                     if consecutive_failures >= max_attempts_per_question:
                         logger.warning(
-                            f"❌ Too many consecutive errors ({consecutive_failures}), stopping {qtype}. "
+                            f"Too many consecutive errors ({consecutive_failures}), stopping {qtype}. "
                             f"Generated {generated_count}/{target_count}"
                         )
                         break
@@ -285,22 +284,22 @@ class WikipediaQuestionGenerator:
             pbar.close()
 
             logger.info(
-                f"✓ Generated {generated_count}/{target_count} {qtype} questions "
+                f"Generated {generated_count}/{target_count} {qtype} questions "
                 f"(total attempts: {total_attempts})"
             )
 
         random.shuffle(questions)
 
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"GENERATION COMPLETE")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
         logger.info(f"Total questions: {len(questions)}/{num_questions}")
         logger.info(f"Question type breakdown:")
         for qtype in self.QUESTION_TYPES:
             count = type_breakdown[qtype]
             percentage = (count / len(questions) * 100) if questions else 0
             logger.info(f"  {qtype:12s}: {count:4d} ({percentage:5.1f}%)")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
 
         return questions
 
@@ -327,9 +326,8 @@ class WikipediaQuestionGenerator:
         """Generate simple factual question from 1 article."""
 
         article = random.choice(articles)
-        text = article["text"][:1000]  # First 1000 chars
+        text = article["text"][:1000]
 
-        # Load prompt from YAML
         prompt_template = self.prompts["generate_simple"]["template"]
         prompt = prompt_template.format(
             title=article['title'],
@@ -338,12 +336,11 @@ class WikipediaQuestionGenerator:
 
         response = self.llm.generate(
             prompt=prompt,
-            temperature=0.3, # prev 0.7
-            max_new_tokens=4092, # prev 200
+            temperature=0.3,
+            max_new_tokens=4092,
             chain_of_thought_enabled=False,
         )
 
-        # Parse JSON
         try:
             data = json.loads(response.strip())
 
@@ -383,7 +380,6 @@ class WikipediaQuestionGenerator:
 
         try:
             data = json.loads(response.strip())
-
             return {
                 "question": data["question"],
                 "ground_truth": data["ground_truth"],
@@ -405,11 +401,10 @@ class WikipediaQuestionGenerator:
         titles = [a["title"] for a in selected]
 
         articles_text = "\n\n".join([
-            f"ARTICLE {i+1} TITLE: {titles[i]}\nTEXT:\n{texts[i]}"
+            f"ARTICLE {i + 1} TITLE: {titles[i]}\nTEXT:\n{texts[i]}"
             for i in range(num_articles)
         ])
 
-        # Load prompt from YAML
         prompt_template = self.prompts["generate_multihop"]["template"]
         prompt = prompt_template.format(articles_text=articles_text)
 
@@ -422,7 +417,6 @@ class WikipediaQuestionGenerator:
 
         try:
             data = json.loads(response.strip())
-
             return {
                 "question": data["question"],
                 "ground_truth": data["ground_truth"],
@@ -456,7 +450,6 @@ class WikipediaQuestionGenerator:
 
         try:
             data = json.loads(response.strip())
-
             return {
                 "question": data["question"],
                 "ground_truth": data["ground_truth"],

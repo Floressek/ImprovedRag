@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import time
 from typing import List, Dict, Any, Optional
 
@@ -12,6 +13,7 @@ from ragas.metrics import (
     context_recall,
 )
 from datasets import Dataset
+import pandas as pd
 from openai import RateLimitError, APIError, APIConnectionError
 from src.ragx.evaluation.langchain_adapters import LLMInferenceAdapter, EmbedderAdapter
 from src.ragx.evaluation.models import EvaluationResult, BatchEvaluationResult
@@ -41,6 +43,7 @@ class RAGASEvaluator:
     - multihop_coverage: For multihop queries, % of sub-queries with ≥1 doc
     """
 
+    # fix the magic numbers TODO
     def __init__(
             self,
             llm_provider: str = "api",
@@ -113,12 +116,9 @@ class RAGASEvaluator:
             "contexts": [contexts],
             "ground_truth": [ground_truth],
         })
-
-        # Run RAGAS evaluation with retry on rate limits
         logger.debug(f"Evaluating question: {question[:50]}...")
-
         max_retries = 3
-        retry_delay = 60  # seconds
+        retry_delay = 60
 
         for attempt in range(max_retries):
             try:
@@ -133,11 +133,12 @@ class RAGASEvaluator:
                     llm=self.llm,
                     embeddings=self.embeddings,
                 )
-                break  # Success, exit retry loop
+                break
 
             except RateLimitError as e:
                 if attempt < max_retries - 1:
-                    logger.warning(f"Rate limit hit (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s...")
+                    logger.warning(
+                        f"Rate limit hit (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s...")
                     time.sleep(retry_delay)
                 else:
                     logger.error(f"Rate limit exceeded after {max_retries} attempts")
@@ -153,8 +154,6 @@ class RAGASEvaluator:
 
         # Extract RAGAS scores
         ragas_scores = ragas_result.to_pandas().iloc[0]
-
-        # Calculate custom metrics
         latency_ms = metadata.get("latency_ms", 0.0)
 
         # Use num_sources from API metadata (includes CoVe evidences)
@@ -184,7 +183,7 @@ class RAGASEvaluator:
         def safe_float(value, default=0.0):
             try:
                 f = float(value)
-                return default if (f != f) else f  # NaN check
+                return default if math.isnan(f) else f
             except (ValueError, TypeError):
                 return default
 
@@ -256,8 +255,6 @@ class RAGASEvaluator:
             end_idx = min(start_idx + mini_batch_size, len(questions))
 
             logger.info(f"Processing mini-batch {batch_idx + 1}/{num_batches} (questions {start_idx + 1}-{end_idx})...")
-
-            # Prepare dataset for this mini-batch
             batch_dataset = Dataset.from_dict({
                 "question": questions[start_idx:end_idx],
                 "answer": answers[start_idx:end_idx],
@@ -282,14 +279,10 @@ class RAGASEvaluator:
             logger.info(f"Mini-batch {batch_idx + 1} completed in {eval_time:.0f}ms")
 
             all_ragas_results.append(batch_result.to_pandas())
-
-            # Delay between batches (except after last batch)
             if batch_idx < num_batches - 1:
                 logger.debug(f"Waiting {delay_between_batches}s before next mini-batch...")
                 time.sleep(delay_between_batches)
 
-        # Combine all mini-batch results
-        import pandas as pd
         ragas_df = pd.concat(all_ragas_results, ignore_index=True)
         logger.info(f"All mini-batches completed. Total questions evaluated: {len(ragas_df)}")
 
@@ -358,8 +351,6 @@ class RAGASEvaluator:
         answer_rel_vals = [r.answer_relevancy for r in results]
         context_prec_vals = [r.context_precision for r in results]
         context_rec_vals = [r.context_recall for r in results]
-
-        # Defensive division (results is never empty due to validation above, but be safe)
         num_results = len(results) if results else 1
 
         return BatchEvaluationResult(

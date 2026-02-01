@@ -239,8 +239,6 @@ if save_clicked:
         st.info("💡 No messages to save yet")
 
 st.divider()
-
-# Display chat history
 render_message_history()
 
 # Handle example query or user input

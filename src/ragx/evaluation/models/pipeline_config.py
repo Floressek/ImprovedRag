@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import statistics
-from typing import List, Dict, Any, Optional, Union, Tuple
+from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass, field, asdict
 
 from scipy import stats
@@ -32,7 +32,7 @@ class PipelineConfig:
     # Toggle 4: CoVe mode
     cove_mode: str = "off"  # "off", "auto", "metadata", "suggest"
     # Prompt template selection
-    prompt_template: str = "auto"  # "basic", "enhanced", "auto" # TODO CHECK IF THIS WORKS WITH MULITHOP
+    prompt_template: str = "auto"  # "basic", "enhanced", "auto"
     # LLM provider
     provider: Optional[str] = None  # "api", "ollama", "huggingface", or None (use default)
     # Retrieval parameters
@@ -61,7 +61,7 @@ class ConfigResult:
     """Results for a single pipeline configuration."""
 
     config: PipelineConfig
-    evaluation: Any  # BatchEvaluationResult (avoiding circular import)
+    evaluation: Any
     run_time_ms: float
     api_responses: List[Dict[str, Any]] = field(default_factory=list)
 
@@ -95,7 +95,6 @@ class AblationStudyResult:
 
         Note: Only compares questions that were successfully evaluated in BOTH configs.
         """
-        # Find configs
         result_a = next((cr for cr in self.config_results if cr.config.name == config_a), None)
         result_b = next((cr for cr in self.config_results if cr.config.name == config_b), None)
 
@@ -118,7 +117,6 @@ class AblationStudyResult:
                 paired_scores_b.append(score_b)
 
         if len(paired_scores_a) < 2:
-            # Not enough data for t-test
             return {
                 "config_a": config_a,
                 "config_b": config_b,
@@ -205,8 +203,8 @@ class CheckpointState:
     """State for resuming ablation study from checkpoint."""
 
     timestamp: str
-    completed_configs: List[str]  # Names of completed configs
-    config_results: List[Dict[str, Any]]  # Serialized ConfigResult objects
+    completed_configs: List[str]
+    config_results: List[Dict[str, Any]]
     questions: List[Dict[str, Any]]
     current_config_idx: int
     total_configs: int
