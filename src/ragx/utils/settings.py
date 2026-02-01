@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
+
 root_dir = Path(__file__).parent.parent.parent.parent
 env_path = root_dir / ".env"
 
@@ -59,6 +60,7 @@ class EmbedderConfig:
     query_prefix: str = os.getenv("EMBEDDING_QUERY_PREFIX", "query: ")
     passage_prefix: str = os.getenv("EMBEDDING_PASSAGE_PREFIX", "passage: ")
 
+
 @dataclass
 class ChunkerConfig:
     """Text chunker configuration."""
@@ -74,7 +76,6 @@ class ChunkerConfig:
     context_tail_tokens: int = int(os.getenv("CHUNKER_CONTEXT_TAIL_TOKENS", "0"))
 
     chunking_model: Optional[str] = os.getenv("CHUNKER_MODEL", None)
-
 
 
 @dataclass
@@ -122,6 +123,7 @@ class RetrievalConfig:
     rerank_top_m: int = int(os.getenv("RERANK_TOP_M", "80"))
     context_top_n: int = int(os.getenv("CONTEXT_TOP_N", "8"))
 
+
 @dataclass
 class RewriteConfig:
     """Rewrite configuration."""
@@ -129,6 +131,7 @@ class RewriteConfig:
     temperature: float = float(os.getenv("REWRITE_TEMPERATURE", "0.2"))
     enabled: bool = str_to_bool(os.getenv("REWRITE_ENABLED", "true"))
     verify_before_retrieval: bool = str_to_bool(os.getenv("REWRITE_VERIFY_BEFORE_RETRIEVAL", "true"))
+
 
 @dataclass
 class MultihopConfig:
@@ -142,6 +145,7 @@ class MultihopConfig:
     min_per_subquery: int = int(os.getenv("MULTIHOP_MIN_PER_SUBQUERY", "1"))
     max_per_subquery: int = int(os.getenv("MULTIHOP_MAX_PER_SUBQUERY", "5"))
     adaptive_top_k: bool = str_to_bool(os.getenv("MULTIHOP_ADAPTIVE_TOP_K", "true"))
+
 
 @dataclass
 class CoVeConfig:
@@ -161,6 +165,7 @@ class CoVeConfig:
     use_batch_nli: bool = str_to_bool(os.getenv("COVE_USE_BATCH_NLI", "true"))
     correction_confidence_threshold: float = float(os.getenv("COVE_CORRECTION_CONFIDENCE_THRESHOLD", "0.8"))
 
+
 @dataclass
 class HNSWConfig:
     """HNSW index configuration."""
@@ -177,6 +182,7 @@ class HuggingFaceConfig:
     transformers_cache: str = os.getenv("TRANSFORMERS_CACHE", "./models/transformers")
     hf_hub_cache: str = os.getenv("HF_HUB_CACHE", "./models/hub")
 
+
 @dataclass
 class ChatConfig:
     """Chat configuration."""
@@ -185,6 +191,7 @@ class ChatConfig:
     context_window: int = int(os.getenv("CHAT_CONTEXT_WINDOW", "4096"))
     temperature: float = float(os.getenv("CHAT_TEMPERATURE", "0.7"))
     top_p: float = float(os.getenv("CHAT_TOP_P", "0.9"))
+
 
 @dataclass
 class APIConfig:
@@ -242,7 +249,6 @@ class Settings:
 
 settings = Settings.load()
 settings.setup_huggingface_cache()
-
 
 if __name__ == "__main__":
     print("=== Settings Debug ===")
