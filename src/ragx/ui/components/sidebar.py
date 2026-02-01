@@ -5,6 +5,7 @@ from src.ragx.ui.constants.types import PipelineConfig
 from ..config import PRESETS
 from ..helpers.helpers import validate_api_url
 
+
 def render_sidebar(api_url: str) -> PipelineConfig:
     """
     Render sidebar with configuration options.
@@ -13,8 +14,6 @@ def render_sidebar(api_url: str) -> PipelineConfig:
         Selected PipelineConfig
     """
     st.title("⚙️ Configuration")
-
-    # API URL configuration
     api_url = st.text_input(
         "API URL",
         value=api_url,
@@ -106,18 +105,12 @@ def render_sidebar(api_url: str) -> PipelineConfig:
         )
 
     st.divider()
-
-    # Advanced features
     _render_advanced_features()
 
     st.divider()
-
-    # Example queries
     _render_example_queries()
 
     st.divider()
-
-    # Connection status
     _render_connection_status(api_url)
 
     return preset
@@ -186,7 +179,6 @@ def _render_connection_status(api_url: str):
     # Only check on button click (avoid spam)
     if st.button("🔄 Check connection"):
         try:
-            # Validate URL first to prevent SSRF
             validate_api_url(api_url)
 
             response = requests.get(f"{api_url}/info/health", timeout=2)
@@ -212,7 +204,6 @@ def _render_connection_status(api_url: str):
                 "message": "Not Connected",
             }
 
-    # Display cached status
     status = st.session_state.connection_status
     if status["status"] == "ok":
         st.success(f"✅ {status['message']}")

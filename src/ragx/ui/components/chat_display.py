@@ -3,6 +3,7 @@ from typing import Dict, Any, List
 
 try:
     import plotly.express as px
+
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
@@ -44,7 +45,7 @@ def _render_comparison_message(message: Dict[str, Any]):
                 st.caption(f"**{config.name}**")
 
                 if result is None:
-                    st.error("❌ Failed to process")
+                    st.error(" Failed to process")
                     continue
 
                 # Display answer
@@ -67,8 +68,6 @@ def _render_comparison_message(message: Dict[str, Any]):
 
 def _render_message_metadata(metadata: Dict[str, Any]):
     """Render timing and pipeline metadata for a message."""
-
-    # CoVe status alert (if corrections were made)
     cove_data = metadata.get("cove", {})
     if cove_data.get("needs_correction"):
         status = cove_data.get("status", "UNKNOWN")
@@ -77,7 +76,7 @@ def _render_message_metadata(metadata: Dict[str, Any]):
 
         if num_refuted > 0 or num_insufficient > 0:
             st.warning(
-                f"⚠️ CoVe detected {num_refuted + num_insufficient} issue(s) and applied corrections "
+                f"CoVe detected {num_refuted + num_insufficient} issue(s) and applied corrections "
                 f"(Status: {status})"
             )
         else:
@@ -87,7 +86,6 @@ def _render_message_metadata(metadata: Dict[str, Any]):
     with st.expander("⏱️ Timing Details"):
         timings = metadata.get("timings", {})
 
-        # Metrics row
         col1, col2, col3 = st.columns(3)
 
         with col1:
@@ -130,7 +128,6 @@ def _render_message_metadata(metadata: Dict[str, Any]):
             for phase, ms in timing_data.items():
                 st.write(f"  • {phase}: {ms:.0f}ms")
 
-    # Pipeline info
     with st.expander("🔧 Pipeline Info"):
         col1, col2 = st.columns(2)
 
@@ -151,7 +148,6 @@ def _render_message_metadata(metadata: Dict[str, Any]):
             for i, sq in enumerate(metadata.get('sub_queries', []), 1):
                 st.write(f"{i}. {sq}")
 
-    # CoVe verification details (if available)
     if cove_data:
         with st.expander("🔍 CoVe Verification Details"):
             col1, col2, col3 = st.columns(3)
@@ -167,7 +163,8 @@ def _render_message_metadata(metadata: Dict[str, Any]):
             with col3:
                 recovery_attempted = cove_data.get("recovery_attempted", False)
                 recovery_helped = cove_data.get("recovery_helped", False)
-                st.write(f"**Recovery:** {'✅ Helped' if recovery_helped else ('⚠️ Tried' if recovery_attempted else '➖ N/A')}")
+                st.write(
+                    f"**Recovery:** {'✅ Helped' if recovery_helped else ('⚠️ Tried' if recovery_attempted else '➖ N/A')}")
                 st.write(f"**Status:** {cove_data.get('status', 'N/A')}")
 
             # Show corrections if made
@@ -189,10 +186,8 @@ def _render_sources(sources: List[Dict[str, Any]], timestamp: str):
 
     with st.expander(f"📚 Sources ({len(sources)})", expanded=False):
         for i, source in enumerate(sources, 1):
-            # Source header with title
             st.markdown(f"### [{i}] {source.get('doc_title', 'Unknown')}")
 
-            # Metadata badges
             col1, col2, col3 = st.columns(3)
             with col1:
                 if source.get('position') is not None:
