@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, Iterator
+from typing import Optional
 
 from vllm import LLM, SamplingParams
 
@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class VLLMProvider:
-    """LLM provider using vLLM. - inference optimized LLM serving library"""
+    """LLM provider using vLLM. - inference optimized LLM serving library
+    Optional provider, since api_provider is more flexible and also is capable of using locally hosted models on vllm.
+    """
 
     def __init__(
             self,
@@ -52,7 +54,6 @@ class VLLMProvider:
             max_model_len=self.max_model_len,
             quantization=self.quantization,
             trust_remote_code=self.trust_remote_code,
-            # optimizers
             enforce_eager=False,  # use CUDA for speedup
             disable_log_stats=False  # monitoring for now enabled
         )

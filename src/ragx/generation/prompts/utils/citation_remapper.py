@@ -4,6 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def remap_citations(
         answer: str,
         citation_mapping: Dict[int, str],
@@ -61,10 +62,7 @@ def remap_citations(
             # No citation_id for uncited (CoVe)
             uncited_contexts.append(ctx_copy)
 
-    # Sort cited by citation_id for clean output
     cited_contexts.sort(key=lambda x: x.get("citation_id", 999))
-
-    # Final order: cited first, then uncited
     reorganized_contexts = cited_contexts + uncited_contexts
 
     logger.info(

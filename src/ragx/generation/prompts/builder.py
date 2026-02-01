@@ -372,13 +372,6 @@ class PromptBuilder:
                 if final_score is not None and final_score < 0.35:
                     section.append(f"    BE WARY, THIS SOURCE MAY NOT BE RELEVANT!")
 
-                # rerank_score = ctx.get("rerank_score")
-                # retrieval_score = ctx.get("retrieval_score")
-                # if rerank_score is not None:
-                #     section.append(f"    Relevance: {rerank_score:.3f}")
-                # elif retrieval_score is not None:
-                #     section.append(f"    Similarity: {retrieval_score:.3f}")
-
                 fusion_meta = ctx.get("fusion_metadata", {}) or {}
                 if fusion_meta.get("num_occurrences", 1) > 1:
                     source_sqs = fusion_meta.get("source_subqueries", [])
@@ -387,7 +380,6 @@ class PromptBuilder:
                     )
 
                 section.append(f"    CONTENT: {text}\n")
-
                 global_idx += 1
 
             formatted_sections.append("\n".join(section))

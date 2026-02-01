@@ -12,8 +12,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-
-
 def ensure_ollama_running(timeout: int, host: Optional[str] = None) -> bool:
     """Check if Ollama is running, start it if not."""
     host = host or settings.llm.ollama_host
@@ -23,6 +21,7 @@ def ensure_ollama_running(timeout: int, host: Optional[str] = None) -> bool:
         if response.status_code == 200:
             return True
     except requests.exceptions.RequestException:
+        logger.info("Ollama not running, starting...")
         pass
 
     try:
