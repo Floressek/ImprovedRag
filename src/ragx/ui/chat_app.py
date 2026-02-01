@@ -27,13 +27,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Initialize session state
 initialize_session_state()
 
-
-# ============================================================================
-# HELPER FUNCTIONS FOR QUERY PROCESSING
-# ============================================================================
 
 def _reset_chat():
     """Reset chat messages and session statistics."""
@@ -62,21 +57,18 @@ def _run_single_query(prompt: str, preset, api_url: str):
                 status_container.update(label="❌ Processing failed", state="error")
                 st.stop()
 
-        # Update status to complete
         status_container.update(
             label="✅ Processing complete",
             state="complete",
             expanded=False
         )
 
-        # Display answer
         answer = result.get("answer", "")
         sources = result.get("sources", [])
         metadata = result.get("metadata", {})
 
         st.markdown(answer, unsafe_allow_html=False)
 
-        # Update session stats
         update_session_stats(preset.name, metadata.get("total_time_ms", 0))
         st.session_state.messages.append({
             "role": "assistant",
@@ -129,8 +121,6 @@ def _run_comparison_mode(prompt: str, api_url: str):
 
                     # Display answer
                     st.markdown(answer, unsafe_allow_html=True)
-
-                    # Display full metadata with expanders
                     if metadata:
                         _render_message_metadata(metadata)
 
@@ -171,8 +161,6 @@ with st.sidebar:
 # ============================================================================
 # MAIN CHAT INTERFACE - HEADER
 # ============================================================================
-
-# Header with title and chat controls (ChatGPT style)
 header_col1, header_col2 = st.columns([3, 1])
 
 with header_col1:
@@ -180,8 +168,7 @@ with header_col1:
     st.caption(f"Using pipeline: **{preset.name}**")
 
 with header_col2:
-    # Chat controls in header (like ChatGPT)
-    st.write("")  # Spacing
+    st.write("")
 
     btn_col1, btn_col2, btn_col3 = st.columns(3)
 
