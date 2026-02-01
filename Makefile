@@ -8,7 +8,7 @@ PIPELINE = $(PY) -m src.ragx.ingestion.pipelines.pipeline
 # Evaluation settings (can override: make eval-run NUM_QUESTIONS=50)
 #NUM_QUESTIONS ?= 200
 NUM_QUESTIONS ?= 1000
-# Linux date command syntax
+# Linux date command syntax -> for windows based makefile change branch to final/windows-testing
 RUN_ID ?= study_$(shell date +%Y%m%d_%H%M%S)
 CHECKPOINT_DIR ?= checkpoints
 EVAL_OUTPUT ?= results/ablation_$(shell date +%Y%m%d_%H%M%S).json

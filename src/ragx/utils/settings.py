@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 root_dir = Path(__file__).parent.parent.parent.parent
 env_path = root_dir / ".env"
 
-load_dotenv(dotenv_path=env_path, override=False)
+load_dotenv(dotenv_path=env_path, override=True)
 
 
 def str_to_bool(value: str) -> bool:
