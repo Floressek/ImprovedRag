@@ -150,14 +150,14 @@ Final Answer + Sources + Metadata
 
 ### Development Environment
 
-| Resource | Specification |
-|----------|---------------|
-| GPU | NVIDIA RTX 4070 (12GB VRAM) |
+| Resource | Specification                              |
+|----------|--------------------------------------------|
+| GPU | NVIDIA RTX 4070 (12GB VRAM)                |
 | CPU | AMD Ryzen 7 7800X3D (8 cores / 16 threads) |
-| RAM | 64GB DDR5 |
-| Storage | 8TB |
-| OS | Windows 11 Home |
-| LLM | Qwen2.5-14B / Qwen3-8B (4-bit via Ollama) |
+| RAM | 32GB DDR5                                  |
+| Storage | 1TB                                        |
+| OS | Windows 11 Home                            |
+| LLM | Qwen2.5-14B / Qwen3-8B (4-bit via Ollama)  |
 
 ### Production Environment
 
