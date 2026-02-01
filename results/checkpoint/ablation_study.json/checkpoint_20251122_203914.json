@@ -1,0 +1,153 @@
+{
+  "timestamp": "2025-11-22T20:47:25.553223",
+  "completed_configs": [
+    "baseline",
+    "full_cove_auto"
+  ],
+  "config_results": [
+    {
+      "name": "baseline",
+      "description": "No enhancements (vector search only)",
+      "config": {
+        "use_query_analysis": false,
+        "use_cot": false,
+        "use_reranker": false,
+        "cove": "off",
+        "prompt_template": "basic",
+        "top_k": 10
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.75,
+        "mean_answer_relevancy": 0.6563184079379496,
+        "mean_context_precision": 0.36785714283648807,
+        "mean_context_recall": 0.75,
+        "mean_latency_ms": 6233.9974999999995,
+        "mean_sources_count": 10.0,
+        "mean_num_candidates": 20.0,
+        "mean_multihop_coverage": 0.0,
+        "ci_faithfulness": [
+          0.26,
+          1.24
+        ],
+        "ci_answer_relevancy": [
+          0.2240424523120133,
+          1.088594363563886
+        ],
+        "ci_context_precision": [
+          0.02971696810653307,
+          0.7059973175664431
+        ],
+        "ci_context_recall": [
+          0.26,
+          1.24
+        ],
+        "std_faithfulness": 0.5,
+        "std_answer_relevancy": 0.44109791390401665,
+        "std_context_precision": 0.34504099462240306,
+        "std_context_recall": 0.5,
+        "num_questions": 4,
+        "num_multihop": 0,
+        "num_simple": 4
+      },
+      "run_time_ms": 115440.84644317627
+    },
+    {
+      "name": "full_cove_auto",
+      "description": "Full pipeline with CoVe auto-correction",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": true,
+        "use_reranker": true,
+        "cove": "auto",
+        "prompt_template": "multihop",
+        "top_k": 10
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8675595238095237,
+        "mean_answer_relevancy": 0.9028785898660092,
+        "mean_context_precision": 0.46455594172671283,
+        "mean_context_recall": 0.85,
+        "mean_latency_ms": 35078.2475,
+        "mean_sources_count": 22.5,
+        "mean_num_candidates": 300.0,
+        "mean_multihop_coverage": 0.0,
+        "ci_faithfulness": [
+          0.6521009527724604,
+          1.0830180948465873
+        ],
+        "ci_answer_relevancy": [
+          0.8391144371852596,
+          0.9666427425467589
+        ],
+        "ci_context_precision": [
+          0.10932424539219537,
+          0.8197876380612303
+        ],
+        "ci_context_recall": [
+          0.556,
+          1.144
+        ],
+        "std_faithfulness": 0.21985568473169745,
+        "std_answer_relevancy": 0.06506546191913228,
+        "std_context_precision": 0.36248132279032397,
+        "std_context_recall": 0.3,
+        "num_questions": 4,
+        "num_multihop": 2,
+        "num_simple": 2
+      },
+      "run_time_ms": 375135.03313064575
+    }
+  ],
+  "questions": [
+    {
+      "question": "Co to jest \u015arodkowy paleolit?",
+      "ground_truth": "\u015arodkowy paleolit odnosi si\u0119 do charakterystycznych wyrob\u00f3w kulturowych spotykanych na terenie zachodniej Eurazji, a w Afryce odpowiada mu okres znany jako \u015arodkowa Epoka Kamienia (MSA).",
+      "type": "simple",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=57018"
+      ],
+      "contexts": [
+        "\u015arodkowy paleolit \u2013 odnosi si\u0119 do charakterystycznych wyrob\u00f3w kulturowych spotykanych na terenie zachodniej Eurazji. Odpowiednikiem dla tego terminu, w odniesieniu do teren\u00f3w afryka\u0144skich, jest \u015arodkowa Epoka Kamienia (MSA \u2013 \"Middle Stone Age\"). Proces przechodzenia od aszelskiej tradycji technologicznej do \u015arodkowej Epoki Kamienia znanej z teren\u00f3w afryka\u0144skich trwa\u0142 od ok. 300 do 200 tys. lat temu za\u015b koniec MSA wyznacza okres mi\u0119dzy 50 a 20 tys. lat temu.\nW okresie MSA bro\u0144 miotana \u2013 oszczepy \u2013 coraz cz\u0119\u015bciej wyposa\u017cana by\u0142a w ostrza li\u015bciowate jak i specjalnie odbijane od\u0142upki o wcze\u015bniej zamierzonym tr\u00f3jk\u0105tnym kszta\u0142cie kt\u00f3re s\u0142u\u017cy\u0142y jako groty. Zastosowanie kamiennych grot\u00f3w znacznie zwi\u0119ksza\u0142o efektywno\u015b\u0107 podejmowanych przez cz\u0142owieka dzia\u0142a\u0144 \u0142owczych. W okresie MSA w zasadzie niepo\u015bwiadczone jest stosowanie padlino\u017cerstwa, za\u015b \u015blad\u00f3w zorganizowanych polowa\u0144 ludzkich dostarcza wiele stanowisk, tj. Klasies River Mouth w Po\u0142udniowej Afryce. Na stanowisku tym znaleziono szcz\u0105tki bow"
+      ]
+    },
+    {
+      "question": "Co to jest IPPC?",
+      "ground_truth": "IPPC to Dyrektywa Unii Europejskiej nr 96/61/WE z 24 wrze\u015bnia 1996 r. dotycz\u0105ca zintegrowanego zapobiegania zanieczyszczeniom i ich kontroli.",
+      "type": "simple",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=146961"
+      ],
+      "contexts": [
+        "IPPC (ang. \"Integrated Pollution Prevention and Control\" ) \u2013 Dyrektywa Unii Europejskiej nr 96/61/WE z 24 wrze\u015bnia 1996 r. dotycz\u0105ca zintegrowanego zapobiegania zanieczyszczeniom i ich kontroli. Dyrektywa IPPC narzuca konieczno\u015b\u0107 uzyskiwania tzw. pozwolenia zintegrowanego na funkcjonowanie w UE instalacji technologicznych, w niekt\u00f3rych, uznawanych za szczeg\u00f3lnie uci\u0105\u017cliwe dla \u015brodowiska, dziedzinach dzia\u0142alno\u015bci gospodarczej, np. przemys\u0142u. S\u0105 to niekt\u00f3re instalacje technologiczne w ramach: przemys\u0142u paliwowo-energetycznego, chemicznego, mineralnego, metalurgicznego, a r\u00f3wnie\u017c instalacje zwi\u0105zane np. z gospodark\u0105 odpadami technologicznymi i komunalnymi oraz rolnictwem (m.in. ubojnie, mleczarnie, garbarnie).\nDyrektywa IPPC opiera si\u0119 na czterech filarach, s\u0105 to:"
+      ]
+    },
+    {
+      "question": "Por\u00f3wnaj Maje Popielarsk\u0105 i Forda Capri z punktu widzenia ich roli w kulturze polskiej?",
+      "ground_truth": "Maja Popielarska to polska dziennikarka i prezenterka, znana z program\u00f3w telewizyjnych zwi\u0105zanych z ogrodnicztwem i meteo, a Ford Capri to model samochodu sportowego produkowany przez Forda w latach 1968\u20131986. Pierwsza osoba wp\u0142ywa na kultur\u0119 poprzez media i edukacj\u0119, natomiast drugi \u2013 jako ikona motoryzacji. G\u0142\u00f3wna r\u00f3\u017cnica polega na tym, \u017ce Maja Popielarska dzia\u0142a w sferze medialnej, a Ford Capri ma charakter technologiczno-przemys\u0142owy.",
+      "type": "comparison",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=156933",
+        "https://pl.wikipedia.org/wiki?curid=197829"
+      ],
+      "contexts": [
+        "Maja Popielarska, w\u0142a\u015bc. Maria Popielarska (ur. 1973 w Trzciance) \u2013 polska dziennikarka, prezenterka TVN, TVN24, TVN Meteo i HGTV.\n\u017byciorys.\nW dzieci\u0144stwie przez kilka lat mieszka\u0142a w Afryce w Liberii i Ghanie. Absolwentka Liceum Og\u00f3lnokszta\u0142c\u0105cego im. Stanis\u0142awa Staszica w Trzciance oraz SGGW, ze specjalizacj\u0105 architektura krajobrazu. W latach 1996\u20131999 by\u0142a prezenterk\u0105 pogody przy magazynie \"7 minut \u2013 wydarzenia dnia\" i kierownikiem produkcji magazynu \"Zoom\" w stacji RTL 7. Od 1999 jest prezenterk\u0105 pogody w stacjach TVN. Od 10 wrze\u015bnia 2004 roku w TVN Meteo, prowadzi sw\u00f3j w\u0142asny magazyn poradnikowy, dotycz\u0105cy piel\u0119gnacji ro\u015blin i projektowania ogrod\u00f3w, dzia\u0142ek pt. \"Maja w ogrodzie\", obecnie pod nazw\u0105 \"Nowa Maja w ogrodzie\" i jest nadawany w HGTV. W 2007 roku by\u0142a tak\u017ce autork\u0105 programu \"Grunt to zdrowie\", kt\u00f3ry emitowany by\u0142 w TVN Style. We wrze\u015bniu 2007 poinformowa\u0142a o zamiarze odej\u015bcia z Grupy TVN do TV Puls, lecz miesi\u0105c p\u00f3\u017aniej zdecydowa\u0142a si\u0119 pozosta\u0107 w stacji, gdzie zmieni\u0142a zdanie po tym jak przedstawiono jej atrakcyjn\u0105 propozycj\u0119 rozwoju w ramach TVN Meteo. \n\u017bycie prywatne.\nMa dw\u00f3ch syn\u00f3w: Jakuba oraz Jana.",
+        "Ford Capri \u2013 samoch\u00f3d sportowy klasy kompaktowej produkowany pod ameryka\u0144sk\u0105 mark\u0105 Ford w latach 1968\u20131986.\nPierwsza generacja.\nFord Capri I zosta\u0142 zaprezentowany po raz pierwszy w 1968 roku.\nPo tym, jak na rynku Ameryki P\u00f3\u0142nocnej koncepcja przyst\u0119pnego samochodu sportowego pod postaci\u0105 Forda Mustanga odnios\u0142a rynkowy sukces, Ford postanowi\u0142 wprowadzi\u0107 do europejskiej oferty podobny model. Prace trwa\u0142y od 1964 roku w Wielkiej Brytanii i w Niemczech, efektem ich by\u0142o tylnonap\u0119dowe coup\u00e9 o nazwie Capri, kt\u00f3r\u0105 stosowano ju\u017c w latach 1961\u20131963 dla wi\u0119kszego, \u015bredniej wielko\u015bci coup\u00e9 Consul Capri. \nPierwsza generacja Forda Capri wyr\u00f3\u017cnia\u0142a si\u0119 dynamicznie stylizowan\u0105 lini\u0105 nadwozia, z pod\u0142u\u017cnym przodem, wyra\u017anie zaznaczonymi przet\u0142oczeniami maski, a tak\u017ce listw\u0105 biegn\u0105c\u0105 przez panele boczne. Ty\u0142 zosta\u0142 \u0142agodnie zako\u0144czony, a tylne b\u0142otniki zdobi\u0142a imitacja podw\u00f3jnych wlot\u00f3w powietrza. W 1970 roku ruszy\u0142 eksport nieznacznie wizualnie zmodyfikowanego Capri do Ameryki P\u00f3\u0142nocnej jako Mercury Capri.\nCapri RS2600.\nW 1970 roku do oferty trafi\u0142 model Capri RS2600. By\u0142 to pierwszy samoch\u00f3d Forda z wtryskiem paliwa odznaczaj\u0105cy si\u0119 jednostk\u0105 nap\u0119dow\u0105 o pojemno\u015bci 2550 cm3, 150 KM, 110 kW i przyspieszeniem 0-100 km/h w mniej ni\u017c 8 sekund.\nDruga generacja.\nFord Capri II zosta\u0142 zaprezentowany po raz pierwszy w 1974 roku.\nDruga generacja Capri powsta\u0142a na zmodernizowanej, nieznacznie skr\u00f3conej platformie poprzednika. Samoch\u00f3d przeszed\u0142 ewolucyjny zakres zmian, zyskuj\u0105c \u0142agodniej zarysowane kszt"
+      ]
+    },
+    {
+      "question": "Jak Rupert I legnicki zapewni\u0142 swoje miejsce w polityce regionalnej i jaki wp\u0142yw to mia\u0142o na rozw\u00f3j jego dynastii?",
+      "ground_truth": "Rupert I legnicki, jako najstarszy syn ksi\u0119cia Wac\u0142awa I, zosta\u0142 ksi\u0105\u017c\u0119cem legnickim w 1364 roku. Wsp\u00f3\u0142dzia\u0142a\u0142 ze stryjem Ludwikiem I podczas regencji, a po osi\u0105gni\u0119ciu pe\u0142noletnio\u015bci kontynuowa\u0142 wsp\u00f3\u0142prac\u0119 z nim w kwestiach rz\u0105dowych. Jego udzia\u0142 w sejmie Rzeszy w 1370 roku oraz dzia\u0142ania dyplomatyczne, takie jak interwencja u papie\u017ca Urbana V, przyczyni\u0142y si\u0119 do utrzymania wp\u0142ywu dynastii legnickiej w regionie.",
+      "type": "multihop",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=331645",
+        "https://pl.wikipedia.org/wiki?curid=142981"
+      ],
+      "contexts": [
+        "Ruprecht I, Rupert I (ur. 27 marca 1347, zm. stycze\u0144 1409) \u2013 w latach 1364\u20131409 razem z bra\u0107mi ksi\u0105\u017c\u0119 legnicki (do 1373 regencja), w latach 1397\u20131401 regent w ksi\u0119stwie g\u0142ogowsko-\u017caga\u0144skim.\nRupert by\u0142 najstarszym synem ksi\u0119cia legnickiego Wac\u0142awa I i ksi\u0119\u017cniczki cieszy\u0144skiej Anny (urodzonym dopiero po o\u015bmiu latach ma\u0142\u017ce\u0144stwa).\nW 1364 Rupert wraz z m\u0142odszym rodze\u0144stwem (bra\u0107mi Wac\u0142awem II, Boles\u0142awem IV i Henrykiem VIII oraz siostr\u0105 Jadwig\u0105) zosta\u0142 osierocony przez ojca i znalaz\u0142 si\u0119 pod opiek\u0105 stryja, ksi\u0119cia brzeskiego, Ludwika I.\nRok p\u00f3\u017aniej Rupert wraz ze stryjecznym bratem (Henrykiem VII z Blizn\u0105) uda\u0142 si\u0119 z cesarzem Karolem IV na jego wypraw\u0119 po koron\u0119 kr\u00f3lestwa Arles. Rupert odwiedzi\u0142 wtedy Awinion, gdzie wystara\u0142 si\u0119 u papie\u017ca Urbana V o zniesienie kl\u0105twy ko\u015bcielnej ci\u0105\u017c\u0105cej na jego ojcu.\nW 1370 ksi\u0105\u017c\u0119 wzi\u0105\u0142 udzia\u0142 w sejmie Rzeszy w Norymberdze, gdzie po raz pierwszy zaakcentowa\u0142 swoje pogl\u0105dy polityczne.\nRegencja stryja Ludwika trwa\u0142a a\u017c do osi\u0105gni\u0119cia pe\u0142noletnio\u015bci przez Ruperta, to znaczy do 1373, i mimo formalnego obj\u0119cia przez najstarszego syna Wac\u0142awa pe\u0142ni rz\u0105d\u00f3w w dalszym ci\u0105gu utrzymywa\u0142a si\u0119 \u015bcis\u0142a wsp\u00f3\u0142praca mi\u0119dzy stryjem a bratankiem. Rupert zgodzi\u0142 si\u0119 pod nac",
+        "Terapia zaj\u0119ciowa \u2013 multidyscyplinarna, wspomagaj\u0105ca forma leczenia i rehabilitacji zaburze\u0144 psychicznych lub sensorycznych, niepe\u0142nosprawno\u015bci fizycznej, poznawczej lub poprawy og\u00f3lnego stanu zdrowia polegaj\u0105ca na uczestnictwie chorych w r\u00f3\u017cnych formach celowej, produktywnej, zorganizowanej aktywno\u015bci o charakterze odtw\u00f3rczym, wytw\u00f3rczym lub tw\u00f3rczym \u2013 zaj\u0119cie.\nStosowano nazwy ergoterapia, terapia aktywno\u015bci\u0105, leczenie prac\u0105, terapia zaj\u0119cia. Nazw\u0119 \u201eterapia zaj\u0119ciowa\u201d wprowadzi\u0142 George Edward Barton.\nPierwsz\u0105 ksi\u0105\u017ck\u0119 na temat terapii zaj\u0119ciowej, czyli \u201e\u201d wyda\u0142a w 1910 roku.\nKlasyfikacja.\nTerapi\u0119 zaj\u0119ciow\u0105 mo\u017cna sklasyfikowa\u0107 na rodzaje, metody i techniki. Wyr\u00f3\u017cniane rodzaje to:\nWyr\u00f3\u017cniane formy to:\nKlasyfikacja urz\u0119dowa i kszta\u0142cenie.\nTerapeuta zaj\u0119ciowy w Klasyfikacji zawod\u00f3w i specjalno\u015bci dla potrzeb rynku pracy ma symbol 325907. Oznacza to nast\u0119puj\u0105ce miejsce w strukturze klasyfikacji zawod\u00f3w:\nZgodnie z Rozporz\u0105dzeniem Ministra Edukacji Narodowej z dnia 13 grudnia 2016 r. do terapeuty zaj\u0119ciowego przypisany jest IV poziom PRK dla kwalifikacji pe\u0142nej, o kt\u00f3rej mowa w art. 8 pkt 3-6 ustawy z dnia 22 grudnia 2015 r. o Zintegrowanym Systemie Kwalifikacji. Podano r\u00f3wnie\u017c, \u017ce minist"
+      ]
+    }
+  ],
+  "current_config_idx": 2,
+  "total_configs": 2
+}

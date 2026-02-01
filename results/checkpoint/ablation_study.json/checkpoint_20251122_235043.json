@@ -1,0 +1,215 @@
+{
+  "timestamp": "2025-11-23T00:00:30.303219",
+  "completed_configs": [
+    "baseline",
+    "full_no_cove",
+    "full_cove_auto"
+  ],
+  "config_results": [
+    {
+      "name": "baseline",
+      "description": "No enhancements (vector search only)",
+      "config": {
+        "use_query_analysis": false,
+        "use_cot": false,
+        "use_reranker": false,
+        "cove": "off",
+        "prompt_template": "basic",
+        "top_k": 10
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8255172413793103,
+        "mean_answer_relevancy": 0.9007916773421678,
+        "mean_context_precision": 0.528571428525,
+        "mean_context_recall": 0.8333333333333333,
+        "mean_latency_ms": 4992.21,
+        "mean_sources_count": 10.0,
+        "mean_num_candidates": 20.0,
+        "mean_multihop_coverage": 0.0,
+        "ci_faithfulness": [
+          0.6461449252977685,
+          1.0048895574608523
+        ],
+        "ci_answer_relevancy": [
+          0.8753316956498324,
+          0.9262516590345032
+        ],
+        "ci_context_precision": [
+          0.0867388811019203,
+          0.9704039759480796
+        ],
+        "ci_context_recall": [
+          0.6267311928689993,
+          1.0399354737976676
+        ],
+        "std_faithfulness": 0.20463708777546252,
+        "std_answer_relevancy": 0.029046045801001084,
+        "std_context_precision": 0.504065107505054,
+        "std_context_recall": 0.23570226039551584,
+        "num_questions": 5,
+        "num_multihop": 0,
+        "num_simple": 5
+      },
+      "run_time_ms": 149736.41991615295
+    },
+    {
+      "name": "full_no_cove",
+      "description": "Full pipeline without CoVe",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": true,
+        "use_reranker": true,
+        "cove": "off",
+        "prompt_template": "multihop",
+        "top_k": 10
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.8296654135338345,
+        "mean_answer_relevancy": 0.8858463709395563,
+        "mean_context_precision": 0.5499999999625,
+        "mean_context_recall": 0.7999999999999999,
+        "mean_latency_ms": 12154.932,
+        "mean_sources_count": 9.4,
+        "mean_num_candidates": 200.0,
+        "mean_multihop_coverage": 0.8,
+        "ci_faithfulness": [
+          0.6486154240518887,
+          1.0107154030157806
+        ],
+        "ci_answer_relevancy": [
+          0.8490561541672922,
+          0.9226365877118204
+        ],
+        "ci_context_precision": [
+          0.1009075818889058,
+          0.9990924180360943
+        ],
+        "ci_context_recall": [
+          0.5386666666666667,
+          1.0613333333333332
+        ],
+        "std_faithfulness": 0.20655106316696586,
+        "std_answer_relevancy": 0.0419721559233344,
+        "std_context_precision": 0.5123475382613837,
+        "std_context_recall": 0.29814239699997197,
+        "num_questions": 5,
+        "num_multihop": 4,
+        "num_simple": 1
+      },
+      "run_time_ms": 190052.59680747986
+    },
+    {
+      "name": "full_cove_auto",
+      "description": "Full pipeline with CoVe auto-correction",
+      "config": {
+        "use_query_analysis": true,
+        "use_cot": true,
+        "use_reranker": true,
+        "cove": "auto",
+        "prompt_template": "multihop",
+        "top_k": 10
+      },
+      "evaluation": {
+        "mean_faithfulness": 0.9270833333333333,
+        "mean_answer_relevancy": 0.8779547315511392,
+        "mean_context_precision": 0.5499999999625,
+        "mean_context_recall": 0.8666666666666666,
+        "mean_latency_ms": 24334.696,
+        "mean_sources_count": 9.4,
+        "mean_num_candidates": 200.0,
+        "mean_multihop_coverage": 0.8,
+        "ci_faithfulness": [
+          0.8437882263601203,
+          1.0103784403065466
+        ],
+        "ci_answer_relevancy": [
+          0.8321474013807105,
+          0.9237620617215682
+        ],
+        "ci_context_precision": [
+          0.1009075818889058,
+          0.9990924180360943
+        ],
+        "ci_context_recall": [
+          0.6053333333333334,
+          1.1280000000000001
+        ],
+        "std_faithfulness": 0.09502730682919451,
+        "std_answer_relevancy": 0.052259338841253014,
+        "std_context_precision": 0.5123475382613837,
+        "std_context_recall": 0.29814239699997197,
+        "num_questions": 5,
+        "num_multihop": 4,
+        "num_simple": 1
+      },
+      "run_time_ms": 246795.50981521606
+    }
+  ],
+  "questions": [
+    {
+      "question": "Co to jest 'Who We Be'?",
+      "ground_truth": "'Who We Be' to singel ameryka\u0144skiego rapera DMX-a, promuj\u0105cy jego album 'The Great Depression', wydany 22 stycznia 2002 roku.",
+      "type": "simple",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=1203752"
+      ],
+      "contexts": [
+        "Who We Be \u2013 singel ameryka\u0144skiego rapera DMX-a. Promuje on album \"The Great Depression\". Wydany 22 stycznia 2002 roku.\nPodk\u0142ad utworu zosta\u0142 skomponowany przez Black Key. Do \"Who We Be\" powsta\u0142 r\u00f3wnie\u017c klip. W utworze DMX wymienia po kolei przedmioty, osoby i czynno\u015bci, tworz\u0105c w ten spos\u00f3b pewn\u0105 histori\u0119."
+      ]
+    },
+    {
+      "question": "Jak Stuart Richardson wp\u0142yn\u0105\u0142 na rozw\u00f3j zespo\u0142u Lostprophets i jak ta sytuacja mo\u017ce by\u0107 por\u00f3wnana do wydarze\u0144 zwi\u0105zanych z Mandala Airlines?",
+      "ground_truth": "Stuart Richardson wp\u0142yn\u0105\u0142 na rozw\u00f3j zespo\u0142u Lostprophets, staj\u0105c si\u0119 ich basist\u0105 w 1999 roku i przeprowadzaj\u0105c si\u0119 do USA jako pierwszy cz\u0142onek grupy, co zapocz\u0105tkowa\u0142o przeniesienie reszty zespo\u0142u. Jego wk\u0142ad mia\u0142 znaczenie dla rozwoju kariery muzycznej zespo\u0142u, podobnie jak upadek Mandala Airlines, kt\u00f3ra w 2014 roku og\u0142osi\u0142a bankructwo, mia\u0142 wp\u0142yw na \u015bwiat lotniczy w Indonezji \u2013 oba przypadki pokazuj\u0105 kluczowe zmiany w odpowiednich bran\u017cach.",
+      "type": "multihop",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=1020404",
+        "https://pl.wikipedia.org/wiki?curid=1236450",
+        "https://pl.wikipedia.org/wiki?curid=406827"
+      ],
+      "contexts": [
+        "Stuart Richardson (ur. 15 sierpnia 1973, w Llwynapia Hospital, Tonypandy, Walia) - basista w walijskim zespole rockowym Lostprophets. \nZast\u0105pi\u0142 Mike'a Lewisa, zanim ten z badu przerzuci\u0142 si\u0119 na gitar\u0119. Stuart do\u0142\u0105czy\u0142 do Lostprophets w 1999 roku, dopiero kiedy nagrywali swoje drugie demo. Richardson wzi\u0105\u0142 \u015blub, przed nagraniem przez zesp\u00f3\u0142 trzeciej p\u0142yty - \"Liberation Transmission\". By\u0142 pierwszym z cz\u0142onk\u00f3w grupy, kt\u00f3ry przeprowadzi\u0142 si\u0119 do USA, nast\u0119pnie reszta cz\u0142onk\u00f3w zespo\u0142u zrobi\u0142a to samo.\n ",
+        "Mandala Airlines \u2013 nieistniej\u0105ca indonezyjska linia lotnicza z siedzib\u0105 w D\u017cakarcie. G\u0142\u00f3wnym w\u0119z\u0142em by\u0142 port lotniczy D\u017cakarta-Soekarno-Hatta.\nW 2014 linia zaprzesta\u0142a wszelkiej dzia\u0142alno\u015bci oraz og\u0142osi\u0142a bankructwo.",
+        "Ziel\u0105tkowo \u2013 wie\u015b w Polsce po\u0142o\u017cona w wojew\u00f3dztwie lubuskim, w powiecie strzelecko-drezdeneckim, w gminie Drezdenko.\nW latach 1975\u20131998 miejscowo\u015b\u0107 nale\u017ca\u0142a administracyjnie do wojew\u00f3dztwa gorzowskiego.\nWed\u0142ug danych z 2011 miejscowo\u015b\u0107 zamieszkiwa\u0142o 80 os\u00f3b."
+      ]
+    },
+    {
+      "question": "Kto napisa\u0142 s\u0142owa do utwor\u00f3w na albumie Artefact?",
+      "ground_truth": "S\u0142owa do utwor\u00f3w na albumie Artefact napisa\u0142 Marcin \"Novy\" Nowak.",
+      "type": "simple",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=709822"
+      ],
+      "contexts": [
+        "Artefact \u2013 trzeci studyjny album polskiej grupy deathmetalowej Devilyn. Wydany zosta\u0142 22 pa\u017adziernika 2001 roku nak\u0142adem Blackned Records.\nJest to ostatnie wydawnictwo zrealizowane z Marcinem \"Novym\" Nowakiem w sk\u0142adzie. Ca\u0142o\u015b\u0107 nagra\u0144 skomponowa\u0142 i wyprodukowa\u0142 sam zesp\u00f3\u0142 we wsp\u00f3\u0142pracy z Arkadiuszem \"Malt\u0105\" Malczewskim odpowiedzialnym r\u00f3wnie\u017c za in\u017cynieri\u0119 d\u017awi\u0119ku i miksowanie. Mastering wykona\u0142 Tim Turan w Turanaudio Studios w Wielkiej Brytanii.\nS\u0142owa na potrzeby utwor\u00f3w napisa\u0142 Marcin \"Novy\" Nowak, prze\u0142o\u017cy\u0142a Marta \"Creep\" Arciszewska. Fotografie do oprawy graficznej Artura Janusa wykona\u0142 Ireneusz Gajewski. Ok\u0142adk\u0119 w koncepcji Marcina \"Novego\" Nowaka wykona\u0142 Pawe\u0142 Kozakiewicz.\nLista utwor\u00f3w.\nOpracowano na podstawie materia\u0142u \u017ar\u00f3d\u0142owego.\nMuzycy.\nOpracowano na podstawie materia\u0142u \u017ar\u00f3d\u0142owego."
+      ]
+    },
+    {
+      "question": "Por\u00f3wnaj barwy achromatyczne i Ebersberg pod wzgl\u0119dem ich definicji oraz zastosowania?",
+      "ground_truth": "Barwy achromatyczne to kolorystyczne poj\u0119cie odnosz\u0105ce si\u0119 do bia\u0142ego, czarnego i szaro\u015bci, u\u017cywane w teorii barw i grafice. Ebersberg to miasto w Bawarii o znaczeniu geograficznym i historycznym. G\u0142\u00f3wne r\u00f3\u017cnice polegaj\u0105 na tym, \u017ce pierwsze odnosi si\u0119 do w\u0142a\u015bciwo\u015bci widma \u015bwiat\u0142a i mieszania kolor\u00f3w, a drugie jest lokalizacj\u0105 administracyjn\u0105 i turystyczn\u0105.",
+      "type": "comparison",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=472",
+        "https://pl.wikipedia.org/wiki?curid=817866"
+      ],
+      "contexts": [
+        "Barwy achromatyczne (barwy niekolorowe) \u2013 wszystkie barwy nieposiadaj\u0105ce dominanty barwnej, a wi\u0119c: bia\u0142y, czarny oraz wszystkie stopnie szaro\u015bci.\nKa\u017cda barwa achromatyczna to zr\u00f3wnowa\u017cona mieszanina widzialnych fal elektromagnetycznych wywo\u0142uj\u0105ca u obserwatora, w bie\u017c\u0105cych warunkach obserwacji, wra\u017cenie psychiczne braku odcienia kt\u00f3regokolwiek z kolor\u00f3w (przy czym teoretycznie barw\u0119 czarn\u0105 nale\u017cy traktowa\u0107 jako w og\u00f3le brak jakichkolwiek fal). Dla utworzenia szaro\u015bci lub bieli wystarcz\u0105 trzy dowolne (je\u017celi uwzgl\u0119dni\u0107 odejmowanie barw A - B = C \u21d4 A = C + B) barwy proste zmieszane w odpowiednich proporcjach. Dla wielu barw prostych istnieje te\u017c okre\u015blona barwa prosta, kt\u00f3ra zmieszana z pocz\u0105tkow\u0105 w odpowiednich proporcjach, da barw\u0119 achromatyczn\u0105. Jest to szczeg\u00f3lny przypadek barw dope\u0142niaj\u0105cych. Zar\u00f3wno w przypadku addytywnego mieszania barw RGB, jak i mieszania subtraktywnego CMY wszystkie 3 barwy sk\u0142adowe musz\u0105 mie\u0107 tak\u0105 sam\u0105 warto\u015b\u0107. Barwy te znajduj\u0105 si\u0119 na g\u0142\u00f3wnej przek\u0105tnej sze\u015bcianu RGB/CMY, czyli na odcinku \u0142\u0105cz\u0105cym wierzcho\u0142ki reprezentuj\u0105ce barw\u0119 czarn\u0105 i bia\u0142\u0105, a wi\u0119c o wsp\u00f3\u0142rz\u0119dnych {(0, 0, 0), (100%, 100%, 100%)}. W przypadku przestrzeni barw HSL/HSB/HSV sk\u0142adowa S (nasycenie koloru, ang. \"Saturation\") musi mie\u0107 warto\u015b\u0107 0, za\u015b sk\u0142adowe H (odcie\u0144, barwa, ang. \"Hue\") i L/B (jasno\u015b\u0107, ang. \"Lightness\", \"Brightness\") mog\u0105 przyjmowa\u0107 dowoln\u0105 warto\u015b\u0107, sk\u0142adowa H z przedzia\u0142u od 0 do 2\u03c0, natomiast sk\u0142adowa L/B - z przedzia\u0142u od 0 do 100%. Barwy te znajduj\u0105 si\u0119 na odcink",
+        "Ebersberg \u2013 miasto powiatowe w Niemczech, w kraju zwi\u0105zkowym Bawaria, w rejencji G\u00f3rna Bawaria, w regionie Monachium, siedziba powiatu Ebersberg.\nGeografia.\nMiasto jest po\u0142o\u017cone w strefie przej\u015bciowej mi\u0119dzy P\u00f3\u0142nocnym Przedg\u00f3rzem Alp, a G\u00f3rnobawarskimi terasami \u017cwirowymi, 33\u00a0km na wsch\u00f3d od stolicy landu Monachium, kt\u00f3re jest dost\u0119pne S-Bahnem (linie S4 i S6), kolej\u0105 regionaln\u0105 (\"Filzenexpress\") i drog\u0105 B304. Ebersberg le\u017cy 28\u00a0km na po\u0142udnie od Erding, 32\u00a0km na p\u00f3\u0142noc od Rosenheimu, 20\u00a0km na zach\u00f3d od Wasserburga, do kt\u00f3rego mo\u017cna dojecha\u0107 \"Filzenexpressem\" i B304 oraz 40\u00a0km od portu lotniczego Monachium.\nWody.\nEbersberg le\u017cy w zachodniej cz\u0119\u015bci doliny Ebrachtal, centrum jest powy\u017cej doliny. Na p\u00f3\u0142nocny zach\u00f3d od centrum znajduje si\u0119 jezioro Egglburger See, zasilaj\u0105ce \u0142a\u0144cuch staw\u00f3w \"Ebersberger Weiherkette\" w p\u00f3\u0142nocnej cz\u0119\u015bci miasta, kt\u00f3re \u0142\u0105cz\u0105 si\u0119 dalej z rzek\u0105 Ebrach.\nS\u0105siednie gminy.\nEbersberg s\u0105siaduje z gminami Bruck, Frauenneuharting, Grafing bei M\u00fcnchen, Hohenlinden, Kirchseeon i Steinh\u00f6ring oraz nienale\u017c\u0105cymi do \u017cadnej gminy obszarami wolnymi administracyjnie Ebersberger Forst i Eglhartinger Forst.\nHistoria.\nDo utworzenia gminy.\nHistoria Ebersbergu zwi\u0105zana jest \u015bci\u015ble z za\u0142o\u017conym w 934 r. przez hrabi\u00f3w von Ebersberg klasztorem benedykty\u0144skim. Od XIV w. klasztor mia\u0142 prawo do wykonywania jurysdykcji zwanej \"Klosterhofmark\". W 1595 r. klasztor benedykty\u0144ski zosta\u0142 zniesiony przez papie\u017ca Klemensa VIII, a zesp\u00f3\u0142 klasztorny zosta\u0142 przekazany Jezuitom, a w 1773 r. Joann"
+      ]
+    },
+    {
+      "question": "Jak aktor Shah Rukh Khan zwi\u0105zany jest z filmem 'Anjaam' i jaki rodzaj muzyki by\u0142 w nim wykorzystywany?",
+      "ground_truth": "Shah Rukh Khan gra g\u0142\u00f3wn\u0105 rol\u0119 negatywn\u0105 w filmie 'Anjaam', za kt\u00f3r\u0105 otrzyma\u0142 Nagrod\u0119 Filmfare. Muzyk\u0119 do filmu skomponowa\u0142 duet braci Anand-Milind, znany z innych popularnych film\u00f3w Bollywood.",
+      "type": "multihop",
+      "source_urls": [
+        "https://pl.wikipedia.org/wiki?curid=863282",
+        "https://pl.wikipedia.org/wiki?curid=1151656"
+      ],
+      "contexts": [
+        "Anjaam (hindi: \u0905\u0902\u091c\u093e\u092e, urdu: \u0627\u0646\u062c\u0627\u0645, dos\u0142. \u201eKonsekwencje\u201d) \u2013 indyjski thriller, film mi\u0142o\u015bci i zemsty wyra\u017canych te\u017c w \u015bpiewie i w ta\u0144cu. Wyre\u017cyserowa\u0142 go w 1994 Rahul Rawail. S\u0142awny aktor indyjski Shah Rukh Khan gra w nim po raz trzeci rol\u0119 negatywn\u0105 (Nagroda Filmfare za Najlepsz\u0105 Rol\u0119 Negatywn\u0105). Pierwszy raz w parze z Madhuri Dixit.\nTematem filmu jest niszcz\u0105ca si\u0142a po\u017c\u0105dania drugiej osoby i zemsta za krzywd\u0119.\nFabu\u0142a.\nVijay Agnihotri (Shah Rukh Khan) pyszny z powodu bogactwa, rozpieszczony przez matk\u0119 spotyka podczas lotu stewardes\u0119 Shivani (Madhuri Dixit), kt\u00f3ra rozbraja go czu\u0142\u0105 trosk\u0105, z jak\u0105 opatruje jego zranienie. Vijay odbiera jej \u017cyczliwo\u015b\u0107 jako obietnic\u0119 uczucia, a z czasem wmawia sobie, \u017ce jest przez ni\u0105 kochany. Prze\u015bladuje j\u0105 swoj\u0105 uwag\u0105, je\u017adzi za ni\u0105 wsz\u0119dzie, a gdy pewnego dnia zdobywa si\u0119 na odwag\u0119, aby przyj\u015b\u0107 z matk\u0105 do jej domu proponuj\u0105c ma\u0142\u017ce\u0144stwo, trafia na jej za\u015blubiny z pilotem Ashokiem Chopr\u0105. Chory z mi\u0142o\u015bci Vijay nie rezygnuje, my\u015bl o niej wype\u0142nia ca\u0142e jego \u017cycie, zaczyna j\u0105 osacza\u0107 swoim szale\u0144stwem, staje si\u0119 coraz gwa\u0142towniejszy.\nMuzyka filmowa.\nMyzyk\u0119 skomponowa\u0142 duet braci Anand-Milind, znany z film\u00f3w: \"Qayamat Se Qayamat Tak\" 1988, \"Dil\", czy \"Be",
+        "Metro w Sapporo, jap.: \u672d\u5e4c\u5730\u4e0b\u9244 \"Sapporo Chikatetsu\", pe\u0142na nazwa\u3000\u672d\u5e4c\u5e02\u55b6\u5730\u4e0b\u9244 \"Sapporo Shiei Chikatetsu\" (pol.: \u201eMiejska Kolej Podziemna Sapporo\u201d) \u2013 nale\u017c\u0105ca do gminy sie\u0107 szybkiej kolei miejskiej obs\u0142uguj\u0105cej ruch miejski w\u00a0Sapporo (Hokkaido, Japonia).\nSie\u0107.\nSie\u0107 metra sk\u0142ada si\u0119 z\u00a0trzech ni\u017cej wymienionych linii tworz\u0105cych dwa r\u00f3\u017cne pod wzgl\u0119dem technologicznym systemy (linia Namboku ma inny system zasilania). Wszystkie linie \u0142\u0105czy g\u0142\u00f3wna stacja przesiadkowa \u5927\u901a \u014c-d\u014dri.\nEksploatacja.\nCz\u0119stotliwo\u015b\u0107 od 3\u00a0min. w\u00a0porannym szczycie do 7\u00a0min. poza szczytem. Poci\u0105gi kursuj\u0105 od 6 rano do p\u00f3\u0142nocy (ostatnie w\u00a0\u015br\u00f3dmie\u015bciu \u2013 ok. 0:30).\n\u201eG\u0119sto\u015b\u0107 przewoz\u00f3w\u201d mierzona liczb\u0105 pasa\u017cer\u00f3w odniesion\u0105 do d\u0142ugo\u015bci sieci wynosi 11.98 tys.pas./km dziennie. Najbardziej obci\u0105\u017cona jest linia Namboku: dzienne przewozy to 236,3\u00a0tys. os\u00f3b. \"T\u014dzai-sen\" przewozi dziennie 205,9\u00a0tys., a\u00a0T\u014dh\u014d \u2013 127,3\u00a0tys. os\u00f3b (2005). W\u015br\u00f3d stacji najbardziej obci\u0105\u017cona jest \u014c-d\u014dri \u2013 dzienna liczba pasa\u017cer\u00f3w wsiadaj\u0105cych lub wysiadaj\u0105cych z\u00a0linii Namboku wynosi 35,3\u00a0tys., z linii T\u014dzai \u2013 23,4\u00a0tys., z linii T\u014dh\u014d \u2013 14,2\u00a0tys.\nOp\u0142ata za przejazd zale\u017cy od odleg\u0142o\u015bci i\u00a0wynosi od 200\u5186 (jen\u00f3w) do 360\u5186. Przy przesiadaniu si\u0119 na autobus (lub tramwaj"
+      ]
+    }
+  ],
+  "current_config_idx": 3,
+  "total_configs": 3
+}
