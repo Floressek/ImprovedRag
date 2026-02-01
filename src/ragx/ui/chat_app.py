@@ -6,7 +6,6 @@ from datetime import datetime
 import sys
 import os
 
-# Dodaj root projektu do sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 
 
@@ -18,7 +17,7 @@ from src.ragx.ui.components import (
     _render_message_metadata,
     _render_sources,
 )
-from src.ragx.ui.helpers.helpers import call_rag_api, update_session_stats
+from src.ragx.ui.helpers.helpers import update_session_stats
 
 # Page configuration
 st.set_page_config(
