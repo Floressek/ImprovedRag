@@ -1,6 +1,6 @@
 # RAGx - Advanced Retrieval-Augmented Generation System
 
-A production-ready RAG system featuring adaptive query rewriting, multihop retrieval, Chain-of-Verification (CoVe), and cross-encoder reranking. Designed for Polish and multilingual knowledge bases.
+Ablation oriented RAG system featuring adaptive query rewriting, multihop retrieval, Chain-of-Verification (CoVe), and cross-encoder reranking. Designed for Polish and multilingual knowledge bases.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -159,7 +159,7 @@ Final Answer + Sources + Metadata
 | OS | Windows 11 Home                            |
 | LLM | Qwen2.5-14B / Qwen3-8B (4-bit via Ollama)  |
 
-### Production Environment
+### Production Environment (curtesy of Military University of Technology Cloud Laboratory)
 
 | Resource | Specification |
 |----------|---------------|
