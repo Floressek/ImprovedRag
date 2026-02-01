@@ -96,7 +96,6 @@ class AnswerCorrector:
             original_answer: str,
             failed_verifications: List[Verification],
             contexts: List[Dict[str, Any]],
-            provider: str,
     ) -> tuple[Optional[str], Dict[str, Any]]:
         """Mode 2: suggest corrections, decide whether to correct"""
 

@@ -5,7 +5,6 @@ import re
 from typing import List, Dict, Any, Optional
 
 from src.ragx.retrieval.cove.constants.types import Claim
-from src.ragx.retrieval.cove.tools.sentence_splitter import split_sentences
 from src.ragx.retrieval.rerankers.reranker import Reranker
 
 logger = logging.getLogger(__name__)
@@ -37,7 +36,6 @@ class CitationInjector:
             logger.debug("No contexts found for claim")
             return None
 
-        # Optional fix for correcting citation injection FIXME delete this comment or code if buggy
         # Remove existing citations from claim text for matching
         claim_clean = re.sub(r'\[\d+\]', '', claim.text).strip()
 
