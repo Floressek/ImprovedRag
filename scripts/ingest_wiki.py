@@ -263,8 +263,6 @@ def main() -> None:
         for batch in pipeline.process_in_batches(chunks_iterator, batch_size=args.batch_size):
             # Convert chunks to dictionaries
             chunk_dicts = [chunk.to_dict() for chunk in batch]
-
-            # Extract texts for embedding
             texts = [chunk["text"] for chunk in chunk_dicts]
 
             # "passage" prefix will come from the embedder if enabled
@@ -274,7 +272,6 @@ def main() -> None:
                 convert_to_numpy=False,
             )
 
-            # Add to vector store
             vector_store.add(
                 vectors=embeddings,
                 payloads=chunk_dicts,

@@ -68,7 +68,7 @@ def _perform_retrieval(
 ) -> Tuple[List[Any], Dict[str, List[Any]], int]:
     """Perform retrieval for single or multihop queries."""
     if reranker_enabled:
-        retrieve_k = settings.retrieval.top_k_retrieve  # np. 200 z configu
+        retrieve_k = settings.retrieval.top_k_retrieve  # np. 200 from config
     else:
         retrieve_k = top_k * 2
     if is_multihop and len(queries) > 1:
