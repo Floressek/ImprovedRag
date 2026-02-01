@@ -6,6 +6,7 @@ from typing import Any, Optional, Sequence, Tuple, List, Union
 from uuid import uuid4
 
 from qdrant_client import QdrantClient
+from qdrant_client.conversions.common_types import HnswConfigDiff
 from qdrant_client.models import (
     Distance,
     FieldCondition,

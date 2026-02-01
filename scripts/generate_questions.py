@@ -142,7 +142,7 @@ def main():
     logger.info("GENERATION STATISTICS:")
     logger.info(f"{'=' * 80}")
     logger.info(f"Total questions generated: {len(questions)}")
-    logger.info(f"Question type breakdown:")
+    logger.info("Question type breakdown:")
     for qtype, count in sorted(type_counts.items()):
         percentage = (count / len(questions)) * 100
         logger.info(f"  {qtype:12s}: {count:4d} ({percentage:5.1f}%)")

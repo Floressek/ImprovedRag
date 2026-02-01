@@ -53,10 +53,9 @@ class LinguisticAnalyzer:
             return self._empty_features(query)
 
         doc: Doc = self.nlp(query)
-
         pos_sequence = [token.pos_ for token in doc]
 
-        # First 20 for understending the context -> increase once i get this to work TODO
+        # First 20 for understanding the context
         dep_tree = [
             (token.dep_, token.head.text, token.text)
             for token in doc
@@ -76,9 +75,7 @@ class LinguisticAnalyzer:
                 num_clauses += 1
 
         syntax_depth = self._calculate_depth(doc)
-
         has_relative_clauses = any(token.dep_ == "relcl" for token in doc)
-
         has_conjunctions = any(token.pos_ in ("CCONJ", "SCONJ") for token in doc)
 
         return LinguisticFeatures(

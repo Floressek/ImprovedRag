@@ -6,14 +6,11 @@ DOCKER_COMPOSE = docker-compose
 PIPELINE = $(PY) -m src.ragx.ingestion.pipelines.pipeline
 
 # Evaluation settings (can override: make eval-run NUM_QUESTIONS=50)
-#NUM_QUESTIONS ?= 200
 NUM_QUESTIONS ?= 1000
-# Linux date command syntax -> for windows based makefile change branch to final/windows-testing
-RUN_ID ?= study_$(shell date +%Y%m%d_%H%M%S)
+# Windows PowerShell date command syntax
+RUN_ID ?= study_$(shell powershell -Command "Get-Date -Format 'yyyyMMdd_HHmmss'")
 CHECKPOINT_DIR ?= checkpoints
-EVAL_OUTPUT ?= results/ablation_$(shell date +%Y%m%d_%H%M%S).json
-# Get current directory for Docker volumes
-PWD := $(shell pwd)
+EVAL_OUTPUT ?= results/ablation_$(shell powershell -Command "Get-Date -Format 'yyyyMMdd_HHmmss'").json
 
 
 help:
@@ -33,11 +30,12 @@ help:
 	@echo ""
 	@echo "RAGAS Evaluation (NEW!):"
 	@echo "  make eval-help        - Show detailed evaluation help"
-	@echo "  make eval-generate    - Generate test questions (default: 100)"
+	@echo "  make eval-generate    - Generate test questions (default: 1000)"
 	@echo "  make eval-api         - Start RAG API server"
 	@echo "  make eval-run         - Run ablation study with checkpointing"
 	@echo "  make eval-resume      - Resume from checkpoint (set RUN_ID=...)"
-	@echo "  make eval-quick       - Quick test (10 questions, 3 configs)"
+	@echo "  make eval-quick       - Quick test (5 questions, 3 configs)"
+	@echo "  make eval-test        - Test run (40 questions, all configs)"
 	@echo "  make eval-clean       - Clean checkpoints and results"
 	@echo ""
 	@echo "Search & Status:"
@@ -97,12 +95,8 @@ setup-qdrant:
 	@echo "Starting Qdrant..."
 	$(DOCKER_COMPOSE) up -d qdrant
 	@echo "Waiting for Qdrant to be ready..."
-	@sleep 3
-	@if curl -s -o /dev/null -w "%{http_code}" http://localhost:6333/collections | grep -q "200"; then \
-		echo "Qdrant is running"; \
-	else \
-		echo "Qdrant failed to start"; \
-	fi
+	@powershell -Command "Start-Sleep -Seconds 3"
+	@powershell -Command "try { $$response = Invoke-RestMethod -Uri 'http://localhost:6333/' -TimeoutSec 10; Write-Host 'Qdrant is running' } catch { Write-Host 'Qdrant failed to start' }"
 
 stop-qdrant:
 	@echo "Stopping Qdrant..."
@@ -114,23 +108,14 @@ stop-qdrant:
 
 download-wiki:
 	@echo "Downloading Polish Wikipedia dump..."
-	@mkdir -p data/raw
-	@read -p "This will download ~2-3 GB. Continue? (y/N) " confirm; \
-	if [ "$$confirm" != "y" ]; then \
-		echo "Download cancelled"; \
-		exit 1; \
-	fi
+	@if not exist "data\raw" mkdir data\raw
+	@powershell -Command "$$confirm = Read-Host 'This will download ~2-3 GB. Continue? (y/N)'; if ($$confirm -ne 'y') { Write-Host 'Download cancelled'; exit 1 }"
 	@curl -L "https://dumps.wikimedia.org/plwiki/latest/plwiki-latest-pages-articles-multistream.xml.bz2" -o data/raw/plwiki-latest.xml.bz2
 	@echo "Wikipedia dump downloaded!"
 
 extract-wiki:
 	@echo "Extracting Wikipedia dump using Docker..."
-	@docker run --rm -v "$(PWD)/data:/data" python:3.11-slim bash -c \
-		"apt-get update -qq && \
-		apt-get install -y -qq git && \
-		pip install -q git+https://github.com/attardi/wikiextractor.git && \
-		mkdir -p /data/processed/wiki_extracted && \
-		wikiextractor /data/raw/plwiki-latest.xml.bz2 --output /data/processed/wiki_extracted --bytes 1M --processes 8 --json --no-templates"
+	@powershell -Command "docker run --rm -v \"$${PWD}/data:/data\".Replace('\', '/') python:3.11-slim bash -c \"apt-get update -qq && apt-get install -y -qq git && pip install -q git+https://github.com/attardi/wikiextractor.git && mkdir -p /data/processed/wiki_extracted && wikiextractor /data/raw/plwiki-latest.xml.bz2 --output /data/processed/wiki_extracted --bytes 1M --processes 8 --json --no-templates\""
 	@echo "Wikipedia extraction complete!"
 
 # ============================================================================
@@ -202,11 +187,7 @@ status:
 	@echo ""
 	@echo "System Check:"
 	@echo "Python:   $$($(PY) --version)"
-	@if curl -s -o /dev/null -w "%{http_code}" http://localhost:6333/collections | grep -q "200"; then \
-		echo "Qdrant:   Running"; \
-	else \
-		echo "Qdrant:   Not running"; \
-	fi
+	@powershell -Command "try { $$null = Invoke-RestMethod -Uri 'http://localhost:6333/' -TimeoutSec 2; Write-Host 'Qdrant:   Running' } catch { Write-Host 'Qdrant:   Not running' }"
 
 # Show detailed ingestion status with file history
 status-detailed:
@@ -216,7 +197,7 @@ status-detailed:
 # Clear ingestion progress (start fresh)
 clear-progress:
 	@echo "Clearing ingestion progress..."
-	@rm -f data/.ingestion_progress.json
+	@if exist data\.ingestion_progress.json del /q data\.ingestion_progress.json
 	@echo "Progress cleared. Next ingestion will start from scratch."
 
 # ============================================================================
@@ -231,7 +212,7 @@ docker-up:
 	@echo "Starting all services..."
 	$(DOCKER_COMPOSE) up -d
 	@echo "Waiting for services..."
-	@sleep 5
+	@powershell -Command "Start-Sleep -Seconds 5"
 	@$(DOCKER_COMPOSE) ps
 
 docker-down:
@@ -247,25 +228,25 @@ docker-logs:
 
 clean:
 	@echo "Cleaning cache files..."
-	@rm -rf __pycache__
-	@find . -name "__pycache__" -type d -exec rm -rf {} +
-	@find . -name ".pytest_cache" -type d -exec rm -rf {} +
-	@find . -name ".mypy_cache" -type d -exec rm -rf {} +
-	@find . -name ".ruff_cache" -type d -exec rm -rf {} +
-	@find . -name "*.pyc" -delete
+	@if exist __pycache__ rmdir /s /q __pycache__
+	@for /d /r %%d in (__pycache__) do @if exist "%%d" rmdir /s /q "%%d"
+	@for /d /r %%d in (.pytest_cache) do @if exist "%%d" rmdir /s /q "%%d"
+	@for /d /r %%d in (.mypy_cache) do @if exist "%%d" rmdir /s /q "%%d"
+	@for /d /r %%d in (.ruff_cache) do @if exist "%%d" rmdir /s /q "%%d"
+	@del /s /q *.pyc 2>nul
 	@echo "Cache cleaned!"
 
 clean-data:
 	@echo "Cleaning data files..."
-	@rm -rf data/processed/wiki_extracted
-	@rm -f data/raw/*.bz2
+	@if exist data\processed\wiki_extracted rmdir /s /q data\processed\wiki_extracted
+	@if exist data\raw\*.bz2 del /q data\raw\*.bz2
 	@echo "Data cleaned!"
 
 clean-all: clean clean-data
 	@echo "Deep cleaning..."
 	$(DOCKER_COMPOSE) down -v
-	@rm -rf models
-	@rm -rf .cache
+	@if exist models rmdir /s /q models
+	@if exist .cache rmdir /s /q .cache
 	@echo "Everything cleaned!"
 
 # ============================================================================
@@ -345,11 +326,11 @@ eval-help:
 	@echo "Generate questions from Wikipedia for RAGAS evaluation."
 	@echo ""
 	@echo "Usage:"
-	@echo "  make eval-generate                  # Default: 100 questions"
+	@echo "  make eval-generate                  # Default: 1000 questions"
 	@echo "  make eval-generate NUM_QUESTIONS=50 # Custom: 50 questions"
 	@echo ""
 	@echo "Output:"
-	@echo "  data/eval/questions_100.jsonl"
+	@echo "  data/eval/questions_1000.jsonl"
 	@echo ""
 	@echo "============================================================================"
 	@echo "2. START API SERVER"
@@ -367,7 +348,7 @@ eval-help:
 	@echo "Run full ablation study with automatic checkpoint saving."
 	@echo ""
 	@echo "Usage:"
-	@echo "  make eval-run                        # Default: 100 questions, all configs"
+	@echo "  make eval-run                        # Default: 1000 questions, all configs"
 	@echo "  make eval-run NUM_QUESTIONS=50       # Custom: 50 questions"
 	@echo "  make eval-run RUN_ID=my_test_001     # Custom run ID"
 	@echo ""
@@ -387,7 +368,7 @@ eval-help:
 	@echo "Resume interrupted test from checkpoint."
 	@echo ""
 	@echo "Usage:"
-	@echo "  make eval-resume RUN_ID=study_20250118_153045"
+	@echo "  make eval-resume RUN_ID=study_20250105_153045"
 	@echo ""
 	@echo "Required:"
 	@echo "  - RUN_ID must match original test"
@@ -399,7 +380,7 @@ eval-help:
 	@echo "Fast test with minimal questions and configs (for debugging)."
 	@echo ""
 	@echo "Usage:"
-	@echo "  make eval-quick    # 10 questions, 3 configs (~2-5 min)"
+	@echo "  make eval-quick    # 5 questions, 3 configs (~2-5 min)"
 	@echo ""
 	@echo "Configs tested:"
 	@echo "  - baseline"
@@ -407,7 +388,15 @@ eval-help:
 	@echo "  - full_cove_auto"
 	@echo ""
 	@echo "============================================================================"
-	@echo "6. CLEAN EVALUATION DATA"
+	@echo "6. TEST RUN"
+	@echo "============================================================================"
+	@echo "Test run with 40 questions and all configs."
+	@echo ""
+	@echo "Usage:"
+	@echo "  make eval-test     # 40 questions, all configs"
+	@echo ""
+	@echo "============================================================================"
+	@echo "7. CLEAN EVALUATION DATA"
 	@echo "============================================================================"
 	@echo "Remove checkpoints and results."
 	@echo ""
@@ -428,10 +417,10 @@ eval-help:
 	@echo "  make eval-run"
 	@echo ""
 	@echo "  # If interrupted, resume:"
-	@echo "  make eval-resume RUN_ID=study_20250118_153045"
+	@echo "  make eval-resume RUN_ID=study_20250105_153045"
 	@echo ""
 	@echo "VARIABLES YOU CAN OVERRIDE:"
-	@echo "  NUM_QUESTIONS     Number of questions to generate/test (default: 100)"
+	@echo "  NUM_QUESTIONS     Number of questions to generate/test (default: 1000)"
 	@echo "  RUN_ID            Unique identifier for checkpoint (auto-generated)"
 	@echo "  CHECKPOINT_DIR    Directory for checkpoints (default: checkpoints)"
 	@echo "  EVAL_OUTPUT       Output path for results (auto-generated)"
@@ -439,12 +428,8 @@ eval-help:
 
 eval-generate:
 	@echo "Generating $(NUM_QUESTIONS) test questions..."
-	@mkdir -p data/eval
-	$(PY) scripts/generate_questions.py \
-		--num-questions $(NUM_QUESTIONS) \
-		--data-dir data/processed/wiki_extracted \
-		--output data/eval/questions_$(NUM_QUESTIONS).jsonl \
-		--show-samples 3
+	@if not exist "data\eval" mkdir data\eval
+	$(PY) scripts/generate_questions.py --num-questions $(NUM_QUESTIONS) --data-dir data/processed/wiki_extracted --output data/eval/questions_$(NUM_QUESTIONS).jsonl --show-samples 3
 	@echo ""
 	@echo "Questions generated!"
 	@echo "Output: data/eval/questions_$(NUM_QUESTIONS).jsonl"
@@ -465,14 +450,9 @@ eval-run:
 	@echo "Run ID: $(RUN_ID)"
 	@echo "Checkpoint dir: $(CHECKPOINT_DIR)"
 	@echo ""
-	@mkdir -p $(CHECKPOINT_DIR)
-	@mkdir -p results
-	$(PY) scripts/run_ablation_study.py \
-		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
-		--output $(EVAL_OUTPUT) \
-		--checkpoint-dir $(CHECKPOINT_DIR) \
-		--run-id $(RUN_ID) \
-		--api-url http://localhost:8080
+	@if not exist "$(CHECKPOINT_DIR)" mkdir $(CHECKPOINT_DIR)
+	@if not exist "results" mkdir results
+	$(PY) scripts/run_ablation_study.py --questions data/eval/questions_$(NUM_QUESTIONS).jsonl --output $(EVAL_OUTPUT) --checkpoint-dir $(CHECKPOINT_DIR) --run-id $(RUN_ID) --api-url http://localhost:8080
 	@echo ""
 	@echo "Ablation study complete!"
 	@echo "Results: $(EVAL_OUTPUT)"
@@ -483,59 +463,38 @@ eval-resume:
 	@echo "Resuming ablation study..."
 	@echo "Run ID: $(RUN_ID)"
 	@echo ""
-	@if [ ! -f "$(CHECKPOINT_DIR)/checkpoint_$(RUN_ID).json" ]; then \
-		echo "ERROR: Checkpoint not found!"; \
-		exit 1; \
-	fi
-	$(PY) scripts/run_ablation_study.py \
-		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
-		--output $(EVAL_OUTPUT) \
-		--checkpoint-dir $(CHECKPOINT_DIR) \
-		--run-id $(RUN_ID) \
-		--resume \
-		--api-url http://localhost:8080
+	@if not exist "$(CHECKPOINT_DIR)\checkpoint_$(RUN_ID).json" (echo ERROR: Checkpoint not found! && exit 1)
+	$(PY) scripts/run_ablation_study.py --questions data/eval/questions_$(NUM_QUESTIONS).jsonl --output $(EVAL_OUTPUT) --checkpoint-dir $(CHECKPOINT_DIR) --run-id $(RUN_ID) --resume --api-url http://localhost:8080
 	@echo ""
 	@echo "Ablation study complete!"
 	@echo ""
 
 eval-quick:
-	@echo "Running QUICK test (10 questions, 3 configs)..."
+	@echo "Running QUICK test (5 questions, 3 configs)..."
 	@echo "This should take ~2-5 minutes"
 	@echo ""
-	@mkdir -p results
-	$(PY) scripts/run_ablation_study.py \
-		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
-		--output results/quick_test.json \
-		--configs baseline full_no_cove full_cove_auto \
-		--max-questions 5 \
-		--api-url http://localhost:8080
+	@if not exist "results" mkdir results
+	$(PY) scripts/run_ablation_study.py --questions data/eval/questions_$(NUM_QUESTIONS).jsonl --output results/quick_test.json --configs baseline full_no_cove full_cove_auto --max-questions 5 --api-url http://localhost:8080
 	@echo ""
 	@echo "Quick test complete!"
 	@echo "Results: results/quick_test.json"
 	@echo ""
 
 eval-test:
-	@echo "Running QUICK mockup (10 questions, all configs)..."
+	@echo "Running TEST (40 questions, all configs)..."
 	@echo "This should take ~? minutes"
 	@echo ""
-	@mkdir -p results
-	$(PY) scripts/run_ablation_study.py \
-		--questions data/eval/questions_$(NUM_QUESTIONS).jsonl \
-		--output results/quick_test.json \
-		--max-questions 40 \
-		--checkpoint-dir $(CHECKPOINT_DIR) \
-        --run-id $(RUN_ID) \
-        --resume \
-		--api-url http://localhost:8080
+	@if not exist "results" mkdir results
+	$(PY) scripts/run_ablation_study.py --questions data/eval/questions_$(NUM_QUESTIONS).jsonl --output results/quick_test.json --max-questions 40 --checkpoint-dir $(CHECKPOINT_DIR) --run-id $(RUN_ID) --resume --api-url http://localhost:8080
 	@echo ""
-	@echo "Quick test complete!"
+	@echo "Test complete!"
 	@echo "Results: results/quick_test.json"
 	@echo ""
 
 eval-clean:
 	@echo "Cleaning evaluation data..."
-	@rm -rf $(CHECKPOINT_DIR)
-	@rm -rf results
-	@rm -rf data/eval
+	@if exist $(CHECKPOINT_DIR) rmdir /s /q $(CHECKPOINT_DIR)
+	@if exist results rmdir /s /q results
+	@if exist data\eval rmdir /s /q data\eval
 	@echo "Evaluation data cleaned!"
 	@echo ""
